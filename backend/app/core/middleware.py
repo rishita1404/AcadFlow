@@ -24,15 +24,27 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Content Security Policy (Prevents execution of untrusted scripts)
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "font-src 'self'; "
-            "connect-src 'self'; "
-            "frame-ancestors 'none';"
-        )
+        # If accessing API docs, allow Swagger UI CDN assets to render
+        if request.url.path in ("/docs", "/redoc"):
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https: https://fastapi.tiangolo.com; "
+                "font-src 'self' https://cdn.jsdelivr.net; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none';"
+            )
+        else:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data: https:; "
+                "font-src 'self'; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none';"
+            )
 
         # Anti-Clickjacking
         response.headers["X-Frame-Options"] = "DENY"
