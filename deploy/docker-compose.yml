@@ -59,6 +59,8 @@ services:
       dockerfile: Dockerfile
     container_name: acadflow-backend-1
     restart: always
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,7 +70,10 @@ services:
         condition: service_healthy
     environment:
       INSTANCE_ID: "api-instance-1"
-      DATABASE_URL: postgresql+asyncpg://acadflow_user:acadflow_password@postgres:5432/acadflow_db
+      ENVIRONMENT: development
+      PORT: 8000
+      SECRET_KEY: acadflow-dev-secret-key-for-local-docker-testing-only-32chars
+      DATABASE_URL: postgresql+psycopg://acadflow_user:acadflow_password@postgres:5432/acadflow_db
       MONGO_URI: mongodb://mongo:27017
       REDIS_URL: redis://redis:6379/0
       ML_SERVICE_URL: http://ml-serve:8001
@@ -90,7 +95,10 @@ services:
         condition: service_healthy
     environment:
       INSTANCE_ID: "api-instance-2"
-      DATABASE_URL: postgresql+asyncpg://acadflow_user:acadflow_password@postgres:5432/acadflow_db
+      ENVIRONMENT: development
+      PORT: 8000
+      SECRET_KEY: acadflow-dev-secret-key-for-local-docker-testing-only-32chars
+      DATABASE_URL: postgresql+psycopg://acadflow_user:acadflow_password@postgres:5432/acadflow_db
       MONGO_URI: mongodb://mongo:27017
       REDIS_URL: redis://redis:6379/0
       ML_SERVICE_URL: http://ml-serve:8001
