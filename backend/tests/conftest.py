@@ -8,8 +8,9 @@ if str(BACKEND_DIR) not in sys.path:
 
 @pytest.fixture
 async def async_client():
-    from httpx import AsyncClient
+    from httpx import AsyncClient, ASGITransport
     from app.main import app
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 

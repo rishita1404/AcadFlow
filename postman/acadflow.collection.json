@@ -1,6 +1,7 @@
 {
   "info": {
     "name": "AcadFlow API Collection",
+    "description": "Postman API Collection including Evaluation 1 Security test cases for RBAC, unauthenticated denial, cross-student scoping, lockout, and rate limiting.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -10,6 +11,99 @@
         "method": "GET",
         "url": "{{baseUrl}}/api/v1/health"
       }
+    },
+    {
+      "name": "Security & RBAC (Evaluation 1)",
+      "item": [
+        {
+          "name": "1. Unauthenticated Access Rejection (AUTH_401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/courses",
+            "description": "Expects 401 Unauthorized when no Authorization bearer header is present."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Cross-Student Scope Denial (PERM_403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{studentToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/submissions/student/999",
+            "description": "Student 101 attempting to access private records of Student 999 must return 403 Forbidden."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Unauthorized Faculty Course Edit (PERM_403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{facultyToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"Unauthorized Course Modification\"}"
+            },
+            "url": "{{baseUrl}}/api/v1/courses/999",
+            "description": "Faculty attempting to modify course 999 to which they are not assigned must return 403 Forbidden."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Login Rate Limiting (RATE_429)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"student@acadflow.edu\", \"password\": \"Password123!\"}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Exceeding 10 requests per minute burst triggers 429 Too Many Requests with Retry-After header."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Account Lockout After 5 Failed Attempts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"victim@acadflow.edu\", \"password\": \"WrongPassword!\"}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "5 consecutive failed logins trigger lockout key fail:{email} for 15 minutes."
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }
