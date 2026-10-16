@@ -114,3 +114,44 @@ class LockoutPolicy:
 
 # Global instance
 lockout_policy = LockoutPolicy()
+
+
+# ---------------------------------------------------------------------------
+# Sync convenience wrappers for use in synchronous FastAPI route handlers
+# (Liza's CRUD routes use sync SQLAlchemy; these avoid mixing asyncio loops).
+# ---------------------------------------------------------------------------
+
+import asyncio as _asyncio
+
+
+def _run(coro):
+    """Run a coroutine from a sync context, reusing or creating an event loop."""
+    try:
+        loop = _asyncio.get_event_loop()
+        if loop.is_running():
+            # Inside an existing event loop (e.g. pytest-asyncio) — use run_coroutine_threadsafe
+            import concurrent.futures
+            future = _asyncio.run_coroutine_threadsafe(coro, loop)
+            return future.result(timeout=2)
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        return _asyncio.run(coro)
+
+
+def check_lockout(identifier: str) -> dict:
+    """Sync wrapper: returns {'locked': bool, 'retry_after_seconds': int}."""
+    locked, remaining = _run(lockout_policy.is_locked(identifier))
+    return {"locked": locked, "retry_after_seconds": remaining}
+
+
+def record_failure(identifier: str) -> dict:
+    """Sync wrapper: records a failed attempt. Returns {'attempts': int, 'locked': bool}."""
+    attempts, now_locked = _run(lockout_policy.record_failed_attempt(identifier))
+    return {"attempts": attempts, "locked": now_locked}
+
+
+def record_success(identifier: str) -> None:
+    """Sync wrapper: clears the failure counter on successful login."""
+    _run(lockout_policy.reset_lockout(identifier))
+

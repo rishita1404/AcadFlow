@@ -177,3 +177,85 @@ class TokenService:
 
 # Global instance
 token_service = TokenService()
+
+
+# ---------------------------------------------------------------------------
+# Module-level sync-friendly helpers for use in synchronous FastAPI routes.
+# ---------------------------------------------------------------------------
+
+import asyncio as _asyncio
+from datetime import datetime as _datetime, timezone as _tz
+
+
+def _run_async(coro):
+    """Execute a coroutine from a sync context without blocking the existing loop."""
+    try:
+        loop = _asyncio.get_event_loop()
+        if loop.is_running():
+            import concurrent.futures as _cf
+            fut = _asyncio.run_coroutine_threadsafe(coro, loop)
+            return fut.result(timeout=2)
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        return _asyncio.run(coro)
+
+
+def create_access_token(claims: dict) -> tuple[str, _datetime]:
+    """Create a signed access JWT.  Returns (token_str, expiry_datetime)."""
+    user_id = claims.get("sub") or claims.get("user_id", 0)
+    role = claims.get("role", "student")
+    email = claims.get("email")
+    custom = {"email": email} if email else None
+    token = token_service.create_access_token(user_id=user_id, role=role, custom_claims=custom)
+    # Decode only to get expiry (no revocation check needed immediately after issuing)
+    from jose import jwt as _jwt
+    payload = _jwt.decode(
+        token,
+        settings.SECRET_KEY,
+        algorithms=[settings.ALGORITHM],
+        options={"verify_aud": False},
+    )
+    exp = _datetime.fromtimestamp(payload["exp"], tz=_tz.utc)
+    return token, exp
+
+
+def create_refresh_token(claims: dict) -> tuple[str, _datetime]:
+    """Create a signed refresh JWT.  Returns (token_str, expiry_datetime)."""
+    user_id = claims.get("sub") or claims.get("user_id", 0)
+    role = claims.get("role", "student")
+    token = token_service.create_refresh_token(user_id=user_id, role=role)
+    from jose import jwt as _jwt
+    payload = _jwt.decode(
+        token,
+        settings.SECRET_KEY,
+        algorithms=[settings.ALGORITHM],
+        options={"verify_aud": False},
+    )
+    exp = _datetime.fromtimestamp(payload["exp"], tz=_tz.utc)
+    return token, exp
+
+
+def decode_token(token: str, token_type: str = "access") -> Optional[Dict[str, Any]]:
+    """Sync-safe wrapper around token_service.verify_token."""
+    return _run_async(token_service.verify_token(token, expected_type=token_type))
+
+
+def revoke_token(token: str) -> None:
+    """Revoke a token by its JTI (sync-safe)."""
+    try:
+        from jose import jwt as _jwt
+        payload = _jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"verify_aud": False, "verify_exp": False},
+        )
+        jti = payload.get("jti")
+        exp = payload.get("exp", 0)
+        remaining = max(60, int(exp - _datetime.now(_tz.utc).timestamp()))
+        if jti:
+            _run_async(token_service.revoke_token(jti, remaining_seconds=remaining))
+    except Exception:
+        pass  # Best-effort revocation; token will expire naturally
+
