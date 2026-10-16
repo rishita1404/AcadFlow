@@ -1,4 +1,3 @@
-import hashlib
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
@@ -6,16 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import can_access, get_db
 from app.core.errors import ConflictError, NotFoundError
+from app.core.security import get_password_hash
 from app.models import StudentModel, UserModel
 from app.schemas.common import PaginatedResponse
 from app.schemas.user import StudentCreate, StudentOut
 
 router = APIRouter()
-
-
-def hash_password(password: str) -> str:
-    """Hash password using SHA-256 for basic authentication."""
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 @router.get("", response_model=PaginatedResponse[StudentOut])
@@ -96,7 +91,7 @@ def create_student(
     user = UserModel(
         name=payload.name,
         email=payload.email,
-        password_hash=hash_password(payload.password),
+        password_hash=get_password_hash(payload.password),
         role="student",
         department_id=payload.department_id,
     )
