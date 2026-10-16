@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import RoleShell from '../layouts/RoleShell';
+import RoleShell from '../layouts/RoleShell.jsx';
 
 export default function AppRouter() {
   return (

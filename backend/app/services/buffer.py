@@ -1,4 +1,6 @@
-def compute_attendance_buffer(attended: int, total_conducted: int, total_classes: int, threshold: float = 0.75) -> int:
+def compute_attendance_buffer(
+    attended: int, total_conducted: int, total_classes: int, threshold: float = 0.75
+) -> int:
     """
     Computes attendance buffer: how many future classes the student can miss
     while still meeting the threshold attendance percentage (default 75%).

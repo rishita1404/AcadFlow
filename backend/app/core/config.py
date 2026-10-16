@@ -1,5 +1,5 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -11,12 +11,14 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
-    DATABASE_URL: str = "postgresql+asyncpg://acadflow_user:acadflow_password@localhost:5432/acadflow_db"
+    DATABASE_URL: str = (
+        "postgresql+psycopg://acadflow_user:acadflow_password@localhost:5432/acadflow_db"
+    )
     MONGO_URI: str = "mongodb://localhost:27017"
     REDIS_URL: str = "redis://localhost:6379/0"
     ML_SERVICE_URL: str = "http://localhost:8001"
 
-    # Security settings
+    # Security settings (Member 2)
     LOCKOUT_THRESHOLD: int = 5
     LOCKOUT_DURATION_SECONDS: int = 900
     RATE_LIMIT_LOGIN_PER_MINUTE: int = 10
