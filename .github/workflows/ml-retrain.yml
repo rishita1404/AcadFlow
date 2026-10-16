@@ -1,0 +1,27 @@
+name: ML Retrain
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Weekly retrain
+  workflow_dispatch:
+
+jobs:
+  train-and-evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ML dependencies
+        run: |
+          pip install -r ml/requirements.txt
+      - name: Check Data Drift
+        run: python ml/src/drift.py
+      - name: Train Risk Model
+        run: python ml/src/train.py
+      - name: Evaluate Model Performance
+        run: python ml/src/evaluate.py
+      - name: Export to ONNX
+        run: python ml/onnx/export.py

@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: acadflow-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: acadflow_user
+      POSTGRES_PASSWORD: acadflow_password
+      POSTGRES_DB: acadflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:6.0
+    container_name: acadflow-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: acadflow-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: acadflow-backend
+    restart: always
+    depends_on:
+      - postgres
+      - mongo
+      - redis
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://acadflow_user:acadflow_password@postgres:5432/acadflow_db
+      MONGO_URI: mongodb://mongo:27017
+      REDIS_URL: redis://redis:6379/0
+      ML_SERVICE_URL: http://ml-serve:8001
+
+  ml-serve:
+    build:
+      context: ../ml
+      dockerfile: Dockerfile
+    container_name: acadflow-ml-serve
+    restart: always
+    ports:
+      - "8001:8001"
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: acadflow-frontend
+    restart: always
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
+  mongo_data:

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: acadflow-config
+data:
+  ENVIRONMENT: "production"
+  PORT: "8000"

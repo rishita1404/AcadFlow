@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'acadflow-backend'
+    static_configs:
+      - targets: ['backend:8000']
+
+  - job_name: 'acadflow-ml'
+    static_configs:
+      - targets: ['ml-serve:8001']

@@ -1,0 +1,24 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: actions/setup-buildx-action@v3
+      - name: Build and Push Backend Image
+        run: |
+          echo "Building backend container image..."
+          docker build -t acadflow-backend:latest backend/
+      - name: Build and Push Frontend Image
+        run: |
+          echo "Building frontend container image..."
+          docker build -t acadflow-frontend:latest frontend/
+      - name: Deploy to Kubernetes cluster
+        run: |
+          echo "Applying Kubernetes manifests from deploy/k8s/base..."

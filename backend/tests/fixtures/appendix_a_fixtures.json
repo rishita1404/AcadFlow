@@ -1,0 +1,5 @@
+{
+  "students": [
+    {"id": 1, "name": "John Doe", "attendance_pct": 72.0, "risk_status": "at_risk"}
+  ]
+}

@@ -1,0 +1,10 @@
+groups:
+  - name: acadflow_alerts
+    rules:
+      - alert: HighRiskLatency
+        expr: http_request_duration_seconds{job="acadflow-ml", quantile="0.99"} > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: ML Prediction Latency High

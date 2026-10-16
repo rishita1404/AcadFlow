@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acadflow-backend
+  labels:
+    app: acadflow-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: acadflow-backend
+  template:
+    metadata:
+      labels:
+        app: acadflow-backend
+    spec:
+      containers:
+        - name: backend
+          image: acadflow-backend:latest
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
