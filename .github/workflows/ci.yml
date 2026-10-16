@@ -23,6 +23,8 @@ jobs:
         run: ruff check backend/
       - name: Run Pytest
         run: pytest backend/tests
+        env:
+          PYTHONPATH: backend
 
   lint-and-build-frontend:
     runs-on: ubuntu-latest
@@ -35,7 +37,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           cd frontend
-          npm ci
+          npm ci || npm install
       - name: Lint Frontend
         run: |
           cd frontend
