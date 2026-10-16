@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer
+
 from app.db.base import Base
+
 
 class RiskModel(Base):
     __tablename__ = "risks"

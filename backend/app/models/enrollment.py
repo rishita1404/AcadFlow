@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer
+
 from app.db.base import Base
+
 
 class EnrollmentModel(Base):
     __tablename__ = "enrollments"
