@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: acadflow-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: acadflow_user
+      POSTGRES_PASSWORD: acadflow_password
+      POSTGRES_DB: acadflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acadflow_user -d acadflow_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - acadflow-net
+
+  mongo:
+    image: mongo:6.0
+    container_name: acadflow-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - acadflow-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: acadflow-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - acadflow-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: acadflow-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: development
+      PORT: 8000
+      SECRET_KEY: acadflow-dev-secret-key-for-local-docker-testing-only-32chars
+      DATABASE_URL: postgresql+psycopg://acadflow_user:acadflow_password@postgres:5432/acadflow_db
+      MONGO_URI: mongodb://mongo:27017
+      REDIS_URL: redis://redis:6379/0
+      ML_SERVICE_URL: http://ml-serve:8001
+    networks:
+      - acadflow-net
+
+  ml-serve:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    container_name: acadflow-ml-serve
+    restart: always
+    ports:
+      - "8001:8001"
+    networks:
+      - acadflow-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: acadflow-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - acadflow-net
+
+networks:
+  acadflow-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
