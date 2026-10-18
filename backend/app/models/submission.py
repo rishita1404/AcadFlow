@@ -30,16 +30,16 @@ class SubmissionModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     assignment_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("assignments.id"), nullable=False
+        Integer, ForeignKey("assignments.id")
     )
     student_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("students.user_id"), nullable=False
+        Integer, ForeignKey("students.user_id")
     )
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(20))
     submitted_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True)
     )
-    file_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    file_hash: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    dedupe_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    file_key: Mapped[Optional[str]] = mapped_column(String(255))
+    file_hash: Mapped[Optional[str]] = mapped_column(String(128))
+    dedupe_key: Mapped[str] = mapped_column(String(100), unique=True)

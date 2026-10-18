@@ -27,11 +27,11 @@ class AssignmentModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     course_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("courses.id"), nullable=False
+        Integer, ForeignKey("courses.id")
     )
-    title: Mapped[str] = mapped_column(String(200), nullable=False)
-    kind: Mapped[str] = mapped_column(String(30), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    grace_hours: Mapped[int] = mapped_column(Integer, default=48, nullable=False)
-    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    title: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(30))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    grace_hours: Mapped[int] = mapped_column(Integer, default=48)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False)
