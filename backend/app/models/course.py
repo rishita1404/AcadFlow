@@ -16,9 +16,9 @@ class SemesterModel(Base):
     __tablename__ = "semesters"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    name: Mapped[str] = mapped_column(String(100))
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
 
 
 class HolidayModel(Base):
@@ -29,25 +29,25 @@ class HolidayModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     semester_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("semesters.id"), nullable=False
+        Integer, ForeignKey("semesters.id")
     )
-    date: Mapped[date] = mapped_column(Date, nullable=False)
-    label: Mapped[str] = mapped_column(String(100), nullable=False)
+    holiday_date: Mapped[date] = mapped_column("date", Date)
+    label: Mapped[str] = mapped_column(String(100))
 
 
 class CourseModel(Base):
     __tablename__ = "courses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(150))
     semester_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("semesters.id"), nullable=False
+        Integer, ForeignKey("semesters.id")
     )
     department_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("departments.id"), nullable=False
+        Integer, ForeignKey("departments.id")
     )
-    total_classes: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_classes: Mapped[int] = mapped_column(Integer)
 
 
 class CourseStaffModel(Base):

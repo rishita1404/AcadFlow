@@ -24,10 +24,10 @@ class ClassSessionModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     course_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("courses.id"), nullable=False
+        Integer, ForeignKey("courses.id")
     )
-    held_on: Mapped[date] = mapped_column(Date, nullable=False)
-    is_cancelled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    held_on: Mapped[date] = mapped_column(Date)
+    is_cancelled: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class AttendanceRecordModel(Base):
@@ -45,13 +45,13 @@ class AttendanceRecordModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     student_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("students.user_id"), nullable=False
+        Integer, ForeignKey("students.user_id")
     )
     session_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("class_sessions.id"), nullable=False
+        Integer, ForeignKey("class_sessions.id")
     )
-    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20))
     marked_by: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), nullable=False
+        Integer, ForeignKey("users.id")
     )
-    marked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    marked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

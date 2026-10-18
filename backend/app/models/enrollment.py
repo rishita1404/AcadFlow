@@ -17,4 +17,4 @@ class EnrolmentModel(Base):
     course_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("courses.id"), primary_key=True
     )
-    enrolled_on: Mapped[date] = mapped_column(Date, nullable=False)
+    enrolled_on: Mapped[date] = mapped_column(Date)
