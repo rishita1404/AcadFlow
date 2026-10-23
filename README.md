@@ -63,10 +63,10 @@ docker compose -f deploy/docker-compose.yml up -d
 make seed
 ```
 
-Default seeded accounts:
-- Student: `student@acadflow.edu` / `Password123!`
-- Faculty: `faculty@acadflow.edu` / `Password123!`
-- Trainer: `trainer@acadflow.edu` / `Password123!`
-- Mentor: `mentor@acadflow.edu` / `Password123!`
-- Coordinator: `coordinator@acadflow.edu` / `Password123!`
-- Admin: `admin@acadflow.edu` / `Password123!`
+Default seeded accounts (Password: `AcadFlow@123`):
+- **Student**: `student@acadflow.edu` (and Appendix A fixtures: `riya@acadflow.edu`, `aman@acadflow.edu`, `meera2@acadflow.edu`, `karan@acadflow.edu`, `dev@acadflow.edu`)
+- **Faculty (Instructor-only)**: `faculty@acadflow.edu`
+- **Faculty (Mentor AND Course Coordinator)**: `mentor@acadflow.edu`
+- **Trainer**: `trainer@acadflow.edu`
+- **Dean / Coordinator**: `coordinator@acadflow.edu`
+- **System Admin**: `admin@acadflow.edu`
