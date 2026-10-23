@@ -1305,3 +1305,410 @@ async def check_reminders(
         "reminders_dispatched": created,
         "message": f"{created} new reminder(s) sent." if created else "No new reminders needed.",
     }
+
+
+# ---------------------------------------------------------------------------
+# Leave Planner Live Projection & Tasks Endpoints
+# ---------------------------------------------------------------------------
+
+
+class PlanProjectRequest(BaseModel):
+    planned_dates: List[str] = Field(default_factory=list, description="List of YYYY-MM-DD strings planned as absent")
+
+
+class CourseProjectionOut(BaseModel):
+    course_id: int
+    code: str
+    name: str
+    total_classes: int
+    held: int
+    attended: int
+    current_buffer: Optional[int]
+    planned_misses: int
+    spare_misses_left: Optional[int]
+    projected_final_percent: Optional[float]
+    projected_band: str
+    is_recoverable: bool
+    status_message: str
+
+
+class PlanProjectResponse(BaseModel):
+    planned_days_count: int
+    courses: List[CourseProjectionOut]
+    is_recoverable: bool
+    status_message: str
+
+
+@router.post(
+    "/plan/project",
+    response_model=PlanProjectResponse,
+    summary="Compute live leave projection across enrolled courses",
+)
+def project_leave_plan(
+    payload: PlanProjectRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Computes date-based planned leave projection per course (Section B & C):
+      spare_misses_left = buffer - planned
+      projected_final_percent = (attended + remaining - planned) / total_classes
+      spare < 0 -> 'Not recoverable by attendance alone'
+    Projection never alters official risk scores.
+    """
+    user, student = _get_user_and_student(current_user, db)
+    user_id = user.id
+
+    enrolled = list(
+        db.scalars(
+            select(EnrolmentModel.course_id).where(EnrolmentModel.student_id == user_id)
+        ).all()
+    ) if student else []
+
+    if not enrolled:
+        # Fallback for teaching staff testing planner
+        enrolled = [c.id for c in db.scalars(select(CourseModel).limit(3)).all()]
+
+    planned_count = len(payload.planned_dates)
+    results: List[CourseProjectionOut] = []
+    all_recoverable = True
+
+    for cid in enrolled:
+        course = db.get(CourseModel, cid)
+        if not course:
+            continue
+
+        try:
+            risk_data = calculate_student_course_risk(db, user_id, cid)
+        except Exception:
+            risk_data = {}
+
+        total_classes = risk_data.get("total_classes", course.total_classes or 45)
+        held = risk_data.get("held", 0)
+        attended = risk_data.get("attended", 0)
+        curr_buffer = risk_data.get("buffer")
+        remaining = max(0, total_classes - held)
+
+        # Count how many planned absences apply to this course
+        # Default: 1 class missed per planned day up to remaining
+        planned_misses = min(planned_count, remaining)
+
+        spare_misses = (curr_buffer - planned_misses) if curr_buffer is not None else None
+        projected_att = max(0, attended + (remaining - planned_misses))
+        projected_pct = round((projected_att / total_classes) * 100, 2) if total_classes > 0 else 0.0
+
+        if spare_misses is not None and spare_misses < 0:
+            is_recoverable = False
+            all_recoverable = False
+            projected_band = "Critical"
+            status_message = "Not recoverable by attendance alone"
+        else:
+            is_recoverable = True
+            if projected_pct >= 75.0:
+                projected_band = "Safe"
+                status_message = f"Can miss up to {spare_misses} more class(es)" if spare_misses is not None else "On track"
+            elif projected_pct >= 65.0:
+                projected_band = "Watch"
+                status_message = f"Borderline attendance ({projected_pct}%). Keep an eye."
+            else:
+                projected_band = "At risk"
+                status_message = f"Projected below 65%. Needs attention."
+
+        results.append(
+            CourseProjectionOut(
+                course_id=cid,
+                code=course.code,
+                name=course.name,
+                total_classes=total_classes,
+                held=held,
+                attended=attended,
+                current_buffer=curr_buffer,
+                planned_misses=planned_misses,
+                spare_misses_left=spare_misses,
+                projected_final_percent=projected_pct,
+                projected_band=projected_band,
+                is_recoverable=is_recoverable,
+                status_message=status_message,
+            )
+        )
+
+    return PlanProjectResponse(
+        planned_days_count=planned_count,
+        courses=results,
+        is_recoverable=all_recoverable,
+        status_message="Projection, not your official status",
+    )
+
+
+class TaskItemOut(BaseModel):
+    id: int
+    type: str  # 'assignment' | 'notice'
+    title: str
+    course_code: str
+    course_name: str
+    due_at: str
+    days_remaining: Optional[int] = None
+    submitted: bool = False
+    submission_id: Optional[int] = None
+    kind: str = "assignment"
+    urgent: bool = False
+    reminder_state: str = "scheduled"
+
+
+@router.get("/tasks", response_model=List[TaskItemOut], summary="Combined tasks and deadlines for current user")
+def get_my_tasks(
+    days: int = Query(60, ge=1, le=365),
+    course_id: Optional[int] = Query(None),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns unified task list (assignments + notice deadlines)
+    with days remaining, submitted status, and reminder state.
+    """
+    user, student = _get_user_and_student(current_user, db)
+    user_id = user.id
+    today = date.today()
+    cutoff = today + timedelta(days=days)
+
+    tasks: List[TaskItemOut] = []
+
+    if student:
+        enrolled_courses = list(
+            db.scalars(
+                select(EnrolmentModel.course_id).where(EnrolmentModel.student_id == user_id)
+            ).all()
+        )
+        if course_id:
+            enrolled_courses = [c for c in enrolled_courses if c == course_id]
+
+        if enrolled_courses:
+            # 1. Assignments
+            assignments = db.scalars(
+                select(AssignmentModel).where(
+                    AssignmentModel.course_id.in_(enrolled_courses),
+                    AssignmentModel.is_active == True,
+                )
+            ).all()
+
+            # Submissions by student
+            subs = db.scalars(
+                select(SubmissionModel).where(SubmissionModel.student_id == user_id)
+            ).all()
+            sub_map = {s.assignment_id: s for s in subs}
+
+            for a in assignments:
+                due_d = a.due_date if isinstance(a.due_date, date) else None
+                days_rem = (due_d - today).days if due_d else None
+                c = db.get(CourseModel, a.course_id)
+                sub = sub_map.get(a.id)
+
+                tasks.append(
+                    TaskItemOut(
+                        id=a.id,
+                        type="assignment",
+                        title=a.title,
+                        course_code=c.code if c else "GEN",
+                        course_name=c.name if c else "General Course",
+                        due_at=str(a.due_date),
+                        days_remaining=days_rem,
+                        submitted=sub is not None,
+                        submission_id=sub.id if sub else None,
+                        kind="assignment",
+                        urgent=days_rem is not None and 0 <= days_rem <= 2,
+                        reminder_state="sent" if sub else ("scheduled" if days_rem and days_rem >= 0 else "missed"),
+                    )
+                )
+
+        # 2. Notice deadlines
+        from app.models.notice import NoticeModel, NoticeRecipientModel, NoticeDeadlineModel
+        try:
+            recipient_records = db.scalars(
+                select(NoticeRecipientModel).where(NoticeRecipientModel.user_id == user_id)
+            ).all()
+            notice_ids = [r.notice_id for r in recipient_records]
+            if notice_ids:
+                deadlines = db.scalars(
+                    select(NoticeDeadlineModel).where(NoticeDeadlineModel.notice_id.in_(notice_ids))
+                ).all()
+                done_map = {r.notice_id: r.done_at is not None for r in recipient_records}
+
+                for nd in deadlines:
+                    n = db.get(NoticeModel, nd.notice_id)
+                    due_str = nd.at[:10] if nd.at else str(today)
+                    try:
+                        due_d = datetime.fromisoformat(due_str).date()
+                        days_rem = (due_d - today).days
+                    except Exception:
+                        days_rem = None
+
+                    tasks.append(
+                        TaskItemOut(
+                            id=10000 + nd.id,
+                            type="notice",
+                            title=f"[Notice] {nd.label}",
+                            course_code="NOTICE",
+                            course_name=n.title if n else "Notice",
+                            due_at=nd.at,
+                            days_remaining=days_rem,
+                            submitted=done_map.get(nd.notice_id, False),
+                            kind=nd.kind,
+                            urgent=n.urgent if n else False,
+                            reminder_state="done" if done_map.get(nd.notice_id) else "scheduled",
+                        )
+                    )
+        except Exception:
+            pass  # Notice tables might not be populated yet
+
+    else:
+        # Faculty: assignments created by this teacher
+        assignments = db.scalars(
+            select(AssignmentModel).where(AssignmentModel.created_by == user_id)
+        ).all()
+        for a in assignments:
+            due_d = a.due_date if isinstance(a.due_date, date) else None
+            days_rem = (due_d - today).days if due_d else None
+            c = db.get(CourseModel, a.course_id)
+            tasks.append(
+                TaskItemOut(
+                    id=a.id,
+                    type="assignment",
+                    title=a.title,
+                    course_code=c.code if c else "GEN",
+                    course_name=c.name if c else "Course",
+                    due_at=str(a.due_date),
+                    days_remaining=days_rem,
+                    submitted=False,
+                    kind="assignment",
+                    urgent=days_rem is not None and 0 <= days_rem <= 2,
+                    reminder_state="scheduled",
+                )
+            )
+
+    # Sort: pending first by due date, then submitted
+    tasks.sort(key=lambda t: (t.submitted, t.days_remaining if t.days_remaining is not None else 9999))
+    return tasks
+
+
+class TimetableSlotOut(BaseModel):
+    id: int
+    course_id: int
+    course_code: str
+    course_name: str
+    teacher_name: str
+    room_name: Optional[str] = None
+    day: int  # 0=Mon .. 5=Sat
+    day_name: str
+    period_label: str
+    kind: str
+    section: Optional[str] = "A"
+
+
+DAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+@router.get("/timetable", response_model=List[TimetableSlotOut], summary="Get current user weekly timetable")
+def get_my_timetable(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns weekly timetable slots (Monday to Saturday) for current user.
+    """
+    from app.models.timetable import TimetableVersionModel, TimetableSlotModel, RoomModel
+    user, student = _get_user_and_student(current_user, db)
+    user_id = user.id
+
+    # Find latest published version
+    version = db.scalar(
+        select(TimetableVersionModel)
+        .where(TimetableVersionModel.status == "published")
+        .order_by(TimetableVersionModel.id.desc())
+    )
+
+    slots: List[TimetableSlotModel] = []
+    if version:
+        if student:
+            enrolled = list(
+                db.scalars(
+                    select(EnrolmentModel.course_id).where(EnrolmentModel.student_id == user_id)
+                ).all()
+            )
+            slots = db.scalars(
+                select(TimetableSlotModel).where(
+                    TimetableSlotModel.version_id == version.id,
+                    TimetableSlotModel.course_id.in_(enrolled),
+                )
+            ).all()
+        else:
+            slots = db.scalars(
+                select(TimetableSlotModel).where(
+                    TimetableSlotModel.version_id == version.id,
+                    TimetableSlotModel.teacher_id == user_id,
+                )
+            ).all()
+
+    # If no slots found in DB yet, generate synthetic weekly timetable from courses
+    if not slots:
+        courses = db.scalars(select(CourseModel).limit(6)).all()
+        results: List[TimetableSlotOut] = []
+        slot_id = 1
+        periods = ["09:00 - 10:00", "10:00 - 11:00", "11:15 - 12:15", "12:15 - 13:15", "14:00 - 15:00"]
+        for d in range(5):  # Mon-Fri
+            c1 = courses[d % len(courses)]
+            c2 = courses[(d + 1) % len(courses)]
+            results.append(
+                TimetableSlotOut(
+                    id=slot_id,
+                    course_id=c1.id,
+                    course_code=c1.code,
+                    course_name=c1.name,
+                    teacher_name="Faculty Staff",
+                    room_name="Room 101",
+                    day=d,
+                    day_name=DAY_LABELS[d],
+                    period_label=periods[0],
+                    kind="lecture",
+                    section="A",
+                )
+            )
+            slot_id += 1
+            results.append(
+                TimetableSlotOut(
+                    id=slot_id,
+                    course_id=c2.id,
+                    course_code=c2.code,
+                    course_name=c2.name,
+                    teacher_name="Faculty Staff",
+                    room_name="Lab 201",
+                    day=d,
+                    day_name=DAY_LABELS[d],
+                    period_label=periods[2],
+                    kind="lab" if d % 2 == 1 else "lecture",
+                    section="A",
+                )
+            )
+            slot_id += 1
+        return results
+
+    results = []
+    for s in slots:
+        c = db.get(CourseModel, s.course_id)
+        t = db.get(UserModel, s.teacher_id)
+        r = db.get(RoomModel, s.room_id) if s.room_id else None
+        results.append(
+            TimetableSlotOut(
+                id=s.id,
+                course_id=s.course_id,
+                course_code=c.code if c else "GEN",
+                course_name=c.name if c else "Course",
+                teacher_name=t.name if t else "Faculty",
+                room_name=r.name if r else "Room 101",
+                day=s.day,
+                day_name=DAY_LABELS[s.day] if 0 <= s.day < len(DAY_LABELS) else "Unknown",
+                period_label=s.period_label,
+                kind=s.kind,
+                section=s.section or "A",
+            )
+        )
+    return results
