@@ -46,6 +46,18 @@ import AdminUsers from '../pages/admin/AdminUsers.jsx';
 import AdminAuditLog from '../pages/admin/AdminAuditLog.jsx';
 import AdminML from '../pages/admin/AdminML.jsx';
 
+// Notices Pages
+import ComposeNotice from '../pages/notices/ComposeNotice.jsx';
+import StaffNotices from '../pages/notices/StaffNotices.jsx';
+
+function NoticesDispatcher() {
+  const { activeRole } = useAuth();
+  if (activeRole === 'student') {
+    return <StudentNotices />;
+  }
+  return <StaffNotices />;
+}
+
 function PrivateRoute({ children }) {
   const { isLoggedIn } = useAuth();
   const location = useLocation();
@@ -367,7 +379,15 @@ export default function AppRouter() {
           <Route path="notifications" element={<StudentNotifications />} />
           <Route path="attendance" element={<AttendancePage />} />
           <Route path="pressure" element={<PressurePage />} />
-          <Route path="notices" element={<StudentNotices />} />
+          <Route path="notices" element={<NoticesDispatcher />} />
+          <Route
+            path="notices/new"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'coordinator', 'admin']}>
+                <ComposeNotice />
+              </RoleGuard>
+            }
+          />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

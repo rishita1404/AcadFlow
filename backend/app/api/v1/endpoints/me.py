@@ -1535,6 +1535,8 @@ def get_my_tasks(
 
                 for nd in deadlines:
                     n = db.get(NoticeModel, nd.notice_id)
+                    if not n or n.status == "archived":
+                        continue
                     due_str = nd.at[:10] if nd.at else str(today)
                     try:
                         due_d = datetime.fromisoformat(due_str).date()
