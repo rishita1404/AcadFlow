@@ -189,15 +189,22 @@ export const facultyApi = {
 export const coordinatorApi = {
   getOverview: (department_id = null) =>
     apiClient.get('/coordinator/overview', { params: department_id ? { department_id } : {} }),
+  getSummary: (department_id = null) =>
+    apiClient.get('/coordinator/summary', { params: department_id ? { department_id } : {} }),
+  getDeadlineLoad: (department_id = null) =>
+    apiClient.get('/coordinator/deadline-load', { params: department_id ? { department_id } : {} }),
   getStudents: (params = {}) => apiClient.get('/coordinator/students', { params }),
+  getStudentDetail: (id) => apiClient.get(`/coordinator/students/${id}`),
+  getTeachers: (params = {}) => apiClient.get('/coordinator/teachers', { params }),
+  getTeacherDetail: (id) => apiClient.get(`/coordinator/teachers/${id}`),
   getAtRisk: () => apiClient.get('/coordinator/at-risk'),
-  getSummary: () => apiClient.get('/coordinator/overview'),
 };
 
 // Admin
 export const adminApi = {
   getStats: () => apiClient.get('/admin/stats'),
   getUsers: (params = {}) => apiClient.get('/admin/users', { params }),
-  getAuditLogs: (limit = 100) => apiClient.get('/admin/audit-logs', { params: { limit } }),
-  updateRiskConfig: (payload) => apiClient.put('/admin/risk/config', payload),
+  getAuditLogs: (params = {}) => apiClient.get('/admin/audit-logs', { params }),
+  getRiskConfig: () => apiClient.get('/admin/risk-config'),
+  updateRiskConfig: (payload) => apiClient.put('/admin/risk-config', payload),
 };
