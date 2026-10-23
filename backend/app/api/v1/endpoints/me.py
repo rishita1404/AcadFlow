@@ -1487,7 +1487,7 @@ def get_my_tasks(
             assignments = db.scalars(
                 select(AssignmentModel).where(
                     AssignmentModel.course_id.in_(enrolled_courses),
-                    AssignmentModel.is_active == True,
+                    AssignmentModel.is_published == True,
                 )
             ).all()
 
@@ -1498,7 +1498,7 @@ def get_my_tasks(
             sub_map = {s.assignment_id: s for s in subs}
 
             for a in assignments:
-                due_d = a.due_date if isinstance(a.due_date, date) else None
+                due_d = a.due_at.date() if hasattr(a.due_at, 'date') else None
                 days_rem = (due_d - today).days if due_d else None
                 c = db.get(CourseModel, a.course_id)
                 sub = sub_map.get(a.id)
@@ -1510,7 +1510,7 @@ def get_my_tasks(
                         title=a.title,
                         course_code=c.code if c else "GEN",
                         course_name=c.name if c else "General Course",
-                        due_at=str(a.due_date),
+                        due_at=a.due_at.isoformat() if a.due_at else None,
                         days_remaining=days_rem,
                         submitted=sub is not None,
                         submission_id=sub.id if sub else None,
@@ -1563,12 +1563,19 @@ def get_my_tasks(
             pass  # Notice tables might not be populated yet
 
     else:
-        # Faculty: assignments created by this teacher
-        assignments = db.scalars(
-            select(AssignmentModel).where(AssignmentModel.created_by == user_id)
-        ).all()
+        # Faculty: assignments for courses they teach (via CourseStaffModel)
+        from app.models.course import CourseStaffModel
+        staff_course_ids = list(db.scalars(
+            select(CourseStaffModel.course_id).where(CourseStaffModel.user_id == user_id)
+        ).all())
+        if staff_course_ids:
+            assignments = db.scalars(
+                select(AssignmentModel).where(AssignmentModel.course_id.in_(staff_course_ids))
+            ).all()
+        else:
+            assignments = []
         for a in assignments:
-            due_d = a.due_date if isinstance(a.due_date, date) else None
+            due_d = a.due_at.date() if hasattr(a.due_at, 'date') else None
             days_rem = (due_d - today).days if due_d else None
             c = db.get(CourseModel, a.course_id)
             tasks.append(
@@ -1578,7 +1585,7 @@ def get_my_tasks(
                     title=a.title,
                     course_code=c.code if c else "GEN",
                     course_name=c.name if c else "Course",
-                    due_at=str(a.due_date),
+                    due_at=a.due_at.isoformat() if a.due_at else None,
                     days_remaining=days_rem,
                     submitted=False,
                     kind="assignment",
