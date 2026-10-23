@@ -21,6 +21,17 @@ import StudentNotices from '../pages/student/StudentNotices.jsx';
 import AttendancePage from '../pages/AttendancePage.jsx';
 import PressurePage from '../pages/PressurePage.jsx';
 
+// Faculty Pages
+import FacultyHome from '../pages/faculty/FacultyHome.jsx';
+import FacultyCourseDetail from '../pages/faculty/FacultyCourseDetail.jsx';
+import FacultyAttendanceUpload from '../pages/faculty/FacultyAttendanceUpload.jsx';
+import FacultyAtRisk from '../pages/faculty/FacultyAtRisk.jsx';
+import FacultyAssignments from '../pages/faculty/FacultyAssignments.jsx';
+import FacultyMentees from '../pages/faculty/FacultyMentees.jsx';
+import FacultyMenteeDetail from '../pages/faculty/FacultyMenteeDetail.jsx';
+import FacultySections from '../pages/faculty/FacultySections.jsx';
+import FacultyTimetable from '../pages/faculty/FacultyTimetable.jsx';
+
 function PrivateRoute({ children }) {
   const { isLoggedIn } = useAuth();
   const location = useLocation();
@@ -152,6 +163,80 @@ export default function AppRouter() {
             element={
               <RoleGuard allowedRoles={['student', 'admin']}>
                 <StudentNotices />
+              </RoleGuard>
+            }
+          />
+
+          {/* Faculty Routes */}
+          <Route
+            path="faculty/home"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+                <FacultyHome />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/courses/:id"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+                <FacultyCourseDetail />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/courses/:id/attendance"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+                <FacultyAttendanceUpload />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/courses/:id/at-risk"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+                <FacultyAtRisk />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/courses/:id/assignments"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+                <FacultyAssignments />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/courses/:id/sections"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'coordinator', 'admin']}>
+                <FacultySections />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/mentees"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'admin']}>
+                <FacultyMentees />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/mentees/:id"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'admin']}>
+                <FacultyMenteeDetail />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/timetable"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+                <FacultyTimetable />
               </RoleGuard>
             }
           />
