@@ -3,21 +3,23 @@
 Security implementation (Member 2):
 - Login lockout via app.core.lockout
 - JWT access + refresh tokens via app.core.tokens (with Redis revocation)
-- bcrypt password hashing via app.core.security
+- argon2id/bcrypt password hashing via app.core.security
 - Role-scoped JWT claims
 """
+
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.deps import get_db
 from app.core.errors import ConflictError, UnauthorizedError
-from app.core.lockout import check_lockout, record_failure, record_success
+from app.core.lockout import check_lockout, lockout_policy, record_failure, record_success
 from app.core.security import get_password_hash, verify_password
 from app.core.tokens import (
     create_access_token,
@@ -25,7 +27,8 @@ from app.core.tokens import (
     decode_token,
     revoke_token,
 )
-from app.models import StudentModel, UserModel
+from app.models import UserModel
+from app.schemas.common import EmailStr
 
 router = APIRouter()
 
@@ -49,6 +52,11 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int  # seconds
+    refresh_token: Optional[str] = None
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: Optional[str] = None
 
 
 class UserMeResponse(BaseModel):
@@ -64,12 +72,14 @@ class UserMeResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 REFRESH_COOKIE = "acadflow_refresh"
-COOKIE_SECURE = False   # set True in production (HTTPS)
+COOKIE_SECURE = False  # set True in production (HTTPS)
 COOKIE_HTTPONLY = True
 COOKIE_SAMESITE = "lax"
 
 
-def _set_refresh_cookie(response: Response, token: str, max_age: int = 7 * 24 * 3600) -> None:
+def _set_refresh_cookie(
+    response: Response, token: str, max_age: int = 7 * 24 * 3600
+) -> None:
     response.set_cookie(
         key=REFRESH_COOKIE,
         value=token,
@@ -99,7 +109,12 @@ async def get_auth_index():
     return {"endpoint": "auth", "status": "active"}
 
 
-@router.post("/register", response_model=UserMeResponse, status_code=status.HTTP_201_CREATED, tags=["Auth"])
+@router.post(
+    "/register",
+    response_model=UserMeResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Auth"],
+)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     """Create a new user account (open — no auth required for self-registration)."""
     if payload.role not in VALID_ROLES:
@@ -108,7 +123,9 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             detail=f"Invalid role '{payload.role}'. Must be one of: {sorted(VALID_ROLES)}",
         )
 
-    existing = db.scalar(select(UserModel).where(UserModel.email == payload.email.lower()))
+    existing = db.scalar(
+        select(UserModel).where(UserModel.email == payload.email.lower())
+    )
     if existing:
         raise ConflictError(f"An account with email '{payload.email}' already exists.")
 
@@ -134,18 +151,39 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse, tags=["Auth"])
-def login(
+async def login(
+    request: Request,
     response: Response,
-    form: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    """Login with email + password. Returns access token; sets HttpOnly refresh cookie."""
-    email = form.username.lower().strip()
+    """Login with email + password (JSON or form-data). Returns access token; sets HttpOnly refresh cookie."""
+    content_type = request.headers.get("content-type", "")
+    raw_email = None
+    raw_password = None
+
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            raw_email = body.get("email") or body.get("username")
+            raw_password = body.get("password")
+        except Exception:
+            pass
+    else:
+        try:
+            form = await request.form()
+            raw_email = form.get("username") or form.get("email")
+            raw_password = form.get("password")
+        except Exception:
+            pass
+
+    if not raw_email or not raw_password:
+        raise UnauthorizedError("Invalid email or password.")
+
+    email = str(raw_email).lower().strip()
 
     # 1. Lockout gate
-    lockout = check_lockout(email)
-    if lockout.get("locked"):
-        retry_secs = lockout.get("retry_after_seconds", 900)
+    is_locked, retry_secs = await lockout_policy.is_locked(email)
+    if is_locked:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Account temporarily locked. Retry after {retry_secs} seconds.",
@@ -156,9 +194,9 @@ def login(
     user = db.scalar(select(UserModel).where(UserModel.email == email))
 
     # 3. Verify password (constant-time even on user-not-found path)
-    if not user or not verify_password(form.password, user.password_hash):
+    if not user or not verify_password(raw_password, user.password_hash):
         if user:
-            record_failure(email)
+            await lockout_policy.record_failed_attempt(email)
         raise UnauthorizedError("Invalid email or password.")
 
     # 4. Check DB-level lockout (set by a previous migration / manual lock)
@@ -169,7 +207,7 @@ def login(
         )
 
     # 5. Success — clear lockout, issue tokens
-    record_success(email)
+    await lockout_policy.reset_lockout(email)
 
     claims = _build_claims(user)
     access_token, access_exp = create_access_token(claims)
@@ -178,20 +216,33 @@ def login(
     _set_refresh_cookie(response, refresh_token)
 
     expires_in = int((access_exp - datetime.now(timezone.utc)).total_seconds())
-    return TokenResponse(access_token=access_token, expires_in=expires_in)
+    return TokenResponse(
+        access_token=access_token,
+        expires_in=expires_in,
+        refresh_token=refresh_token,
+    )
 
 
 @router.post("/refresh", response_model=TokenResponse, tags=["Auth"])
 def refresh_token(
     response: Response,
+    body: Optional[RefreshRequest] = None,
     acadflow_refresh: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db),
 ):
-    """Rotate refresh token. Old token is revoked; new pair issued."""
-    if not acadflow_refresh:
+    """Rotate refresh token. Old token is revoked; new pair issued.
+    Accepts token via HttpOnly cookie or request body {"refresh_token": "..."}.
+    """
+    token = None
+    if body and body.refresh_token:
+        token = body.refresh_token
+    elif acadflow_refresh:
+        token = acadflow_refresh
+
+    if not token:
         raise UnauthorizedError("Refresh token missing.")
 
-    payload = decode_token(acadflow_refresh, token_type="refresh")
+    payload = decode_token(token, token_type="refresh")
     if not payload:
         _clear_refresh_cookie(response)
         raise UnauthorizedError("Refresh token invalid or expired.")
@@ -203,14 +254,18 @@ def refresh_token(
         raise UnauthorizedError("User no longer exists.")
 
     # Revoke old refresh token, issue new pair
-    revoke_token(acadflow_refresh)
+    revoke_token(token)
     claims = _build_claims(user)
     access_token, access_exp = create_access_token(claims)
     new_refresh, _ = create_refresh_token(claims)
 
     _set_refresh_cookie(response, new_refresh)
     expires_in = int((access_exp - datetime.now(timezone.utc)).total_seconds())
-    return TokenResponse(access_token=access_token, expires_in=expires_in)
+    return TokenResponse(
+        access_token=access_token,
+        expires_in=expires_in,
+        refresh_token=new_refresh,
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, tags=["Auth"])
@@ -227,33 +282,18 @@ def logout(
 
 @router.get("/me", response_model=UserMeResponse, tags=["Auth"])
 def me(
-    authorization: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Return current user profile from access token (Bearer)."""
-    # FastAPI dependency injection for OAuth2 Bearer works at router level;
-    # here we support both Authorization header (passed by client) and dependency injection.
-    # For simplicity the bearer token is passed via query/header by the caller.
-    # The full dependency chain is wired in can_access / get_current_user in api/deps.py.
-    from fastapi import Header
-
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Use Authorization: Bearer <token>",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-
-@router.get("/me/token", response_model=UserMeResponse, tags=["Auth"])
-def me_via_token(
-    db: Session = Depends(get_db),
-    token: str = "",
-):
-    """Return profile from a bearer token passed as ?token= query param (dev helper)."""
-    payload = decode_token(token, token_type="access")
-    if not payload:
-        raise UnauthorizedError("Invalid or expired access token.")
-    user = db.get(UserModel, int(payload["sub"]))
+    user_id = int(current_user.get("sub", 0))
+    user = db.get(UserModel, user_id)
     if not user:
         raise UnauthorizedError("User not found.")
-    return UserMeResponse(id=user.id, name=user.name, email=user.email, role=user.role, department_id=user.department_id)
+    return UserMeResponse(
+        id=user.id,
+        name=user.name,
+        email=user.email,
+        role=user.role,
+        department_id=user.department_id,
+    )
