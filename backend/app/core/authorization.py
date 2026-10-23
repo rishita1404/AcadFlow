@@ -14,8 +14,10 @@ Evaluation 1 Security Scenarios Enforced:
 """
 
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Set
-from fastapi import HTTPException, status, Depends
+from typing import Any, Callable, Dict, Optional, Set
+
+from fastapi import Depends, HTTPException, status
+
 from app.core.permissions import Role
 
 
@@ -25,7 +27,7 @@ class Action(str, Enum):
     VIEW_STUDENT_RECORD = "view_student_record"
     SUBMIT_WORK = "submit_work"
     VIEW_OWN_RISK = "view_own_risk"
-    
+
     # Faculty / Trainer actions
     VIEW_COURSE = "view_course"
     EDIT_COURSE = "edit_course"
@@ -33,15 +35,16 @@ class Action(str, Enum):
     EDIT_ATTENDANCE = "edit_attendance"
     CREATE_ASSIGNMENT = "create_assignment"
     GRADE_SUBMISSION = "grade_submission"
-    
+
     # Mentor actions
     VIEW_MENTEE_RECORDS = "view_mentee_records"
     VIEW_MENTEE_RISK = "view_mentee_risk"
-    
+
     # Coordinator actions
     VIEW_DEPARTMENT_SUMMARY = "view_department_summary"
     VIEW_COORDINATOR_RECORD = "view_coordinator_record"
-    
+    TIMETABLE_WRITE = "timetable:write"
+
     # Admin actions
     ADMIN_MANAGE = "admin_manage"
 
@@ -79,6 +82,7 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_COURSE,
         Action.VIEW_DEPARTMENT_SUMMARY,
         Action.VIEW_COORDINATOR_RECORD,
+        Action.TIMETABLE_WRITE,
     },
     Role.ADMIN.value: set(Action),  # Admin has full capabilities across all actions
 }
@@ -109,7 +113,7 @@ def _get_val(obj: Any, key: str, default: Any = None) -> Any:
 def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
     """
     Central authorization decision engine.
-    
+
     Checks:
     1. Valid authenticated user and action capability for the role.
     2. Specific resource ownership and scope bounds.
@@ -121,7 +125,7 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
     user_role = _get_val(user, "role")
     if not user_role:
         return False
-    
+
     # Normalize action
     if isinstance(action, str):
         try:
@@ -145,13 +149,13 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
     user_id = _get_val(user, "id") or _get_val(user, "user_id") or _get_val(user, "sub")
 
     # 2. Check Resource Scope Constraints
-    
+
     # Scenario 1: Student accessing student-specific resources (dashboard, marks, buffer)
     if user_role == Role.STUDENT.value:
         target_student_id = (
-            _get_val(resource, "student_id") or 
-            _get_val(resource, "owner_id") or 
-            _get_val(resource, "id")
+            _get_val(resource, "student_id")
+            or _get_val(resource, "owner_id")
+            or _get_val(resource, "id")
         )
         if target_student_id is not None and str(target_student_id) != str(user_id):
             return False
@@ -172,9 +176,9 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
     if user_role == Role.MENTOR.value:
         if action in (Action.VIEW_MENTEE_RECORDS, Action.VIEW_MENTEE_RISK):
             target_student_id = (
-                _get_val(resource, "student_id") or 
-                _get_val(resource, "mentee_id") or 
-                _get_val(resource, "id")
+                _get_val(resource, "student_id")
+                or _get_val(resource, "mentee_id")
+                or _get_val(resource, "id")
             )
             if target_student_id is not None:
                 mentee_ids = _get_val(user, "mentee_ids") or []
@@ -204,8 +208,8 @@ def verify_access(user: Any, action: Action | str, resource: Any = None) -> None
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "code": "PERM_403",
-                "message": "Forbidden / Role or scope lacks permission to perform action"
-            }
+                "message": "Forbidden / Role or scope lacks permission to perform action",
+            },
         )
 
 
@@ -219,7 +223,9 @@ def sanitize_coordinator_view(record: Dict[str, Any]) -> Dict[str, Any]:
     return {k: v for k, v in record.items() if k in COORDINATOR_APPROVED_FIELDS}
 
 
-def require_access(action: Action | str, resource_getter: Optional[Callable[..., Any]] = None):
+def require_access(
+    action: Action | str, resource_getter: Optional[Callable[..., Any]] = None
+):
     """
     FastAPI dependency factory enforcing central RBAC with optional resource resolver.
     """
@@ -230,7 +236,11 @@ def require_access(action: Action | str, resource_getter: Optional[Callable[...,
     ):
         resource = None
         if resource_getter is not None:
-            resource = await resource_getter() if callable(resource_getter) else resource_getter
+            resource = (
+                await resource_getter()
+                if callable(resource_getter)
+                else resource_getter
+            )
         verify_access(current_user, action, resource)
         return current_user
 

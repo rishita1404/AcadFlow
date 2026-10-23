@@ -8,17 +8,20 @@ from app.api.v1.endpoints import (
     coordinator,
     courses,
     health,
+    me,
     mentor,
     notifications,
     risk,
     students,
     submissions,
+    timetable,
 )
 
 api_router = APIRouter()
 
 api_router.include_router(health.router, prefix="/health", tags=["Health"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
+api_router.include_router(me.router, prefix="/me", tags=["Personal Dashboard"])
 api_router.include_router(courses.router, prefix="/courses", tags=["Courses"])
 api_router.include_router(students.router, prefix="/students", tags=["Students"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["Attendance"])
@@ -37,3 +40,4 @@ api_router.include_router(
     coordinator.router, prefix="/coordinator", tags=["Coordinator"]
 )
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+api_router.include_router(timetable.router, prefix="/timetable", tags=["Timetable"])
