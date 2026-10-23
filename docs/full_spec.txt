@@ -1,0 +1,154 @@
+<USER_REQUEST>
+ROLE
+You are working on AcadFlow, an existing full-stack academic platform (React + Vite, FastAPI, PostgreSQL, MongoDB, Redis). A basic site already exists. Your job:
+1. Audit the existing code against the spec below.
+2. Fix and add everything that is missing, so the product behaves exactly as specified.
+3. Verify by actually running it.
+Focus on functionality and user experience. Do NOT redesign visuals yet: keep existing styling and reuse existing components (StatusBadge, CourseCard, BufferGauge). New UI must be clean and consistent with the existing look.
+
+PLATFORM
+AcadFlow is a DESKTOP WEBSITE ONLY for now. A mobile app will be built later.
+- Target desktop browsers 1280 px and wider (design at 1440 px), still usable at 1024 px. Do NOT build mobile or tablet layouts, bottom tab bars, bottom sheets or swipe gestures.
+- Use the screen space well: multi-column grids, side panels, docked planners, full-width sortable tables, a horizontal stepper at the top of wizards.
+- Prepare for the future mobile app (this costs almost nothing now):
+  a) Keep ALL calculations on the backend: buffer, risk, planner projection, must-attend flags, pressure levels, clash detection, deadline extraction. React only renders results.
+  b) The API must be client-agnostic. Besides the HttpOnly cookie flow, support "Authorization: Bearer" access tokens and a refresh endpoint that accepts the refresh token in the request body, so a non-browser client can authenticate.
+  c) Pagination, filtering and sorting stay server-side.
+  d) Use fluid layout CSS (CSS Grid/Flexbox, relative units, no fixed pixel widths on page containers) so a responsive pass later is cheap.
+
+RULES
+- Extend, do not rewrite what already works. Do not ask me questions. Where the spec is silent, choose the simplest option and record it under "Assumptions" in docs/WORKFLOW_AUDIT.md.
+- Frontend calls the backend only through the single API client module. All routes under /api/v1. Error format: {"error":{"code","message","details":[]}}. Secrets only in env vars; update .env.example.
+- Identity and role come from the verified token. Every endpoint calls the central can_access(user, action, resource) dependency. Duties and scopes are read from PostgreSQL per request (Redis perm:{user_id} cache, invalidated when an assignment changes).
+- Synthetic data only. Extend scripts/seed_data.py (fixed seed) for everything new.
+- The risk score is decision support, never a grade or punishment. Use supportive wording.
+- Every screen has a loading skeleton, an empty state and an error state with retry. Never rely on colour alone (icon + text). Keyboard navigation, visible focus, labelled form fields, semantic HTML.
+- Commit after each phase: "workflow: phase N <name>".
+
+PHASES (do them in order, without waiting for me)
+1. Audit: write docs/WORKFLOW_AUDIT.md, a table of every page, route, API endpoint and table in this spec, each marked Present / Partial / Missing / Wrong, with file path and the fix needed.
+2. Foundation: roles, login redirects, shell and navigation, permissions endpoint, seeded accounts (section A).
+3. Student pages (section C).
+4. Faculty pages, including attendance Excel upload and editing (section D).
+5. Coordinator and Admin pages (section E).
+6. Timetable Manager (section F).
+7. Notices (section G).
+8. Data model, API and tests (sections H and I), then verification (section J).
+Missing or wrong items must be fixed, not just reported.
+
+=== A. ROLES, REDIRECTS, SHELL ===
+Roles: student, faculty, coordinator (Dean/HOD), admin, service (machine only).
+Faculty duties: instructor, trainer, course_coordinator (course_staff table), mentor (mentor_assignments). One person can hold several duties.
+Login redirect (after POST login, call GET /me/permissions): student -> /student/home; faculty -> /faculty/home; coordinator -> /coordinator/summary; admin -> /admin.
+Expired session -> /login?next=<page>, return there after login. Wrong role or scope -> friendly 403 page with a "Back to my home" button.
+Shell: left sidebar with every item visible, plus a top bar with the role switcher (ONLY if the user has several duties), the notification bell with unread count, and the profile menu.
+- Student sidebar: Home, Calendar, Tasks, Courses, Timetable, Notices, Notifications, Preferences.
+- Faculty sidebar: Home, My courses, Mentees (mentor only), Sections (course coordinator only), My timetable, Notices.
+- Coordinator sidebar: Summary, Deadline load, Students, Teachers, Timetable, Notices.
+- Admin sidebar: Home, Risk config, Assignments, Data, Timetable, Notices, ML and monitoring, Audit log.
+Menus are built from GET /me/permissions.
+Status labels (icon + text always): Safe="On track", Watch="Keep an eye", At risk="Needs attention", Critical="Priority support", too early="Not enough data yet".
+Every score shows "last computed at" and a "Why?" expander with the formula and inputs.
+Seeded accounts (list in README): student; faculty instructor-only; faculty who is mentor AND course coordinator; trainer; dean (coordinator login); admin.
+
+=== B. CALCULATION CONTRACT (must match exactly) ===
+required = ceil(0.75 * total_classes); still_need = max(0, required - attended); remaining = total_classes - held (holidays excluded); buffer = remaining - still_need.
+Negative buffer -> show "Not recoverable by attendance alone" (never as an error). Late counts as attended. A student enrolled mid-semester is judged only on classes on or after enrolled_on. Zero remaining classes must never divide by zero.
+Risk score 0-100: Margin 50 x (1 - buffer/remaining), full 50 if buffer < 0; Trend 20 (slope of last 2 weeks); Deadlines 20 (count and weight of unsubmitted graded work due in next 14 days); Missed 10 (share of submissions marked missed). Bands: 0-29 Safe, 30-54 Watch, 55-79 At risk, 80-100 Critical. Weights and thresholds come from risk_config (DB), and each snapshot stores config version.
+Minimum evidence: no status until min_classes (default 8) have been held; show "Not enough data yet".
+ML estimate (probability of finishing below 75%) is shown beside the rule score as "Model estimate, extra signal". If the ML service is down show "Model score unavailable" and keep the rule score.
+Unit-test fixtures (course of 60 classes, required 45): Riya held 40 attended 30 -> buffer 5, margin 37.5. Aman 40/36 -> buffer 11, margin 22.5. Meera 40/40 -> buffer 15, margin 12.5. Karan 50/30 -> buffer -5, margin 50 (not recoverable). Dev held 5 -> "Not enough data yet".
+Planned-leave projection (per course): planned = number of marked future class days; spare_misses_left = buffer - planned; projected_final_percent = (attended + remaining - planned) / total_classes. spare < 0 -> "Not recoverable by attendance alone". Projection never changes the official risk score.
+Must-attend day: an exam/review is held or due that day, OR missing all of that day's classes of any course would make (buffer - classes_that_day_in_that_course) < 0 (in plan mode, use the buffer after already planned absences). Otherwise label "Optional".
+Pressure score per day = sum of deadline weights due that day (exam 4, review 3, assignment 2, lab file 2, notice deadline 1) + 0.5 x sum of weights due in the next 3 days + 1 if must-attend + 1 if 4 or more classes that day. Levels: 0 none, 1 low (<3), 2 medium (3 to <6), 3 high (>=6). Constants live in config. Show level as shade + number + icon.
+
+=== C. STUDENT PAGES ===
+S1 /student/home ("This week"): multi-column layout. Overall status badge (worst course), last computed time, one-line reason. Warning banner only for Watch or worse: plain reason (e.g. "DSA buffer is 2 classes and 3 deadlines fall in the next 7 days") with buttons -> /student/risk and Calendar planner. Course cards (attendance %, BufferGauge "You can miss N more classes", status badge, ML chip) -> course page. "Due this week" grouped by day with status chips and Submit button -> assignment page. Today's classes (from timetable) -> /student/timetable. 4-week mini pressure strip -> Calendar > Pressure. "Important notices" strip with unread count -> /student/notices.
+S2 /student/courses/:id tabs: Overview (description, syllabus, schedule, grading, office hours), Attendance (%, buffer, history list), Deadlines, Announcements, Materials (authorized download), Risk breakdown.
+S3 /student/calendar, mode switch Attendance | Pressure forecast; course filter (All or one); Month/Week/Agenda views.
+ Attendance mode: past days read-only and marked Present, Absent, Late (counts as present), Holiday, No class. Future days show class count and deadline markers, plus Must-attend or Optional. Clicking any day opens a RIGHT-side day drawer with classes (time, room, status), deadlines due, holiday label. "Plan leaves" toggle: click a future day to mark ALL its classes as planned absence, or click a single class in the drawer; unmarked future days are assumed attended. A planner panel docked beside the calendar shows per course, live: projected final %, spare misses left, projected band, and a warning when not recoverable. Buttons: Save plan, Reset, Compare (now vs plan). Always labelled "Projection, not your official status".
+ Pressure mode: monthly heatmap with month navigation, level shown as shade + number + icon. Summary panel beside it: total deadlines, heaviest week, busiest day, must-attend days, 2-3 rule-based tips (e.g. "Start Assignment 2 by 5 Nov"). Weekly load bar chart (Recharts). Clicking a day opens the same day drawer. Notice deadlines appear as lighter markers, notice events as event markers.
+S4 /student/timetable: weekly grid Mon-Sat x time slots, full week visible without scrolling. Slot shows course code, room, instructor, type (lecture/lab/tutorial). Today highlighted; holidays and cancelled classes struck through; slots changed in the last 7 days tagged "Changed". Click a slot -> course page.
+S5 /student/tasks: tabs This week, Upcoming, Submitted, Missed; course filter. Row = title, course, kind, due countdown, status chip, reminder state. Includes notice deadlines tagged "Notice". Click -> assignment page (or notice detail).
+S6 /student/assignments/:id: details and attachment; timeline bar Due -> Grace (48h) -> Closed; status chip; drag-and-drop submit with type/size validation; resubmit until closed; receipt card (ID, timestamp, file hash); version history; closed state shows "Submissions closed" (409); reminders for this assignment with state scheduled/sent/skipped/cancelled and reason.
+S7 /student/risk: per course stacked bar (Margin/50, Trend/20, Deadlines/20, Missed/10) with one plain sentence per part; model estimate with top 3 contributing factors and model version; projected-finish chart (attendance trend line + projected line); next-step suggestions; "Try the planner" button; what-if box ("If I miss the next N classes", POST /me/simulate).
+S8 /student/notifications: grouped Today/Earlier, type filter, mark read. Deep links: new_assignment, deadline_changed, reminders -> assignment page; announcement -> course Announcements tab; status_change -> /student/risk; timetable_updated -> /student/timetable; notice_new -> notice detail.
+S9 /student/preferences: reminder offsets (7d, 2d, 24h, overdue) as toggles; channels; quiet hours 22:00-07:00 displayed.
+
+=== D. FACULTY PAGES ===
+F1 /faculty/home: cards only for duties held. My courses (last attendance upload date, at-risk count, next deadline, "Upload attendance" shortcut); My mentees (count by band; mentor only); Sections (course coordinator only); "Needs attention" list of students who newly crossed into At risk.
+F2 /faculty/courses/:id tabs: Info, Announcements, Materials, Assignments, Attendance, At-risk, Timetable (view only).
+F3 /faculty/courses/:id/attendance. Landing: buttons Upload Excel/CSV, Tick-box (today), Edit past sessions; below, session history (date, counts, uploaded by).
+ Upload wizard, 4 steps, horizontal stepper:
+ 1) Template: choose session date(s); download a pre-filled .xlsx with enrolled roster (roll_no, name) and one column per date with values P/A/L; a single-session list format is also accepted.
+ 2) Upload .xlsx or .csv (drag-and-drop, size limit).
+ 3) Preview and validate (POST /courses/{id}/attendance/preview, saves nothing): editable grid (click a cell to cycle P/A/L); row errors with reasons (unknown roll no, invalid value, holiday date, future date); bad rows quarantined with reason; counts Present/Absent/Late/Quarantined in a side summary; changes versus already-saved data highlighted; duplicate file shows "Already uploaded, no changes" (dedupe key = hash of file + course + dates).
+ 4) Confirm -> returns 202 -> progress "Recomputing risk for N students" -> done screen with link to At-risk list. The worker recomputes risk and deletes the students' Redis dash: and mentorview: keys.
+ Teacher can edit after upload: session grid where any cell can be changed; editing an already-saved record requires a reason and writes audit_log (PATCH /attendance/{id}). Bulk actions: Mark all present, filter by absent.
+F4 /faculty/courses/:id/at-risk: filters in a toolbar (band, buffer range, section, search), sortable, virtualized for 500+ rows. Columns: name, roll no, attendance %, buffer, band, trend arrow, pending deadlines, missed, model estimate. Row click -> side drawer with attendance history, risk breakdown, submission STATUSES only (never content). Export CSV.
+F5 /faculty/courses/:id/assignments: list; create/edit form (title, kind, description, attachment, due_at, grace_hours, draft/published). Changing due_at shows "Reminders will be rescheduled for N students" before saving. Submissions table with status filter and submitted time; Excuse dialog with required reason (audited, excluded from risk).
+F6 Mentor: /faculty/mentees (name, worst-course band, overall attendance, trend) -> /faculty/mentees/:id (all courses, buffer, risk, read-only attendance calendar). A non-mentee returns 403.
+F7 Course coordinator: /faculty/courses/:id/sections: at-risk across all sections, section comparison bar chart, edit shared course info. Other courses return 403.
+F8 /faculty/timetable ("My timetable"): weekly grid of all the teacher's classes across duties; where two classes share a slot show both stacked with a "Clash" badge.
+
+=== E. COORDINATOR AND ADMIN ===
+Coordinator: /coordinator/summary (status counts by band, worst courses, batch and semester filters); /coordinator/deadline-load (week x course heatmap); /coordinator/students and /coordinator/teachers directories (approved fields only: students = name, roll no, batch, department, email, attendance, risk; teachers = name, email, department, courses taught); profile pages /coordinator/students/:id and /coordinator/teachers/:id show a banner "This view is recorded in the audit log" and write one audit_log row per open. Never expose submission content or password data. Other-department records return 403.
+Admin: /admin (health of API instances, worker, ML service; system counts); /admin/risk-config (sliders for the four weights, must total 100; band thresholds; min_classes; live preview "N students would change band"; save creates a new version plus audit entry); /admin/assignments (tabs Departments, Course staff, Mentors, Deans); /admin/data (courses, enrolments, holidays, timetable bulk upload); ML and monitoring (active model version/engine, links to MLflow, Grafana, drift report); Audit log viewer (filter by actor, entity, date).
+
+=== F. TIMETABLE MANAGER ===
+Who can edit: Dean/HOD (own department only) and Admin (any). Instructors and students are read-only. New permission timetable:write, scoped by department, in can_access.
+Single source of truth: timetable_slots. Student and teacher timetables are filtered VIEWS of it (student = slots of enrolled course/section; teacher = slots where teacher_id = user). Nothing is duplicated, so they update together. Clear Redis timetable caches for affected users on publish.
+T1 /coordinator/timetable (Admin: /admin/timetable): header with department, semester, published version and effective date. Two large buttons: "Update existing timetable" and "Start from scratch". Version history list. "You have an unpublished draft" banner with Resume and Discard. Unresolved-clash flag if any.
+T2 Update existing -> grid editor: weekly grid (days x periods) with a view toggle Batch/Section | Teacher | Room. Drag a slot to move; click to edit (course, teacher, room, type, section); click an empty cell to add; delete from the edit panel; Excel import/export for bulk. Edits are staged in a DRAFT version.
+ Live clash detection (POST /timetable/draft/validate): teacher clash, room clash, student clash (a student enrolled in two courses in the same slot). Show a clash badge on the cell and a side panel with plain-text reasons (e.g. "Prof. Sharma has DSA (Sec A) and DBMS (Sec C) on Tue 10:00"). Clashes show an error but NEVER block saving or publishing. After publish the teacher's timetable shows both classes stacked in that slot with a "Clash" badge. Changes panel lists staged changes (e.g. "DSA Mon 10:00 -> Tue 11:00") with Undo per change.
+T3 Start from scratch -> wizard with horizontal stepper (warn first: the current timetable stays live until publish; old version is archived):
+ 1) Scope: department, semester, batches/sections, working days, effective-from date.
+ 2) Timings: first class start time, lecture duration, number of periods per day, break and lunch positions and lengths, lab duration (e.g. 2 periods), same timings every day or custom per day; live preview of the generated period grid.
+ 3) Courses and teachers: pick courses; per course set lectures per week, lab sessions per week, instructor(s) (pre-filled from course_staff), room type.
+ 4) Placement: "Unplaced classes" tray beside the grid; drag classes into cells; same clash detection as T2.
+ 5) Review: summary, unplaced classes, clash report; buttons Save draft and Publish.
+T4 Publish dialog: effective-from date (applies to FUTURE classes only; past attendance and sessions are never rewritten); notification preview "This will notify N students and M teachers" with a View list link. On confirm: draft becomes published, previous version archived, caches cleared, audit_log row (actor, department, effective date, change count), and a timetable_updated notification goes ONLY to affected users: students enrolled in a changed course/section, and teachers who gained, lost or moved a slot. One grouped notification per person listing only their own changes (e.g. "DSA: Mon 10:00 -> Tue 11:00"); clicking it opens their timetable with changed slots highlighted.
+Tables: timetable_versions (department_id, semester_id, status draft/published/archived, effective_from, created_by, published_at), period_config (version_id, day, start, end, label, is_break), rooms, timetable_slots (version_id, course_id, section, teacher_id, room_id, weekday, period/start/end, kind). Add a section field to enrolments (or a sections table) if missing.
+Endpoints: GET/PUT /timetable/draft, POST /timetable/draft/validate, POST /timetable/publish, GET /timetable/versions, GET /me/timetable, GET /me/calendar?month=, GET /me/forecast?month=, POST /me/plan/project (date-based extension of /me/simulate), GET/PUT /me/plan.
+
+=== G. NOTICES (important updates, forms, events) ===
+Purpose: replaces email for forms, hackathon info and announcements to selected people, with automatic deadline detection.
+Who can send and to whom: faculty (instructor/trainer) -> students of own courses; mentor -> own mentees; course coordinator -> all sections of own course; Dean/HOD -> any students or teachers in own department; Admin -> anyone; students cannot send (inbox only). Audience outside scope -> 403.
+N1 Compose (/faculty|coordinator|admin/notices/new), 4 steps with horizontal stepper:
+ 1) Audience: choose by department, batch, course, section, search individuals, or upload an Excel of roll numbers; live recipient count (POST /notices/audience/preview) with a "View recipients" list.
+ 2) Content: title; category (Form, Event/Hackathon, Exam, Placement/Internship, General, Urgent); body (rendered safely, no raw HTML, no dangerouslySetInnerHTML); attachments and links (e.g. Google Form link); optional "also send by email" toggle using the mock email adapter.
+ 3) Detected deadline: as the sender types, POST /notices/extract parses dates and times from title, body and links (rule-based parser first, timezone Asia/Kolkata, relative dates like "by next Friday" supported; optional LLM step to classify deadline vs event date). Show each detection as a card, e.g. "Registration deadline: 28 Nov 2026, 17:00", tagged Deadline or Event date. Sender must Confirm, Edit or Remove each one. NEVER add an ambiguous deadline silently: if several dates are found, ask which is the deadline. Sender can add one manually.
+ 4) Preview exactly what students will see, plus recipient count, then Send.
+N2 Student side: notice arrives in the bell, the inbox, and the Home strip. /student/notices: filters category, unread, "has deadline"; urgent notices pinned. /student/notices/:id: full content and attachments, link button (e.g. "Open form"), deadline card "Added to your Tasks", buttons "Mark done" and "Not relevant" (both cancel remaining reminders). Confirmed deadlines appear in Tasks (tag "Notice"), in Calendar and Pressure forecast (lighter markers), events as event markers. Reminders reuse the existing reminder engine and the student's preference toggles, with dedupe key student_id:notice_deadline_id:offset. Notice deadlines NEVER count toward the risk score or missed submissions.
+N3 Sender side: "My notices" with tabs Sent and Drafts. Stats page /notices/:id: delivered, seen, marked-done counts; recipient table filterable by "Not seen"; "Nudge unseen" button reminds only those who have not opened it. Editing a notice's deadline reschedules reminders and sends one "updated" notice to its recipients only. Withdrawing a notice removes its deadline from every recipient's Tasks. Sends are audited and rate-limited (Redis, 20 notices per sender per day).
+Tables: notices (sender_id, title, body, category, urgent, status, audience_spec, created_at), notice_recipients (notice_id, user_id, delivered_at, seen_at, done_at), notice_deadlines (notice_id, kind deadline/event, at, label, source detected/manual, confirmed_by). Notification kinds: notice_new, notice_updated, timetable_updated (Mongo notifications).
+Endpoints: POST /notices, POST /notices/audience/preview, POST /notices/extract, GET /notices (sender's list), GET /notices/{id}/recipients, PATCH /notices/{id}, DELETE /notices/{id} (withdraw), GET /me/notices, POST /me/notices/{id}/seen, POST /me/notices/{id}/done. GET /me/tasks must return assignments AND notice deadlines together.
+
+=== H. SEED DATA ADDITIONS ===
+Timetable for every department with period_config, rooms and sections; one deliberate teacher clash for demo; planned_absences sample; two sample notices (one with a deadline, one with deadline and event date); holidays; sessions for past attendance so the calendar shows history.
+
+=== I. TESTS (pytest unless stated) ===
+- Buffer and risk fixtures in section B (Riya, Aman, Meera, Karan, Dev) plus edge cases: holiday excluded from remaining, mid-semester enrolment, duplicate upload not double counted, zero remaining, no submissions -> no missed penalty.
+- Planner projection formula and must-attend rule.
+- Scope 403s: student reading another student's data; faculty editing another course; mentor reading a non-mentee; course coordinator editing another course; dean reading another department; dean reading submission content; instructor-only faculty calling a mentor endpoint; revoked mentor assignment -> next request 403.
+- Timetable: Dean of another department 403 on draft and publish; student and instructor 403; a clash does NOT block publish; publish notifies ONLY affected students and teachers (assert exact recipient sets); effective-from does not alter past sessions.
+- Notices: audience outside scope 403; extraction of absolute and relative dates; ambiguous dates require sender confirmation; confirmed deadline appears in /me/tasks; "Mark done" cancels reminders; notice deadline does not change risk score; withdrawing removes the deadline.
+- Attendance upload: preview saves nothing; invalid rows quarantined with reasons; duplicate file detected; edit of saved record requires reason and writes audit_log; upload triggers worker and clears dash: key.
+- Auth: Bearer access token works on protected endpoints; refresh token accepted in the request body.
+- Audit: dean profile open writes one audit_log row; timetable publish and notice send each write one.
+
+=== J. VERIFICATION (final phase) ===
+Run the full stack. In the browser, at 1280 px and 1920 px widths, log in as EACH seeded account and visit every route in sections A to G, checking redirects, contents and states. Save desktop screenshots to docs/evidence/workflow/. Walk these end-to-end flows and confirm each works:
+1) Faculty uploads an Excel attendance sheet -> preview -> confirm -> student dashboard and calendar update.
+2) Student marks future leave days in the planner and sees projected % and spare misses change; official status stays unchanged.
+3) Dean edits the timetable with a teacher clash -> clash shown -> publish still works -> only affected students and teachers are notified -> both timetables show the change and the clash.
+4) Dean starts a timetable from scratch through the wizard and publishes it.
+5) Faculty sends a notice containing a deadline to selected students only -> deadline detected and confirmed -> appears in those students' Tasks, Calendar and Pressure forecast -> reminders scheduled -> "Mark done" cancels them -> a non-selected student sees nothing.
+Write docs/WORKFLOW_VERIFICATION.md with PASS/FAIL per item in sections A to I. Fix every FAIL and re-verify before finishing. End with a short list of anything you could not complete and why.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-23T20:38:12+05:30.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from Gemini 3.8 Flash (High) to Claude Sonnet 4.6 (Thinking). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
