@@ -32,6 +32,20 @@ import FacultyMenteeDetail from '../pages/faculty/FacultyMenteeDetail.jsx';
 import FacultySections from '../pages/faculty/FacultySections.jsx';
 import FacultyTimetable from '../pages/faculty/FacultyTimetable.jsx';
 
+// Coordinator Pages
+import CoordinatorSummary from '../pages/coordinator/CoordinatorSummary.jsx';
+import CoordinatorDeadlines from '../pages/coordinator/CoordinatorDeadlines.jsx';
+import CoordinatorStudents from '../pages/coordinator/CoordinatorStudents.jsx';
+import CoordinatorTeachers from '../pages/coordinator/CoordinatorTeachers.jsx';
+import CoordinatorTimetable from '../pages/coordinator/CoordinatorTimetable.jsx';
+
+// Admin Pages
+import AdminDashboard from '../pages/admin/AdminDashboard.jsx';
+import AdminRiskConfig from '../pages/admin/AdminRiskConfig.jsx';
+import AdminUsers from '../pages/admin/AdminUsers.jsx';
+import AdminAuditLog from '../pages/admin/AdminAuditLog.jsx';
+import AdminML from '../pages/admin/AdminML.jsx';
+
 function PrivateRoute({ children }) {
   const { isLoggedIn } = useAuth();
   const location = useLocation();
@@ -237,6 +251,114 @@ export default function AppRouter() {
             element={
               <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
                 <FacultyTimetable />
+              </RoleGuard>
+            }
+          />
+
+          {/* Coordinator Routes */}
+          <Route
+            path="coordinator/summary"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <CoordinatorSummary />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="coordinator/deadlines"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <CoordinatorDeadlines />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="coordinator/deadline-load"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <CoordinatorDeadlines />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="coordinator/students"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <CoordinatorStudents />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="coordinator/teachers"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <CoordinatorTeachers />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="coordinator/timetable"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <CoordinatorTimetable />
+              </RoleGuard>
+            }
+          />
+
+          {/* Admin Routes */}
+          <Route
+            path="admin"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <AdminDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="admin/risk-config"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <AdminRiskConfig />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="admin/users"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <AdminUsers />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="admin/data"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <AdminUsers />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="admin/audit"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <AdminAuditLog />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="admin/ml"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <AdminML />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="admin/timetable"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <CoordinatorTimetable />
               </RoleGuard>
             }
           />
