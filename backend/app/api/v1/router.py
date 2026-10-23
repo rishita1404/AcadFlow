@@ -15,6 +15,7 @@ from app.api.v1.endpoints import (
     students,
     submissions,
     timetable,
+    notices,
 )
 
 api_router = APIRouter()
@@ -41,3 +42,4 @@ api_router.include_router(
 )
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(timetable.router, prefix="/timetable", tags=["Timetable"])
+api_router.include_router(notices.router, prefix="/notices", tags=["Notices"])
