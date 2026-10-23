@@ -147,8 +147,12 @@ export const noticeApi = {
 // Faculty
 export const facultyApi = {
   getCourses: () => apiClient.get('/courses'),
-  getAtRisk: (courseId) => apiClient.get(`/risk/courses/${courseId}?band=at-risk`),
+  getAtRisk: (courseId) => apiClient.get(`/risk/courses/${courseId}`),
   getMentees: () => apiClient.get('/mentor/students'),
+  getMenteeDetail: (studentId) => apiClient.get(`/mentor/students/${studentId}`),
+  getMenteeCourses: (studentId) => apiClient.get(`/mentor/students/${studentId}/courses`),
+  getMenteeNotes: (studentId) => apiClient.get(`/mentor/students/${studentId}/notes`),
+  addMenteeNote: (studentId, note) => apiClient.post(`/mentor/students/${studentId}/notes`, { note }),
   previewUpload: (courseId, file) => {
     const form = new FormData();
     form.append('file', file);
@@ -156,6 +160,29 @@ export const facultyApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  uploadAttendance: (courseId, file, changeReason = null) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('course_id', courseId);
+    if (changeReason) form.append('change_reason', changeReason);
+    return apiClient.post('/attendance/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  correctAttendance: (recordId, status, reason = '') =>
+    apiClient.patch(`/attendance/records/${recordId}`, { status, reason }),
+  getAssignments: (courseId) =>
+    apiClient.get(`/assignments?course_id=${courseId}`),
+  createAssignment: (payload) => apiClient.post('/assignments', payload),
+  updateAssignment: (id, payload) => apiClient.patch(`/assignments/${id}`, payload),
+  getSubmissions: (assignmentId) =>
+    apiClient.get(`/submissions?assignment_id=${assignmentId}`),
+  excuseSubmission: (submissionId, reason) =>
+    apiClient.post(`/submissions/${submissionId}/excuse`, { reason }),
+  excuseAssignmentForStudent: (assignmentId, studentId, reason) =>
+    apiClient.post(`/submissions/assignments/${assignmentId}/students/${studentId}/excuse`, { reason }),
+  nudgeStudent: (studentId, title, message) =>
+    apiClient.post('/notifications', { user_id: studentId, title, message, type: 'warning' }),
 };
 
 // Coordinator
