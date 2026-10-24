@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { courseApi, studentApi, attendanceApi, assignmentApi } from '../../api/endpoints.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
+import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
 export default function FacultyCourseDetail() {
   const { id } = useParams();
@@ -54,7 +55,12 @@ export default function FacultyCourseDetail() {
   });
 
   if (loadingCourse) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>⏳ Loading course details...</div>;
+    return (
+      <div style={{ maxWidth: 1440, margin: '0 auto' }}>
+        <Skeleton height={140} style={{ marginBottom: 20 }} />
+        <Skeleton height={350} />
+      </div>
+    );
   }
 
   const filteredStudents = students.filter(s =>
@@ -63,21 +69,21 @@ export default function FacultyCourseDetail() {
   );
 
   return (
-    <div style={{ maxWidth: 1440, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1440, margin: '0 auto', color: 'var(--text)' }}>
       {/* Course Banner */}
       <div style={{
-        background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0',
-        marginBottom: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, border: '1px solid var(--border)',
+        marginBottom: 20, boxShadow: 'var(--shadow-card)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '2px 8px', borderRadius: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--bg)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)' }}>
               {course?.code}
             </span>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: '4px 0' }}>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 700, color: 'var(--ink-900)', margin: '4px 0' }}>
               {course?.name}
             </h1>
-            <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
               Enrolled: {students.length} students · Total Planned Classes: {course?.total_classes || 45}
             </p>
           </div>
@@ -86,39 +92,43 @@ export default function FacultyCourseDetail() {
             <Link
               to={`/faculty/courses/${courseId}/attendance`}
               style={{
-                padding: '9px 16px', background: '#2563eb', color: '#fff',
-                border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                padding: '9px 18px', background: 'var(--accent)', color: 'var(--on-dark)',
+                border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, textDecoration: 'none',
               }}
             >
-              📊 Upload Attendance Sheet →
+              Upload Attendance Sheet →
             </Link>
             <Link
               to={`/faculty/courses/${courseId}/at-risk`}
               style={{
-                padding: '9px 16px', background: '#fff', color: '#dc2626',
-                border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                padding: '9px 18px', background: 'var(--surface)', color: 'var(--crit-fg)',
+                border: '1px solid var(--crit-fg)', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, textDecoration: 'none',
               }}
             >
-              ⚠️ At-Risk Radar List
+              At-Risk Radar List
             </Link>
           </div>
         </div>
 
         {/* Tab Buttons */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 20, borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{
+          display: 'flex', gap: 4, marginTop: 20, background: 'var(--bg)',
+          borderRadius: 'var(--radius-pill)', padding: 4, width: 'fit-content', border: '1px solid var(--border)',
+        }}>
           {[
-            { key: 'roster', label: `👥 Student Roster (${students.length})` },
-            { key: 'sessions', label: '🗓 Conducted Sessions' },
-            { key: 'assignments', label: `📋 Coursework & Grading (${assignments.length})` },
+            { key: 'roster', label: `Student Roster (${students.length})` },
+            { key: 'sessions', label: 'Conducted Sessions' },
+            { key: 'assignments', label: `Coursework & Grading (${assignments.length})` },
           ].map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
-                padding: '10px 16px', border: 'none', background: 'transparent',
-                fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                color: tab === t.key ? '#2563eb' : '#64748b',
-                borderBottom: tab === t.key ? '2px solid #2563eb' : '2px solid transparent',
+                padding: '6px 16px', border: 'none', borderRadius: 'var(--radius-pill)',
+                fontSize: 13, fontWeight: tab === t.key ? 700 : 500, cursor: 'pointer',
+                background: tab === t.key ? 'var(--accent)' : 'transparent',
+                color: tab === t.key ? 'var(--on-dark)' : 'var(--text-muted)',
+                transition: 'all 0.15s',
               }}
             >
               {t.label}
@@ -128,7 +138,7 @@ export default function FacultyCourseDetail() {
       </div>
 
       {/* Tab Content */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
         {tab === 'roster' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -138,15 +148,15 @@ export default function FacultyCourseDetail() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{
-                  width: 320, padding: '8px 14px', borderRadius: 8,
-                  border: '1px solid #cbd5e1', fontSize: 13,
+                  width: 320, padding: '8px 14px', borderRadius: 'var(--radius-input)',
+                  border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13,
                 }}
               />
               <button
                 onClick={() => setShowAddSession(true)}
                 style={{
-                  padding: '8px 16px', background: '#16a34a', color: '#fff',
-                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  padding: '8px 18px', background: 'var(--sage)', color: 'var(--ok-fg)',
+                  border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 }}
               >
                 + Mark Today's Class Session
@@ -155,12 +165,12 @@ export default function FacultyCourseDetail() {
 
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                  <th style={{ padding: '12px 14px', color: '#475569' }}>Roll No</th>
-                  <th style={{ padding: '12px 14px', color: '#475569' }}>Student Name</th>
-                  <th style={{ padding: '12px 14px', color: '#475569' }}>Attendance %</th>
-                  <th style={{ padding: '12px 14px', color: '#475569' }}>Buffer Classes</th>
-                  <th style={{ padding: '12px 14px', color: '#475569' }}>Status</th>
+                <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                  <th style={{ padding: '12px 14px', color: 'var(--text)' }}>Roll No</th>
+                  <th style={{ padding: '12px 14px', color: 'var(--text)' }}>Student Name</th>
+                  <th style={{ padding: '12px 14px', color: 'var(--text)' }}>Attendance %</th>
+                  <th style={{ padding: '12px 14px', color: 'var(--text)' }}>Buffer Classes</th>
+                  <th style={{ padding: '12px 14px', color: 'var(--text)' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -168,13 +178,13 @@ export default function FacultyCourseDetail() {
                   const pct = s.attendance_pct ?? 78.5;
                   const buf = s.buffer ?? 4;
                   return (
-                    <tr key={s.user_id || s.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 14px', fontWeight: 600 }}>{s.roll_no || '26CSE001'}</td>
-                      <td style={{ padding: '12px 14px', color: '#1e293b' }}>{s.name}</td>
-                      <td style={{ padding: '12px 14px', fontWeight: 700, color: pct >= 75 ? '#16a34a' : '#dc2626' }}>
+                    <tr key={s.user_id || s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>{s.roll_no || '26CSE001'}</td>
+                      <td style={{ padding: '12px 14px', color: 'var(--text)' }}>{s.name}</td>
+                      <td style={{ padding: '12px 14px', fontWeight: 700, color: pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
                         {pct}%
                       </td>
-                      <td style={{ padding: '12px 14px', fontWeight: 600, color: buf < 0 ? '#dc2626' : buf <= 2 ? '#d97706' : '#16a34a' }}>
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: buf < 0 ? 'var(--crit-fg)' : buf <= 2 ? 'var(--watch-fg)' : 'var(--ok-fg)' }}>
                         {buf < 0 ? `${buf} (shortfall)` : `${buf} spare`}
                       </td>
                       <td style={{ padding: '12px 14px' }}>
@@ -191,14 +201,14 @@ export default function FacultyCourseDetail() {
         {tab === 'sessions' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: 0 }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', margin: 0 }}>
                 Conducted Class Sessions History
               </h3>
               <button
                 onClick={() => setShowAddSession(true)}
                 style={{
-                  padding: '8px 16px', background: '#16a34a', color: '#fff',
-                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  padding: '8px 18px', background: 'var(--sage)', color: 'var(--ok-fg)',
+                  border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 }}
               >
                 + Add Session
@@ -206,11 +216,11 @@ export default function FacultyCourseDetail() {
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                  <th style={{ padding: '10px 14px', color: '#475569' }}>Date</th>
-                  <th style={{ padding: '10px 14px', color: '#475569' }}>Present Count</th>
-                  <th style={{ padding: '10px 14px', color: '#475569' }}>Absent Count</th>
-                  <th style={{ padding: '10px 14px', color: '#475569' }}>Attendance Rate</th>
+                <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                  <th style={{ padding: '10px 14px', color: 'var(--text)' }}>Date</th>
+                  <th style={{ padding: '10px 14px', color: 'var(--text)' }}>Present Count</th>
+                  <th style={{ padding: '10px 14px', color: 'var(--text)' }}>Absent Count</th>
+                  <th style={{ padding: '10px 14px', color: 'var(--text)' }}>Attendance Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,11 +229,11 @@ export default function FacultyCourseDetail() {
                   { date: '2026-10-19', present: 52, absent: 8, pct: '86.7%' },
                   { date: '2026-10-14', present: 48, absent: 12, pct: '80%' },
                 ].map((s, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>{s.date}</td>
-                    <td style={{ padding: '12px 14px', color: '#16a34a', fontWeight: 600 }}>{s.present}</td>
-                    <td style={{ padding: '12px 14px', color: '#dc2626', fontWeight: 600 }}>{s.absent}</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 700 }}>{s.pct}</td>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>{s.date}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--ok-fg)', fontWeight: 600 }}>{s.present}</td>
+                    <td style={{ padding: '12px 14px', color: 'var(--crit-fg)', fontWeight: 600 }}>{s.absent}</td>
+                    <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--ink-900)' }}>{s.pct}</td>
                   </tr>
                 ))}
               </tbody>
@@ -234,32 +244,32 @@ export default function FacultyCourseDetail() {
         {tab === 'assignments' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: 0 }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', margin: 0 }}>
                 Course Assignments
               </h3>
               <Link
                 to={`/faculty/courses/${courseId}/assignments`}
                 style={{
-                  padding: '8px 16px', background: '#2563eb', color: '#fff',
-                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none',
+                  padding: '8px 18px', background: 'var(--accent)', color: 'var(--on-dark)',
+                  border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, textDecoration: 'none',
                 }}
               >
                 + Create Assignment & Grade Submissions
               </Link>
             </div>
             {assignments.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>No assignments created yet.</div>
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>No assignments created yet.</div>
             ) : (
               <div style={{ display: 'grid', gap: 10 }}>
                 {assignments.map(a => (
-                  <div key={a.id} style={{ padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={a.id} style={{ padding: 14, background: 'var(--bg)', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <strong style={{ fontSize: 14, color: '#1e293b' }}>{a.title}</strong>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Due: {a.due_date} · Weight: 30%</div>
+                      <strong style={{ fontSize: 14, color: 'var(--ink-900)' }}>{a.title}</strong>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Due: {a.due_date} · Weight: 30%</div>
                     </div>
                     <Link
                       to={`/faculty/courses/${courseId}/assignments`}
-                      style={{ padding: '6px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12, fontWeight: 600, color: '#2563eb', textDecoration: 'none' }}
+                      style={{ padding: '6px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}
                     >
                       View Submissions →
                     </Link>
@@ -274,38 +284,38 @@ export default function FacultyCourseDetail() {
       {/* Add Session Modal */}
       {showAddSession && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)',
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(13,27,42,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: 440 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-dialog)', padding: 24, width: 440, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', margin: '0 0 14px' }}>
               Create Class Session & Record Attendance
             </h3>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
                 Session Date:
               </label>
               <input
                 type="date"
                 value={newSessionDate}
                 onChange={e => setNewSessionDate(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', boxSizing: 'border-box' }}
               />
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
               ✓ All {students.length} currently enrolled students will be recorded as Present by default.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowAddSession(false)}
-                style={{ padding: '8px 16px', background: '#f1f5f9', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                style={{ padding: '8px 16px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', cursor: 'pointer', color: 'var(--text)' }}
               >
                 Cancel
               </button>
               <button
                 onClick={() => addSessionMutation.mutate()}
                 disabled={addSessionMutation.isPending}
-                style={{ padding: '8px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                style={{ padding: '8px 18px', background: 'var(--sage)', color: 'var(--ok-fg)', border: 'none', borderRadius: 'var(--radius-pill)', cursor: 'pointer', fontWeight: 700 }}
               >
                 {addSessionMutation.isPending ? 'Saving...' : 'Confirm & Mark Session'}
               </button>
