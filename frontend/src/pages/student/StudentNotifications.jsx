@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { notificationApi } from '../../api/endpoints.js';
+import { Skeleton, EmptyState } from '../../components/ui/Skeleton.jsx';
 
 export default function StudentNotifications() {
   const navigate = useNavigate();
@@ -30,7 +31,14 @@ export default function StudentNotifications() {
   });
 
   if (isLoading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>⏳ Loading notifications...</div>;
+    return (
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <Skeleton height={100} style={{ marginBottom: 20 }} />
+        <Skeleton height={80} style={{ marginBottom: 10 }} />
+        <Skeleton height={80} style={{ marginBottom: 10 }} />
+        <Skeleton height={80} />
+      </div>
+    );
   }
 
   // Filter
@@ -66,17 +74,18 @@ export default function StudentNotifications() {
   };
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto', color: 'var(--text)' }}>
       {/* Header */}
       <div style={{
-        background: '#fff', borderRadius: 14, padding: '20px 24px', border: '1px solid #e2e8f0',
+        background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: '20px 24px', border: '1px solid var(--border)',
         marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+        boxShadow: 'var(--shadow-card)',
       }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-            🔔 Notifications & Reminders
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 700, color: 'var(--ink-900)', margin: 0 }}>
+            Notifications & Reminders
           </h1>
-          <p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
             System alerts, deadline nudges, timetable changes, and course updates.
           </p>
         </div>
@@ -85,7 +94,7 @@ export default function StudentNotifications() {
           <select
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+            style={{ padding: '6px 14px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13 }}
           >
             <option value="all">All Alerts</option>
             <option value="buffer_warning">Buffer Warnings</option>
@@ -97,8 +106,9 @@ export default function StudentNotifications() {
           <button
             onClick={() => markAllReadMutation.mutate()}
             style={{
-              padding: '6px 14px', background: '#f8fafc', color: '#475569',
-              border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              padding: '6px 16px', background: 'var(--bg)', color: 'var(--text)',
+              border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              transition: 'background 0.15s',
             }}
           >
             ✓ Mark All Read
@@ -111,7 +121,7 @@ export default function StudentNotifications() {
         {/* Today Section */}
         {todayList.length > 0 && (
           <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', marginBottom: 10, textTransform: 'uppercase' }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Today
             </h3>
             <div style={{ display: 'grid', gap: 8 }}>
@@ -125,15 +135,12 @@ export default function StudentNotifications() {
         {/* Earlier Section */}
         <div>
           {todayList.length > 0 && earlierList.length > 0 && (
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', margin: '14px 0 10px', textTransform: 'uppercase' }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', margin: '14px 0 10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Earlier
             </h3>
           )}
           {filtered.length === 0 ? (
-            <div style={{ background: '#fff', borderRadius: 12, padding: 48, textAlign: 'center', color: '#94a3b8', border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🔕</div>
-              <p>No notifications to display.</p>
-            </div>
+            <EmptyState title="No notifications to display" description="You are all caught up!" />
           ) : (
             <div style={{ display: 'grid', gap: 8 }}>
               {earlierList.map(n => (
@@ -155,15 +162,16 @@ function NotificationCard({ n, onClick }) {
     <div
       onClick={onClick}
       style={{
-        background: isUnread ? (isUrgent ? '#fef2f2' : '#eff6ff') : '#fff',
-        border: `1px solid ${isUnread ? (isUrgent ? '#fca5a5' : '#bfdbfe') : '#e2e8f0'}`,
-        borderRadius: 10,
+        background: isUnread ? (isUrgent ? 'var(--crit-bg)' : 'var(--bg)') : 'var(--surface)',
+        border: `1px solid ${isUnread ? (isUrgent ? 'var(--crit-fg)' : 'var(--sand)') : 'var(--border)'}`,
+        borderRadius: 'var(--radius-input)',
         padding: '14px 18px',
         cursor: 'pointer',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        boxShadow: isUnread ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
+        boxShadow: isUnread ? 'var(--shadow-card)' : 'none',
+        transition: 'all 0.15s',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -172,19 +180,19 @@ function NotificationCard({ n, onClick }) {
         </span>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <strong style={{ fontSize: 14, color: '#1e293b' }}>{n.title}</strong>
+            <strong style={{ fontSize: 14, color: 'var(--ink-900)' }}>{n.title}</strong>
             {isUnread && (
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb' }} />
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)' }} />
             )}
           </div>
-          <div style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>{n.message}</div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+          <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>{n.message}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
             {n.created_at ? new Date(n.created_at).toLocaleString() : 'Recently'}
           </div>
         </div>
       </div>
 
-      <span style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>
+      <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>
         Open →
       </span>
     </div>

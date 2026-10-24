@@ -5,6 +5,7 @@ import { courseApi, attendanceApi, assignmentApi, riskApi } from '../../api/endp
 import StatusBadge from '../../components/StatusBadge.jsx';
 import BufferGauge from '../../components/BufferGauge.jsx';
 import ScoreExpander from '../../components/ScoreExpander.jsx';
+import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
 export default function StudentCourseDetail() {
   const { id } = useParams();
@@ -32,7 +33,12 @@ export default function StudentCourseDetail() {
   });
 
   if (loadingCourse) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>⏳ Loading course details...</div>;
+    return (
+      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+        <Skeleton height={140} style={{ marginBottom: 20 }} />
+        <Skeleton height={300} />
+      </div>
+    );
   }
 
   const tabs = [
@@ -45,49 +51,61 @@ export default function StudentCourseDetail() {
   ];
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', color: 'var(--text)' }}>
       {/* Course Banner */}
       <div style={{
-        background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0',
-        marginBottom: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, border: '1px solid var(--border)',
+        marginBottom: 20, boxShadow: 'var(--shadow-card)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '2px 8px', borderRadius: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', background: 'var(--bg)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)' }}>
                 {course?.code}
               </span>
               <StatusBadge status="safe" />
             </div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: '4px 0' }}>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 700, color: 'var(--ink-900)', margin: '4px 0' }}>
               {course?.name}
             </h1>
-            <p style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
               Department: CSE · Total Classes: {course?.total_classes || 60} · Semester: Sem 5
             </p>
           </div>
           <Link
             to="/student/calendar"
             style={{
-              padding: '8px 16px', background: '#eff6ff', color: '#2563eb',
-              border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none',
+              padding: '8px 16px', background: 'var(--accent)', color: 'var(--on-dark)',
+              border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, textDecoration: 'none',
+              transition: 'background 0.15s',
             }}
           >
-            📅 Plan Leaves for this Course →
+            Plan Leaves for this Course →
           </Link>
         </div>
 
         {/* Tab Navigation */}
-        <div style={{ display: 'flex', gap: 6, marginTop: 20, borderBottom: '1px solid #e2e8f0', paddingBottom: 0 }}>
+        <div style={{
+          display: 'flex',
+          gap: 4,
+          marginTop: 20,
+          background: 'var(--bg)',
+          borderRadius: 'var(--radius-pill)',
+          padding: 4,
+          width: 'fit-content',
+          border: '1px solid var(--border)',
+          flexWrap: 'wrap',
+        }}>
           {tabs.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
-                padding: '10px 16px', border: 'none', background: 'transparent',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                color: tab === t.key ? '#2563eb' : '#64748b',
-                borderBottom: tab === t.key ? '2px solid #2563eb' : '2px solid transparent',
+                padding: '6px 16px', border: 'none', borderRadius: 'var(--radius-pill)',
+                fontSize: 13, fontWeight: tab === t.key ? 700 : 500, cursor: 'pointer',
+                background: tab === t.key ? 'var(--accent)' : 'transparent',
+                color: tab === t.key ? 'var(--on-dark)' : 'var(--text-muted)',
+                transition: 'all 0.15s',
               }}
             >
               {t.label}
@@ -97,26 +115,26 @@ export default function StudentCourseDetail() {
       </div>
 
       {/* Tab Contents */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
         {tab === 'overview' && (
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Course Syllabus & Policy</h3>
-            <p style={{ color: '#475569', fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 12 }}>Course Syllabus & Policy</h3>
+            <p style={{ color: 'var(--text)', fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
               This course covers core theory, algorithmic paradigms, design techniques, and practical laboratory exercises.
               Mandatory minimum attendance threshold is <strong>75%</strong> under university regulations.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
               <div style={infoBoxStyle}>
-                <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 13 }}>Schedule</div>
-                <div style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>Mon 09:00 - 10:00, Wed 11:15 - 12:15</div>
+                <div style={{ fontWeight: 600, color: 'var(--ink-900)', fontSize: 13 }}>Schedule</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>Mon 09:00 - 10:00, Wed 11:15 - 12:15</div>
               </div>
               <div style={infoBoxStyle}>
-                <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 13 }}>Office Hours</div>
-                <div style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>Tuesday & Thursday 15:00 - 16:30 (Room 304)</div>
+                <div style={{ fontWeight: 600, color: 'var(--ink-900)', fontSize: 13 }}>Office Hours</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>Tuesday & Thursday 15:00 - 16:30 (Room 304)</div>
               </div>
               <div style={infoBoxStyle}>
-                <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 13 }}>Grading Scheme</div>
-                <div style={{ color: '#64748b', fontSize: 12, marginTop: 4 }}>Assignments (30%), Mid-term (30%), End-sem (40%)</div>
+                <div style={{ fontWeight: 600, color: 'var(--ink-900)', fontSize: 13 }}>Grading Scheme</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>Assignments (30%), Mid-term (30%), End-sem (40%)</div>
               </div>
             </div>
           </div>
@@ -127,24 +145,24 @@ export default function StudentCourseDetail() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
               <BufferGauge bufferClasses={4} />
               <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>Attendance Rate</div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>78.5%</div>
-                <div style={{ fontSize: 11, color: '#16a34a', marginTop: 2 }}>✓ Above 75% required threshold</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Attendance Rate</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ok-fg)', marginTop: 4 }}>78.5%</div>
+                <div style={{ fontSize: 11, color: 'var(--ok-fg)', marginTop: 2 }}>✓ Above 75% required threshold</div>
               </div>
               <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>Classes Held / Total</div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', marginTop: 4 }}>32 / 45</div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>13 future classes remaining</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Classes Held / Total</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink-900)', marginTop: 4 }}>32 / 45</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>13 future classes remaining</div>
               </div>
             </div>
 
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Attendance History Log</h3>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 12 }}>Attendance History Log</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                  <th style={{ padding: '10px 14px', color: '#475569' }}>Session Date</th>
-                  <th style={{ padding: '10px 14px', color: '#475569' }}>Status</th>
-                  <th style={{ padding: '10px 14px', color: '#475569' }}>Topic / Notes</th>
+                <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                  <th style={{ padding: '10px 14px', color: 'var(--text)' }}>Session Date</th>
+                  <th style={{ padding: '10px 14px', color: 'var(--text)' }}>Status</th>
+                  <th style={{ padding: '10px 14px', color: 'var(--text)' }}>Topic / Notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,19 +173,19 @@ export default function StudentCourseDetail() {
                   { date: '2026-10-12', status: 'absent', topic: 'Minimum Spanning Trees' },
                   { date: '2026-10-07', status: 'present', topic: 'Graph Traversals BFS/DFS' },
                 ].map((row, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 14px', fontWeight: 600 }}>{row.date}</td>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>{row.date}</td>
                     <td style={{ padding: '10px 14px' }}>
                       <span style={{
-                        padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
-                        background: row.status === 'present' ? '#dcfce7' : row.status === 'late' ? '#fef3c7' : '#fee2e2',
-                        color: row.status === 'present' ? '#15803d' : row.status === 'late' ? '#b45309' : '#dc2626',
+                        padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
+                        background: row.status === 'present' ? 'var(--ok-bg)' : row.status === 'late' ? 'var(--watch-bg)' : 'var(--crit-bg)',
+                        color: row.status === 'present' ? 'var(--ok-fg)' : row.status === 'late' ? 'var(--watch-fg)' : 'var(--crit-fg)',
                         textTransform: 'capitalize',
                       }}>
                         {row.status}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 14px', color: '#64748b' }}>{row.topic}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{row.topic}</td>
                   </tr>
                 ))}
               </tbody>
@@ -177,25 +195,25 @@ export default function StudentCourseDetail() {
 
         {tab === 'deadlines' && (
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Course Assignments & Submissions</h3>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 12 }}>Course Assignments & Submissions</h3>
             {assignments.length === 0 ? (
-              <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>No assignments posted for this course.</div>
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>No assignments posted for this course.</div>
             ) : (
               <div style={{ display: 'grid', gap: 10 }}>
                 {assignments.map(a => (
                   <div key={a.id} style={{
-                    padding: '14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc',
+                    padding: '14px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', background: 'var(--bg)',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}>
                     <div>
-                      <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 14 }}>{a.title}</div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Due: {a.due_date} · Max Score: 100</div>
+                      <div style={{ fontWeight: 700, color: 'var(--ink-900)', fontSize: 14 }}>{a.title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Due: {a.due_date} · Max Score: 100</div>
                     </div>
                     <Link
                       to={`/student/assignments/${a.id}`}
                       style={{
-                        padding: '6px 14px', background: '#2563eb', color: '#fff',
-                        borderRadius: 6, fontSize: 12, fontWeight: 600, textDecoration: 'none',
+                        padding: '6px 14px', background: 'var(--accent)', color: 'var(--on-dark)',
+                        borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600, textDecoration: 'none',
                       }}
                     >
                       View & Submit →
@@ -208,10 +226,10 @@ export default function StudentCourseDetail() {
         )}
 
         {tab === 'announcements' && (
-          <div style={{ padding: 12, color: '#64748b', fontSize: 13 }}>
-            <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 10 }}>
-              <div style={{ fontWeight: 700, color: '#1e293b' }}>Midterm Revision Session</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+          <div style={{ padding: 12, color: 'var(--text)', fontSize: 13 }}>
+            <div style={{ padding: 14, background: 'var(--bg)', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', marginBottom: 10 }}>
+              <div style={{ fontWeight: 700, color: 'var(--ink-900)' }}>Midterm Revision Session</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                 A revision Q&A session will take place this Thursday during normal lab hours. Please bring practice problems.
               </div>
             </div>
@@ -220,15 +238,15 @@ export default function StudentCourseDetail() {
 
         {tab === 'materials' && (
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Authorized Course Materials</h3>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 12 }}>Authorized Course Materials</h3>
             <div style={{ display: 'grid', gap: 8 }}>
               {['Lecture 1: Asymptotic Notation.pdf', 'Lecture 2: Recurrences & Master Theorem.pdf', 'Lab Manual: Graph Algorithms.pdf'].map((f, i) => (
                 <div key={i} style={{
-                  padding: '10px 14px', background: '#f8fafc', borderRadius: 6, border: '1px solid #e2e8f0',
+                  padding: '10px 14px', background: 'var(--bg)', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
-                  <span style={{ fontSize: 13, color: '#1e293b', fontWeight: 500 }}>📄 {f}</span>
-                  <button style={{ padding: '4px 10px', fontSize: 12, background: '#fff', border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>📄 {f}</span>
+                  <button style={{ padding: '4px 12px', fontSize: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', cursor: 'pointer', color: 'var(--text)' }}>
                     Download
                   </button>
                 </div>
@@ -239,27 +257,27 @@ export default function StudentCourseDetail() {
 
         {tab === 'risk' && (
           <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>Early Warning Risk Breakdown</h3>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 12 }}>Early Warning Risk Breakdown</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
               <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>Margin (Max 50)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>12.5 / 50</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Buffer = 4 classes</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Margin (Max 50)</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ok-fg)', marginTop: 4 }}>12.5 / 50</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Buffer = 4 classes</div>
               </div>
               <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>Trend (Max 20)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>2.0 / 20</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>Stable attendance trend</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Trend (Max 20)</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ok-fg)', marginTop: 4 }}>2.0 / 20</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Stable attendance trend</div>
               </div>
               <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>Deadlines (Max 20)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#d97706', marginTop: 4 }}>8.0 / 20</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>1 unsubmitted assignment</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Deadlines (Max 20)</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--watch-fg)', marginTop: 4 }}>8.0 / 20</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>1 unsubmitted assignment</div>
               </div>
               <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>Missed (Max 10)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>0.0 / 10</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>No missed submissions</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Missed (Max 10)</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ok-fg)', marginTop: 4 }}>0.0 / 10</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>No missed submissions</div>
               </div>
             </div>
             <ScoreExpander
@@ -276,8 +294,8 @@ export default function StudentCourseDetail() {
 }
 
 const infoBoxStyle = {
-  background: '#f8fafc',
+  background: 'var(--bg)',
   padding: '14px',
-  borderRadius: '8px',
-  border: '1px solid #e2e8f0',
+  borderRadius: 'var(--radius-input)',
+  border: '1px solid var(--border)',
 };
