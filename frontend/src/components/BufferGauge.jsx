@@ -1,70 +1,51 @@
 import React from 'react';
 
-export default function BufferGauge({ bufferClasses, insufficientData = false }) {
-  if (insufficientData) {
+/** BufferGauge: shows how many classes a student can still miss */
+export default function BufferGauge({ buffer, small = false }) {
+  if (buffer == null) {
     return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', padding: '12px', borderRadius: '10px',
-        background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center',
-      }}>
-        <span style={{ fontSize: '20px', fontWeight: 700, color: '#94a3b8' }}>⏳</span>
-        <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-          Not enough data yet
-        </span>
-      </div>
+      <span style={{ color: 'var(--text-muted)', fontSize: small ? 11 : 13, fontStyle: 'italic' }}>
+        No data
+      </span>
     );
   }
 
-  if (bufferClasses === null || bufferClasses === undefined) {
-    return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', padding: '12px', borderRadius: '10px',
-        background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center',
-      }}>
-        <span style={{ fontSize: '20px', fontWeight: 700, color: '#94a3b8' }}>—</span>
-        <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-          Buffer calculating
-        </span>
-      </div>
-    );
-  }
+  const isNeg = buffer < 0;
+  const isZero = buffer === 0;
 
-  if (bufferClasses < 0) {
-    return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', padding: '12px', borderRadius: '10px',
-        background: '#fef2f2', border: '1px solid #fecaca', textAlign: 'center',
-      }}>
-        <span style={{ fontSize: '22px', fontWeight: 800, color: '#dc2626' }}>
-          {bufferClasses}
-        </span>
-        <span style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', marginTop: '4px' }}>
-          Not recoverable by attendance alone
-        </span>
-      </div>
-    );
-  }
+  const color = isNeg ? 'var(--crit-fg)' : isZero ? 'var(--risk-fg)' : buffer <= 2 ? 'var(--risk-fg)' : 'var(--sage)';
+  const label = isNeg
+    ? `${Math.abs(buffer)} behind`
+    : `${buffer} spare`;
 
-  const isLow = bufferClasses <= 2;
-  const color = isLow ? '#d97706' : '#16a34a';
-  const bg = isLow ? '#fffbeb' : '#f0fdf4';
-  const border = isLow ? '#fde68a' : '#bbf7d0';
+  const barWidth = Math.min(Math.abs(buffer) * 12, 100);
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', padding: '12px', borderRadius: '10px',
-      background: bg, border: `1px solid ${border}`, textAlign: 'center',
-    }}>
-      <span style={{ fontSize: '24px', fontWeight: 800, color }}>
-        {bufferClasses}
+    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, minWidth: small ? 60 : 80 }}>
+      <span style={{
+        fontSize: small ? 12 : 14,
+        fontWeight: 700,
+        color,
+        fontVariantNumeric: 'tabular-nums',
+        lineHeight: 1,
+      }}>
+        {label}
       </span>
-      <span style={{ fontSize: '11px', fontWeight: 500, color: '#475569', marginTop: '4px' }}>
-        {bufferClasses === 0 ? 'Cannot miss any more classes' : `You can miss ${bufferClasses} more class${bufferClasses > 1 ? 'es' : ''}`}
-      </span>
+      <div style={{
+        height: small ? 3 : 4,
+        width: 64,
+        background: 'var(--border)',
+        borderRadius: 999,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${barWidth}%`,
+          background: color,
+          borderRadius: 999,
+          transition: 'width 0.4s',
+        }} />
+      </div>
     </div>
   );
 }

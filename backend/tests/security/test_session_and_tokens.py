@@ -1,8 +1,8 @@
 import pytest
-import time
+
+from app.core.permissions import Role
 from app.core.session import SessionStore, get_session_cookie_settings
 from app.core.tokens import TokenService
-from app.core.permissions import Role
 
 
 @pytest.mark.asyncio
@@ -11,9 +11,7 @@ async def test_session_lifecycle():
 
     # Create session
     session_id = await store.create_session(
-        user_id=101,
-        role=Role.STUDENT.value,
-        metadata={"ip": "127.0.0.1"}
+        user_id=101, role=Role.STUDENT.value, metadata={"ip": "127.0.0.1"}
     )
     assert session_id is not None
     assert len(session_id) >= 32

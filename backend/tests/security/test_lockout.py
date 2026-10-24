@@ -1,5 +1,5 @@
 import pytest
-import time
+
 from app.core.lockout import LockoutPolicy
 
 
@@ -55,7 +55,7 @@ async def test_lockout_successful_reset():
 @pytest.mark.asyncio
 async def test_lockout_case_insensitivity():
     policy = LockoutPolicy(client=None, max_attempts=2, lockout_duration_seconds=10)
-    
+
     await policy.record_failed_attempt("Student@AcadFlow.EDU")
     attempts, is_locked = await policy.record_failed_attempt("student@acadflow.edu")
 

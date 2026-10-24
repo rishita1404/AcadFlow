@@ -16,10 +16,14 @@ Security & Privacy Guarantees:
 - No competing PostgreSQL audit migrations (preserves Liza's relational schema).
 """
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
 try:
     from app.db.mongo import mongo_db
 except Exception:
@@ -49,9 +53,7 @@ SENSITIVE_FIELD_NAMES = {
 
 
 def redact_sensitive_data(data: Any) -> Any:
-    """
-    Recursively traverse dictionary/lists and replace sensitive field values with '[REDACTED]'.
-    """
+    """Recursively traverse dictionary/lists and replace sensitive field values with '[REDACTED]'."""
     if isinstance(data, dict):
         cleaned = {}
         for k, v in data.items():
@@ -81,9 +83,7 @@ class AuditLogger:
         ip_address: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """
-        Record a sanitized, structured audit event.
-        """
+        """Record a sanitized, structured audit event."""
         clean_metadata = redact_sensitive_data(metadata or {})
 
         event = {

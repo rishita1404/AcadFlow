@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -26,9 +27,7 @@ class AssignmentModel(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    course_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("courses.id")
-    )
+    course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id"))
     title: Mapped[str] = mapped_column(String(200))
     kind: Mapped[str] = mapped_column(String(30))
     description: Mapped[Optional[str]] = mapped_column(Text)

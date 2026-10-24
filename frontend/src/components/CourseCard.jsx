@@ -1,104 +1,83 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import Card from './ui/Card.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import BufferGauge from './BufferGauge.jsx';
 
 export default function CourseCard({ course, onClick }) {
-  const navigate = useNavigate();
-
-  const handleCardClick = () => {
-    if (onClick) {
-      onClick(course);
-    } else if (course?.course_id || course?.id) {
-      navigate(`/student/courses/${course.course_id || course.id}`);
-    }
-  };
-
-  const pct = course?.attendance_pct ?? course?.attendancePct;
-  const pctColor = pct >= 75 ? '#16a34a' : pct >= 65 ? '#d97706' : '#dc2626';
+  const pct = course.attendance_pct ?? course.attendance_percentage ?? null;
+  const pctColor = pct == null
+    ? 'var(--text-muted)'
+    : pct >= 75 ? 'var(--sage)' : pct >= 65 ? 'var(--must-attend)' : 'var(--crit-fg)';
 
   return (
-    <div
-      onClick={handleCardClick}
-      style={{
-        background: '#fff',
-        borderRadius: '12px',
-        padding: '20px',
-        border: '1px solid #e2e8f0',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-        cursor: 'pointer',
-        transition: 'transform 0.15s, box-shadow 0.15s',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.08)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
-      }}
+    <Card
+      onClick={onClick}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
+      padding="var(--space-6)"
     >
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
+        <div>
           <span style={{
-            fontSize: '11px', fontWeight: 700, color: '#2563eb',
-            background: '#eff6ff', padding: '3px 8px', borderRadius: '4px',
+            display: 'inline-block',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+            color: 'var(--accent)', background: 'var(--bg)',
+            padding: '2px 10px', borderRadius: 'var(--radius-pill)',
+            border: '1px solid var(--border)',
+            marginBottom: 6,
           }}>
-            {course?.code || course?.courseCode}
+            {course.code}
           </span>
-          <StatusBadge status={course?.risk_band || course?.status || 'safe'} />
+          <h3 style={{
+            fontFamily: 'var(--font-serif)', fontSize: 16,
+            color: 'var(--ink-900)', lineHeight: 1.3, margin: 0,
+          }}>
+            {course.name}
+          </h3>
         </div>
-
-        <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b', margin: '4px 0 8px' }}>
-          {course?.name || course?.title}
-        </h3>
-
-        {/* Attendance Bar */}
-        <div style={{ marginBottom: '14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-            <span style={{ color: '#64748b' }}>Attendance</span>
-            <span style={{ fontWeight: 700, color: pctColor }}>
-              {pct != null ? `${pct}%` : 'N/A'}
-            </span>
-          </div>
-          <div style={{ background: '#e2e8f0', borderRadius: '4px', height: '6px', overflow: 'hidden' }}>
-            <div style={{
-              width: `${Math.min(pct || 0, 100)}%`,
-              height: '100%',
-              background: pctColor,
-              borderRadius: '4px',
-              transition: 'width 0.4s',
-            }} />
-          </div>
-        </div>
-
-        {/* Buffer Gauge */}
-        <BufferGauge
-          bufferClasses={course?.buffer}
-          insufficientData={course?.insufficient_data}
-        />
+        <StatusBadge band={course.risk_band || course.band} size="sm" />
       </div>
 
-      {/* ML Chip & Stats Footer */}
-      <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '11px', color: '#64748b' }}>
-          Attended: <strong>{course?.attended ?? 0}</strong>/{course?.held ?? 0}
-        </span>
-        <span style={{
-          fontSize: '10px',
-          fontWeight: 600,
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          padding: '2px 6px',
-          borderRadius: '4px',
-          color: '#475569',
-        }}>
-          🤖 Model: Safe (v1)
-        </span>
+      {/* Stats row */}
+      <div style={{
+        display: 'flex', gap: 'var(--space-6)',
+        borderTop: '1px solid var(--border)',
+        paddingTop: 'var(--space-4)',
+        marginTop: 'var(--space-3)',
+      }}>
+        {/* Attendance */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 2 }}>
+            Attendance
+          </div>
+          <div style={{
+            fontSize: 22, fontWeight: 800, color: pctColor,
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {pct != null ? `${pct}%` : '—'}
+          </div>
+        </div>
+
+        {/* Buffer */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 2 }}>
+            Buffer
+          </div>
+          <BufferGauge buffer={course.buffer} />
+        </div>
+
+        {/* Sessions */}
+        {(course.classes_held != null || course.total_sessions != null) && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 2 }}>
+              Sessions
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+              {course.classes_attended ?? course.attended ?? '?'} / {course.classes_held ?? course.total_sessions ?? '?'}
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </Card>
   );
 }

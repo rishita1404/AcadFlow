@@ -21,10 +21,10 @@ from typing import Optional
 
 from app.services.buffer import compute_margin_score
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Configuration dataclass (mirrors risk_config table)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class RiskConfig:
@@ -36,6 +36,7 @@ class RiskConfig:
 
     Band thresholds are the LOWER BOUND of each band (inclusive).
     """
+
     w_margin: float = 50.0
     w_trend: float = 20.0
     w_deadline: float = 20.0
@@ -72,22 +73,25 @@ DEFAULT_RISK_CONFIG = RiskConfig()
 # Risk score result
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class RiskScoreResult:
     """Full output of compute_risk_score()."""
-    score: float                        # 0–100 (rounded to 1 dp)
-    band: str                           # Safe / Watch / At risk / Critical
-    margin_points: float                # contribution from attendance margin
-    trend_points: float                 # contribution from attendance trend
-    deadline_points: float              # contribution from upcoming deadlines
-    missed_points: float                # contribution from missed submissions
-    insufficient_data: bool             # True → score is not meaningful
+
+    score: float  # 0–100 (rounded to 1 dp)
+    band: str  # Safe / Watch / At risk / Critical
+    margin_points: float  # contribution from attendance margin
+    trend_points: float  # contribution from attendance trend
+    deadline_points: float  # contribution from upcoming deadlines
+    missed_points: float  # contribution from missed submissions
+    insufficient_data: bool  # True → score is not meaningful
     factors: list[str] = field(default_factory=list)  # human-readable explanations
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Band classification
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def classify_band(score: float, config: RiskConfig = DEFAULT_RISK_CONFIG) -> str:
     """
@@ -96,7 +100,7 @@ def classify_band(score: float, config: RiskConfig = DEFAULT_RISK_CONFIG) -> str
     PRD: 0–29 Safe, 30–54 Watch, 55–79 At risk, 80–100 Critical.
     Boundary values belong to the LOWER band (t_watch=30 → Watch starts at 30).
     """
-    s = round(score, 10)   # guard against float drift
+    s = round(score, 10)  # guard against float drift
     if s >= config.t_critical:
         return "Critical"
     if s >= config.t_risk:
@@ -109,6 +113,7 @@ def classify_band(score: float, config: RiskConfig = DEFAULT_RISK_CONFIG) -> str
 # ──────────────────────────────────────────────────────────────────────────────
 # Trend component
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def compute_trend_score(
     attendance_slope: Optional[float],
@@ -148,6 +153,7 @@ def compute_trend_score(
 # Deadline component
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def compute_deadline_score(
     upcoming_deadline_count: int,
     w_deadline: float = 20.0,
@@ -181,6 +187,7 @@ def compute_deadline_score(
 # Missed-submission component
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def compute_missed_score(
     missed_count: int,
     total_submissions: int,
@@ -209,6 +216,7 @@ def compute_missed_score(
 # ──────────────────────────────────────────────────────────────────────────────
 # Main orchestrating function
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def compute_risk_score(
     *,

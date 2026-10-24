@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
@@ -29,17 +30,11 @@ class SubmissionModel(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    assignment_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("assignments.id")
-    )
-    student_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("students.user_id")
-    )
+    assignment_id: Mapped[int] = mapped_column(Integer, ForeignKey("assignments.id"))
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.user_id"))
     version: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String(20))
-    submitted_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True)
-    )
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     file_key: Mapped[Optional[str]] = mapped_column(String(255))
     file_hash: Mapped[Optional[str]] = mapped_column(String(128))
     dedupe_key: Mapped[str] = mapped_column(String(100), unique=True)

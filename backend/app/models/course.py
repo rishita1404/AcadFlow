@@ -1,4 +1,5 @@
 from datetime import date
+
 from sqlalchemy import (
     CheckConstraint,
     Date,
@@ -28,9 +29,7 @@ class HolidayModel(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    semester_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("semesters.id")
-    )
+    semester_id: Mapped[int] = mapped_column(Integer, ForeignKey("semesters.id"))
     holiday_date: Mapped[date] = mapped_column("date", Date)
     label: Mapped[str] = mapped_column(String(100))
 
@@ -41,12 +40,8 @@ class CourseModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(150))
-    semester_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("semesters.id")
-    )
-    department_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("departments.id")
-    )
+    semester_id: Mapped[int] = mapped_column(Integer, ForeignKey("semesters.id"))
+    department_id: Mapped[int] = mapped_column(Integer, ForeignKey("departments.id"))
     total_classes: Mapped[int] = mapped_column(Integer)
 
 

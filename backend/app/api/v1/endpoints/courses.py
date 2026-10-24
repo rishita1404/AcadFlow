@@ -1,9 +1,11 @@
 from datetime import date
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status
+
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user_optional
 from app.core.deps import can_access, get_db
 from app.core.errors import ConflictError, NotFoundError
 from app.models import CourseModel, EnrolmentModel, StudentModel
@@ -20,10 +22,14 @@ def list_courses(
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
     department_id: Optional[int] = Query(None, description="Filter by department ID"),
     code: Optional[str] = Query(None, description="Partial match filter by code"),
-    sort: Optional[str] = Query(None, description="Sort field (prefix with - for desc, e.g. -total_classes)"),
+    sort: Optional[str] = Query(
+        None,
+        description="Sort field (prefix with - for desc, e.g. -total_classes)",
+    ),
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="list", resource="courses")
+    can_access(user=current_user, action="list", resource="courses")
 
     query = select(CourseModel)
 
@@ -61,8 +67,9 @@ def list_courses(
 def create_course(
     payload: CourseCreate,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="create", resource="courses")
+    can_access(user=current_user, action="create", resource="courses")
 
     # Check unique code
     existing = db.scalar(select(CourseModel).where(CourseModel.code == payload.code))
@@ -80,8 +87,9 @@ def create_course(
 def get_course(
     course_id: int,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="read", resource="courses")
+    can_access(user=current_user, action="read", resource="courses")
 
     course = db.get(CourseModel, course_id)
     if not course:
@@ -94,8 +102,9 @@ def update_course(
     course_id: int,
     payload: CourseUpdate,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="update", resource="courses")
+    can_access(user=current_user, action="update", resource="courses")
 
     course = db.get(CourseModel, course_id)
     if not course:
@@ -103,9 +112,13 @@ def update_course(
 
     update_data = payload.model_dump(exclude_unset=True)
     if "code" in update_data and update_data["code"] != course.code:
-        existing = db.scalar(select(CourseModel).where(CourseModel.code == update_data["code"]))
+        existing = db.scalar(
+            select(CourseModel).where(CourseModel.code == update_data["code"])
+        )
         if existing:
-            raise ConflictError(f"Course with code '{update_data['code']}' already exists")
+            raise ConflictError(
+                f"Course with code '{update_data['code']}' already exists"
+            )
 
     for key, value in update_data.items():
         setattr(course, key, value)
@@ -119,8 +132,9 @@ def update_course(
 def delete_course(
     course_id: int,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="delete", resource="courses")
+    can_access(user=current_user, action="delete", resource="courses")
 
     course = db.get(CourseModel, course_id)
     if not course:
@@ -131,13 +145,18 @@ def delete_course(
     return None
 
 
-@router.post("/{course_id}/enrolments", response_model=List[EnrolmentOut], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{course_id}/enrolments",
+    response_model=List[EnrolmentOut],
+    status_code=status.HTTP_201_CREATED,
+)
 def enrol_students(
     course_id: int,
     payload: EnrolmentBatchCreate,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="enrol", resource="courses")
+    can_access(user=current_user, action="enrol", resource="courses")
 
     course = db.get(CourseModel, course_id)
     if not course:
@@ -179,3 +198,61 @@ def enrol_students(
 
     db.commit()
     return [EnrolmentOut.model_validate(rec) for rec in created_records]
+
+
+@router.post("/{course_id}/attendance/preview")
+async def preview_attendance_upload(
+    course_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """
+    Step 2 of the 4-step upload wizard:
+    Validates CSV or Excel file without persisting to database.
+    Returns matched students, quarantined rows with reasons, and diffs.
+    """
+    can_access(user=current_user, action="mark", resource="attendance")
+    course = db.get(CourseModel, course_id)
+    if not course:
+        raise NotFoundError(f"Course {course_id} not found")
+
+    from app.services.csv_ingest import ingest_attendance_file
+    content = await file.read()
+    filename = file.filename or "attendance.csv"
+    actor_id = int(current_user["sub"]) if current_user and "sub" in current_user else 1
+
+    try:
+        result = ingest_attendance_file(
+            db=db,
+            file_bytes=content,
+            filename=filename,
+            course_id=course_id,
+            marked_by_user_id=actor_id,
+            dry_run=True,
+        )
+        return {
+            "preview": True,
+            "course_id": course_id,
+            "total_rows": result.total_rows,
+            "valid_rows": result.processed,
+            "quarantined_rows": len(result.errors),
+            "sessions_to_create": result.sessions_created,
+            "errors": [
+                {
+                    "row": e.row_number,
+                    "roll_no": e.roll_no,
+                    "date": e.date_str,
+                    "status": e.status_str,
+                    "reason": e.reason,
+                }
+                for e in result.errors
+            ],
+            "diffs": result.diffs,
+        }
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "VALIDATION_ERROR", "message": str(e)},
+        )

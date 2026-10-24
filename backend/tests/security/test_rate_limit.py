@@ -1,5 +1,6 @@
 import pytest
 from fastapi import HTTPException
+
 from app.core.rate_limit import RateLimiter, get_client_ip
 
 
@@ -39,8 +40,7 @@ def test_ip_spoofing_defense():
 
     # Case 1: Untrusted public client spoofing X-Forwarded-For
     untrusted_request = DummyRequest(
-        direct_host="203.0.113.195",
-        headers={"x-forwarded-for": "10.0.0.1, 1.1.1.1"}
+        direct_host="203.0.113.195", headers={"x-forwarded-for": "10.0.0.1, 1.1.1.1"}
     )
     # Must use direct peer IP, ignoring spoofed header
     resolved_ip = get_client_ip(untrusted_request, trusted_proxies=["127.0.0.1"])
@@ -48,8 +48,7 @@ def test_ip_spoofing_defense():
 
     # Case 2: Trusted reverse proxy (NGINX on localhost) forwarding real client IP
     trusted_request = DummyRequest(
-        direct_host="127.0.0.1",
-        headers={"x-real-ip": "198.51.100.22"}
+        direct_host="127.0.0.1", headers={"x-real-ip": "198.51.100.22"}
     )
     resolved_ip = get_client_ip(trusted_request, trusted_proxies=["127.0.0.1"])
     assert resolved_ip == "198.51.100.22"

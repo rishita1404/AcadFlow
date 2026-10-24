@@ -1,8 +1,10 @@
 from typing import Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user_optional
 from app.core.deps import can_access, get_db
 from app.core.errors import ConflictError, NotFoundError
 from app.core.security import get_password_hash
@@ -19,12 +21,17 @@ def list_students(
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
     batch: Optional[str] = Query(None, description="Filter by student batch"),
     department_id: Optional[int] = Query(None, description="Filter by department ID"),
-    sort: Optional[str] = Query(None, description="Sort field (e.g. roll_no or -roll_no)"),
+    sort: Optional[str] = Query(
+        None, description="Sort field (e.g. roll_no or -roll_no)"
+    ),
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="list", resource="students")
+    can_access(user=current_user, action="list", resource="students")
 
-    query = select(StudentModel, UserModel).join(UserModel, StudentModel.user_id == UserModel.id)
+    query = select(StudentModel, UserModel).join(
+        UserModel, StudentModel.user_id == UserModel.id
+    )
 
     if batch:
         query = query.where(StudentModel.batch == batch)
@@ -38,7 +45,9 @@ def list_students(
     if sort:
         descending = sort.startswith("-")
         field_name = sort[1:] if descending else sort
-        col = getattr(StudentModel, field_name, None) or getattr(UserModel, field_name, None)
+        col = getattr(StudentModel, field_name, None) or getattr(
+            UserModel, field_name, None
+        )
         if col is not None:
             query = query.order_by(col.desc() if descending else col.asc())
     else:
@@ -74,8 +83,9 @@ def list_students(
 def create_student(
     payload: StudentCreate,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="create", resource="students")
+    can_access(user=current_user, action="create", resource="students")
 
     # Check unique email
     existing_user = db.scalar(select(UserModel).where(UserModel.email == payload.email))
@@ -83,9 +93,13 @@ def create_student(
         raise ConflictError(f"User with email '{payload.email}' already exists")
 
     # Check unique roll_no
-    existing_student = db.scalar(select(StudentModel).where(StudentModel.roll_no == payload.roll_no))
+    existing_student = db.scalar(
+        select(StudentModel).where(StudentModel.roll_no == payload.roll_no)
+    )
     if existing_student:
-        raise ConflictError(f"Student with roll number '{payload.roll_no}' already exists")
+        raise ConflictError(
+            f"Student with roll number '{payload.roll_no}' already exists"
+        )
 
     # Create user record
     user = UserModel(
@@ -122,8 +136,9 @@ def create_student(
 def get_student(
     user_id: int,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    can_access(user=None, action="read", resource="students")
+    can_access(user=current_user, action="read", resource="students")
 
     result = db.execute(
         select(StudentModel, UserModel)

@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
@@ -7,7 +8,7 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
@@ -56,9 +57,7 @@ class UserModel(Base):
         Integer, ForeignKey("organizations.id")
     )
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
-    locked_until: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True)
-    )
+    locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
 class StudentModel(Base):

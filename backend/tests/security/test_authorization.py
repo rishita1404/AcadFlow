@@ -1,11 +1,12 @@
 import pytest
 from fastapi import HTTPException
+
 from app.core.authorization import (
+    COORDINATOR_APPROVED_FIELDS,
     Action,
     can_access,
-    verify_access,
     sanitize_coordinator_view,
-    COORDINATOR_APPROVED_FIELDS,
+    verify_access,
 )
 from app.core.permissions import Role
 
@@ -20,7 +21,9 @@ def test_student_cannot_access_other_student_records():
     assert can_access(student_1, Action.VIEW_OWN_DASHBOARD, student_1_resource) is True
 
     # Other student's records denied
-    assert can_access(student_1, Action.VIEW_STUDENT_RECORD, student_2_resource) is False
+    assert (
+        can_access(student_1, Action.VIEW_STUDENT_RECORD, student_2_resource) is False
+    )
     assert can_access(student_1, Action.VIEW_OWN_DASHBOARD, student_2_resource) is False
 
     with pytest.raises(HTTPException) as exc_info:
@@ -30,11 +33,7 @@ def test_student_cannot_access_other_student_records():
 
 
 def test_faculty_cannot_edit_unassigned_course():
-    faculty = {
-        "id": 201,
-        "role": Role.FACULTY.value,
-        "assigned_course_ids": [10, 11]
-    }
+    faculty = {"id": 201, "role": Role.FACULTY.value, "assigned_course_ids": [10, 11]}
     assigned_course = {"course_id": 10, "name": "AI Systems"}
     unassigned_course = {"course_id": 99, "name": "Advanced Physics"}
 
@@ -53,11 +52,7 @@ def test_faculty_cannot_edit_unassigned_course():
 
 
 def test_mentor_cannot_access_unassigned_student():
-    mentor = {
-        "id": 301,
-        "role": Role.MENTOR.value,
-        "mentee_ids": [501, 502]
-    }
+    mentor = {"id": 301, "role": Role.MENTOR.value, "mentee_ids": [501, 502]}
     assigned_mentee = {"student_id": 501}
     unassigned_student = {"student_id": 999}
 
@@ -75,16 +70,18 @@ def test_mentor_cannot_access_unassigned_student():
 
 
 def test_coordinator_cannot_access_outside_department():
-    coordinator = {
-        "id": 401,
-        "role": Role.COORDINATOR.value,
-        "department_id": "CS"
-    }
+    coordinator = {"id": 401, "role": Role.COORDINATOR.value, "department_id": "CS"}
     same_dept_resource = {"department_id": "CS", "record_id": 1}
     other_dept_resource = {"department_id": "MECH", "record_id": 2}
 
-    assert can_access(coordinator, Action.VIEW_DEPARTMENT_SUMMARY, same_dept_resource) is True
-    assert can_access(coordinator, Action.VIEW_DEPARTMENT_SUMMARY, other_dept_resource) is False
+    assert (
+        can_access(coordinator, Action.VIEW_DEPARTMENT_SUMMARY, same_dept_resource)
+        is True
+    )
+    assert (
+        can_access(coordinator, Action.VIEW_DEPARTMENT_SUMMARY, other_dept_resource)
+        is False
+    )
 
     with pytest.raises(HTTPException) as exc_info:
         verify_access(coordinator, Action.VIEW_DEPARTMENT_SUMMARY, other_dept_resource)
@@ -124,21 +121,21 @@ def test_coordinator_record_field_sanitization():
 
 def test_client_supplied_role_or_id_tampering_denied():
     # User principal authenticated as student (ID 101)
-    authenticated_student = {
-        "id": 101,
-        "role": Role.STUDENT.value
-    }
-    
+    authenticated_student = {"id": 101, "role": Role.STUDENT.value}
+
     # Attacker passes resource claiming role='admin' or targeting other student
-    tampered_resource = {
-        "role": "admin",
-        "student_id": 202
-    }
-    
+    tampered_resource = {"role": "admin", "student_id": 202}
+
     # Action requiring faculty privileges
-    assert can_access(authenticated_student, Action.EDIT_COURSE, tampered_resource) is False
+    assert (
+        can_access(authenticated_student, Action.EDIT_COURSE, tampered_resource)
+        is False
+    )
     # Action on another student's record
-    assert can_access(authenticated_student, Action.VIEW_STUDENT_RECORD, tampered_resource) is False
+    assert (
+        can_access(authenticated_student, Action.VIEW_STUDENT_RECORD, tampered_resource)
+        is False
+    )
 
 
 def test_admin_full_access():

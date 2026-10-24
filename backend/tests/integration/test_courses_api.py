@@ -53,9 +53,27 @@ def test_unknown_course_returns_404_in_error_format(client):
 def test_list_courses_with_pagination_and_sort(client):
     # Create 3 courses with different class counts
     courses_to_create = [
-        {"code": "SORT_A", "name": "Algorithms", "semester_id": 1, "department_id": 1, "total_classes": 40},
-        {"code": "SORT_B", "name": "Basic Electronics", "semester_id": 1, "department_id": 1, "total_classes": 60},
-        {"code": "SORT_C", "name": "Calculus", "semester_id": 1, "department_id": 1, "total_classes": 50},
+        {
+            "code": "SORT_A",
+            "name": "Algorithms",
+            "semester_id": 1,
+            "department_id": 1,
+            "total_classes": 40,
+        },
+        {
+            "code": "SORT_B",
+            "name": "Basic Electronics",
+            "semester_id": 1,
+            "department_id": 1,
+            "total_classes": 60,
+        },
+        {
+            "code": "SORT_C",
+            "name": "Calculus",
+            "semester_id": 1,
+            "department_id": 1,
+            "total_classes": 50,
+        },
     ]
     for c in courses_to_create:
         res = client.post("/api/v1/courses", json=c)
@@ -94,11 +112,7 @@ def test_duplicate_enrolment_returns_409(client):
     course_id = course_res.json()["id"]
 
     # Enrol student 1 (seeded in conftest with user_id 1)
-    enrol_payload = {
-        "students": [
-            {"student_id": 1, "enrolled_on": "2026-08-01"}
-        ]
-    }
+    enrol_payload = {"students": [{"student_id": 1, "enrolled_on": "2026-08-01"}]}
     res1 = client.post(f"/api/v1/courses/{course_id}/enrolments", json=enrol_payload)
     assert res1.status_code == 201
     assert len(res1.json()) == 1

@@ -7,7 +7,6 @@ Keeps DB I/O separate from math so calculation functions stay unit-testable.
 
 from __future__ import annotations
 
-import math
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -25,10 +24,8 @@ from app.models import (
     SubmissionModel,
 )
 from app.services.buffer import (
-    DEFAULT_MIN_CLASSES,
     DEFAULT_THRESHOLD,
     compute_attendance_buffer,
-    compute_margin_score,
 )
 from app.services.risk import (
     DEFAULT_RISK_CONFIG,
@@ -37,10 +34,10 @@ from app.services.risk import (
     compute_risk_score,
 )
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Load RiskConfig from DB (with fallback to defaults)
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def load_risk_config(db: Session) -> tuple[RiskConfig, Optional[int]]:
     """
@@ -76,6 +73,7 @@ def load_risk_config(db: Session) -> tuple[RiskConfig, Optional[int]]:
 # ──────────────────────────────────────────────────────────────────────────────
 # Attendance data retrieval
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def get_attendance_inputs(
     db: Session,
@@ -134,14 +132,13 @@ def get_attendance_inputs(
         )
     )
     if enrolled_on:
-        attended_query = attended_query.where(
-            ClassSessionModel.held_on >= enrolled_on
-        )
+        attended_query = attended_query.where(ClassSessionModel.held_on >= enrolled_on)
     attended: int = db.scalar(attended_query) or 0
 
     # ── Holiday count (future sessions only — already-held holidays don't
     #    affect remaining).  Approximate: count holidays in semester after today.
     from app.models.course import HolidayModel  # avoid circular at module level
+
     today = date.today()
     holiday_count_q = select(func.count(HolidayModel.id)).where(
         HolidayModel.semester_id == course.semester_id,
@@ -162,6 +159,7 @@ def get_attendance_inputs(
 # Attendance slope (trend)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def get_attendance_slope(
     db: Session,
     student_id: int,
@@ -178,12 +176,14 @@ def get_attendance_slope(
 
     # Sessions in last N weeks
     recent_sessions = db.scalars(
-        select(ClassSessionModel).where(
+        select(ClassSessionModel)
+        .where(
             ClassSessionModel.course_id == course_id,
             ClassSessionModel.is_cancelled == False,  # noqa: E712
             ClassSessionModel.held_on >= cutoff,
             ClassSessionModel.held_on <= today,
-        ).order_by(ClassSessionModel.held_on)
+        )
+        .order_by(ClassSessionModel.held_on)
     ).all()
 
     if len(recent_sessions) < 2:
@@ -209,10 +209,7 @@ def get_attendance_slope(
     if len(week_keys) < 2:
         return None
 
-    pcts = [
-        (sum(weekly[wk]) / len(weekly[wk])) * 100
-        for wk in week_keys
-    ]
+    pcts = [(sum(weekly[wk]) / len(weekly[wk])) * 100 for wk in week_keys]
     # Simple slope: (last_pct - first_pct) / num_intervals
     slope = (pcts[-1] - pcts[0]) / (len(pcts) - 1)
     return round(slope, 2)
@@ -221,6 +218,7 @@ def get_attendance_slope(
 # ──────────────────────────────────────────────────────────────────────────────
 # Deadline and missed-submission counts
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def get_submission_inputs(
     db: Session,
@@ -283,6 +281,7 @@ def get_submission_inputs(
 # ──────────────────────────────────────────────────────────────────────────────
 # Full risk calculation for one student / course
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def calculate_student_course_risk(
     db: Session,
@@ -361,6 +360,7 @@ def calculate_student_course_risk(
 # ──────────────────────────────────────────────────────────────────────────────
 # Persist snapshot
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 def persist_risk_snapshot(
     db: Session,

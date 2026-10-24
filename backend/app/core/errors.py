@@ -1,4 +1,5 @@
 from typing import Any, List, Optional
+
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -20,7 +21,9 @@ class AppException(HTTPException):
 
 
 class NotFoundError(AppException):
-    def __init__(self, message: str = "Resource not found", details: Optional[List[Any]] = None):
+    def __init__(
+        self, message: str = "Resource not found", details: Optional[List[Any]] = None
+    ):
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             code="NOT_FOUND",
@@ -30,7 +33,11 @@ class NotFoundError(AppException):
 
 
 class ConflictError(AppException):
-    def __init__(self, message: str = "Conflict with existing resource", details: Optional[List[Any]] = None):
+    def __init__(
+        self,
+        message: str = "Conflict with existing resource",
+        details: Optional[List[Any]] = None,
+    ):
         super().__init__(
             status_code=status.HTTP_409_CONFLICT,
             code="CONFLICT",
@@ -40,7 +47,11 @@ class ConflictError(AppException):
 
 
 class ForbiddenError(AppException):
-    def __init__(self, message: str = "Operation not permitted", details: Optional[List[Any]] = None):
+    def __init__(
+        self,
+        message: str = "Operation not permitted",
+        details: Optional[List[Any]] = None,
+    ):
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
             code="FORBIDDEN",
@@ -50,7 +61,11 @@ class ForbiddenError(AppException):
 
 
 class UnauthorizedError(AppException):
-    def __init__(self, message: str = "Authentication required", details: Optional[List[Any]] = None):
+    def __init__(
+        self,
+        message: str = "Authentication required",
+        details: Optional[List[Any]] = None,
+    ):
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",
@@ -100,16 +115,20 @@ def register_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_exception_handler(
+        _: Request, exc: RequestValidationError
+    ) -> JSONResponse:
         # Format Pydantic v2 validation errors cleanly
         formatted_errors = []
         for err in exc.errors():
             loc = " -> ".join(str(item) for item in err.get("loc", []))
-            formatted_errors.append({
-                "field": loc,
-                "issue": err.get("msg", ""),
-                "type": err.get("type", ""),
-            })
+            formatted_errors.append(
+                {
+                    "field": loc,
+                    "issue": err.get("msg", ""),
+                    "type": err.get("type", ""),
+                }
+            )
 
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

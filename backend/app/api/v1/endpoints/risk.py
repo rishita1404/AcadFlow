@@ -5,17 +5,18 @@ Implements:
   GET  /risk/students/{sid}/courses/{cid}   — full risk score for one student/course
   GET  /risk/courses/{cid}/at-risk          — faculty at-risk list for a course
   POST /risk/students/{sid}/courses/{cid}/recalculate — force recalculation
-  GET  /admin/risk-config                   — read config
-  PUT  /admin/risk-config                   — update config (admin)
+  GET  /risk/config                         — read config
+  PUT  /risk/config                         — update config (admin)
 """
 
-from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user_optional
 from app.core.deps import can_access, get_db
 from app.core.errors import NotFoundError
 from app.models import (
@@ -27,7 +28,6 @@ from app.models import (
 from app.schemas.risk import RiskConfigOut, RiskConfigUpdate, RiskScoreOut
 from app.services.risk_data import (
     calculate_student_course_risk,
-    load_risk_config,
     persist_risk_snapshot,
 )
 
@@ -43,6 +43,7 @@ async def get_risk_index():
 # Student risk score
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/students/{student_id}/courses/{course_id}",
     response_model=RiskScoreOut,
@@ -52,6 +53,7 @@ def get_student_risk(
     student_id: int,
     course_id: int,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """
     Calculate and return the current risk score.
@@ -60,7 +62,7 @@ def get_student_risk(
     fewer than min_classes sessions have been held (PRD minimum-evidence rule).
     API consumers MUST check `insufficient_data` before presenting the score.
     """
-    can_access(user=None, action="read", resource="risk")
+    can_access(user=current_user, action="read", resource="risk")
 
     if not db.get(StudentModel, student_id):
         raise NotFoundError(f"Student {student_id} not found.")
@@ -92,6 +94,7 @@ def get_student_risk(
 # Force recalculation
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/students/{student_id}/courses/{course_id}/recalculate",
     response_model=RiskScoreOut,
@@ -102,12 +105,13 @@ def recalculate_risk(
     student_id: int,
     course_id: int,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """
     Recalculate risk from current attendance/submission data and
     persist a new RiskSnapshotModel row.
     """
-    can_access(user=None, action="recalculate", resource="risk")
+    can_access(user=current_user, action="recalculate", resource="risk")
 
     if not db.get(StudentModel, student_id):
         raise NotFoundError(f"Student {student_id} not found.")
@@ -139,6 +143,7 @@ def recalculate_risk(
 # Faculty at-risk list for a course
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/courses/{course_id}/at-risk",
     response_model=List[RiskScoreOut],
@@ -151,20 +156,19 @@ def get_at_risk_list(
         description="Filter by band: Watch | At risk | Critical",
     ),
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """
     Return risk scores for all enrolled students in a course.
     Faculty can filter by band to focus on students needing attention.
     """
-    can_access(user=None, action="list", resource="risk")
+    can_access(user=current_user, action="list", resource="risk")
 
     if not db.get(CourseModel, course_id):
         raise NotFoundError(f"Course {course_id} not found.")
 
     enrolled_ids = db.scalars(
-        select(EnrolmentModel.student_id).where(
-            EnrolmentModel.course_id == course_id
-        )
+        select(EnrolmentModel.student_id).where(EnrolmentModel.course_id == course_id)
     ).all()
 
     results: list[RiskScoreOut] = []
@@ -199,13 +203,17 @@ def get_at_risk_list(
 # Admin: risk config CRUD
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/config",
     response_model=Optional[RiskConfigOut],
     summary="Read current risk configuration (admin)",
 )
-def get_risk_config(db: Session = Depends(get_db)):
-    can_access(user=None, action="read", resource="risk_config")
+def get_risk_config(
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    can_access(user=current_user, action="read", resource="risk_config")
     row = db.scalars(
         select(RiskConfigModel).order_by(RiskConfigModel.id.desc()).limit(1)
     ).first()
@@ -222,15 +230,14 @@ def get_risk_config(db: Session = Depends(get_db)):
 def upsert_risk_config(
     payload: RiskConfigUpdate,
     db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     """
     Admin-tunable risk weights and thresholds.
     Creates a new versioned row rather than mutating existing ones
     so every snapshot can reference the config that generated it.
     """
-    can_access(user=None, action="admin", resource="risk_config")
-
-    from decimal import Decimal
+    can_access(user=current_user, action="admin", resource="risk_config")
 
     existing = db.scalars(
         select(RiskConfigModel).order_by(RiskConfigModel.id.desc()).limit(1)
@@ -248,7 +255,9 @@ def upsert_risk_config(
             t_watch=_dec(payload.t_watch, existing.t_watch),
             t_risk=_dec(payload.t_risk, existing.t_risk),
             t_critical=_dec(payload.t_critical, existing.t_critical),
-            min_classes=payload.min_classes if payload.min_classes is not None else existing.min_classes,
+            min_classes=payload.min_classes
+            if payload.min_classes is not None
+            else existing.min_classes,
             version=payload.version or f"v{existing.id + 1}",
         )
     else:

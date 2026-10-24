@@ -3,19 +3,19 @@
 get_current_user  — extracts + validates Bearer JWT using Member 2's tokens module.
 get_current_user_optional — same but returns None instead of 401 (for public-ish routes).
 require_roles     — raises 403 if caller's role not in the allowed set.
-
-Note: app/core/deps.py provides get_db() and the stub can_access() used by Liza's
-CRUD endpoints. This file (api/deps.py) wires those together for router-level use.
 """
+
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from app.core.tokens import decode_token
+from app.core.tokens import token_service
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/login", auto_error=False
+)
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
@@ -24,7 +24,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     Claims contain: sub (user_id str), email, role.
     Raises HTTP 401 if token is absent, malformed, expired, or revoked.
     """
-    payload = decode_token(token, token_type="access")
+    payload = await token_service.verify_token(token, expected_type="access")
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -40,19 +40,14 @@ async def get_current_user_optional(
     """Like get_current_user but returns None for unauthenticated requests."""
     if not token:
         return None
-    return decode_token(token, token_type="access")
+    return await token_service.verify_token(token, expected_type="access")
 
 
 def require_roles(*roles: str):
-    """Factory: returns a FastAPI dependency that allows only the listed roles (admin always passes).
-
-    Usage:
-        @router.get("/admin-only", dependencies=[Depends(require_roles("admin"))])
-        @router.get("/staff", dependencies=[Depends(require_roles("faculty", "coordinator", "admin"))])
-    """
+    """Factory: returns a FastAPI dependency that allows only the listed roles (admin always passes)."""
     allowed = set(roles) | {"admin"}
 
-    def _checker(current_user: dict = Depends(get_current_user)):  # noqa: B008
+    def _checker(current_user: dict = Depends(get_current_user)):
         if current_user.get("role") not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

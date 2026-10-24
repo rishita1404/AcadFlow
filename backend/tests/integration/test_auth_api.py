@@ -3,9 +3,8 @@
 Tests register, login, refresh, and logout flows against an SQLite in-memory DB.
 Validates HTTP status codes, response shape, lockout behaviour, and token issuance.
 """
-import pytest
-from fastapi.testclient import TestClient
 
+from fastapi.testclient import TestClient
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -14,13 +13,22 @@ from fastapi.testclient import TestClient
 BASE = "/api/v1/auth"
 
 
-def _register(client, email="test@acadflow.edu", password="StrongPass1!", name="Test User", role="student"):
-    return client.post(f"{BASE}/register", json={
-        "name": name,
-        "email": email,
-        "password": password,
-        "role": role,
-    })
+def _register(
+    client,
+    email="test@acadflow.edu",
+    password="StrongPass1!",
+    name="Test User",
+    role="student",
+):
+    return client.post(
+        f"{BASE}/register",
+        json={
+            "name": name,
+            "email": email,
+            "password": password,
+            "role": role,
+        },
+    )
 
 
 def _login(client, email="test@acadflow.edu", password="StrongPass1!"):
@@ -30,6 +38,7 @@ def _login(client, email="test@acadflow.edu", password="StrongPass1!"):
 # ---------------------------------------------------------------------------
 # Register tests
 # ---------------------------------------------------------------------------
+
 
 class TestRegister:
     def test_register_new_user_returns_201(self, client: TestClient):
@@ -46,27 +55,34 @@ class TestRegister:
         assert res2.status_code == 409
 
     def test_register_invalid_role_returns_422(self, client: TestClient):
-        res = client.post(f"{BASE}/register", json={
-            "name": "Attacker",
-            "email": "evil@acadflow.edu",
-            "password": "StrongPass1!",
-            "role": "superadmin",  # invalid
-        })
+        res = client.post(
+            f"{BASE}/register",
+            json={
+                "name": "Attacker",
+                "email": "evil@acadflow.edu",
+                "password": "StrongPass1!",
+                "role": "superadmin",  # invalid
+            },
+        )
         assert res.status_code == 422
 
     def test_register_weak_password_rejected(self, client: TestClient):
-        res = client.post(f"{BASE}/register", json={
-            "name": "Weak",
-            "email": "weak@acadflow.edu",
-            "password": "123",  # too short
-            "role": "student",
-        })
+        res = client.post(
+            f"{BASE}/register",
+            json={
+                "name": "Weak",
+                "email": "weak@acadflow.edu",
+                "password": "123",  # too short
+                "role": "student",
+            },
+        )
         assert res.status_code == 422
 
 
 # ---------------------------------------------------------------------------
 # Login tests
 # ---------------------------------------------------------------------------
+
 
 class TestLogin:
     def test_login_valid_credentials_returns_access_token(self, client: TestClient):
@@ -104,6 +120,7 @@ class TestLogin:
 # Refresh tests
 # ---------------------------------------------------------------------------
 
+
 class TestRefresh:
     def test_refresh_without_cookie_returns_401(self, client: TestClient):
         res = client.post(f"{BASE}/refresh")
@@ -122,6 +139,7 @@ class TestRefresh:
 # ---------------------------------------------------------------------------
 # Logout tests
 # ---------------------------------------------------------------------------
+
 
 class TestLogout:
     def test_logout_clears_cookie(self, client: TestClient):

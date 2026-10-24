@@ -1,14 +1,33 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext.jsx';
+import Input from '../components/ui/Input.jsx';
+import Button from '../components/ui/Button.jsx';
+import { Mail, Lock, AlertCircle } from 'lucide-react';
+
+const DEMO_ACCOUNTS = [
+  { email: 'student@acadflow.edu', label: 'Student' },
+  { email: 'riya@acadflow.edu', label: 'Riya (At Risk)' },
+  { email: 'faculty@acadflow.edu', label: 'Instructor' },
+  { email: 'mentor@acadflow.edu', label: 'Mentor + Coord' },
+  { email: 'coordinator@acadflow.edu', label: 'Coordinator' },
+  { email: 'admin@acadflow.edu', label: 'Admin' },
+];
+
+const CAPSULES = [
+  { x: '8%', y: '12%', w: 120, h: 52, bg: '#0D1B2A', rotate: -18 },
+  { x: '18%', y: '62%', w: 90, h: 38, bg: '#415A77', rotate: 10 },
+  { x: '62%', y: '8%', w: 100, h: 44, bg: '#778D7A', rotate: -5 },
+  { x: '75%', y: '55%', w: 140, h: 56, bg: '#D4C4A8', rotate: 22 },
+  { x: '40%', y: '78%', w: 80, h: 34, bg: '#1B263B', rotate: -12 },
+  { x: '52%', y: '35%', w: 110, h: 46, bg: '#415A77', rotate: 8, opacity: 0.5 },
+];
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const searchParams = new URLSearchParams(location.search);
-  const nextUrl = searchParams.get('next');
+  const nextUrl = new URLSearchParams(location.search).get('next');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,17 +36,12 @@ export default function LoginPage() {
 
   const getRoleRedirect = (role) => {
     switch (role) {
-      case 'student':
-        return '/student/home';
+      case 'student': return '/student/home';
       case 'faculty':
-      case 'trainer':
-        return '/faculty/home';
-      case 'coordinator':
-        return '/coordinator/summary';
-      case 'admin':
-        return '/admin';
-      default:
-        return '/';
+      case 'trainer': return '/faculty/home';
+      case 'coordinator': return '/coordinator/summary';
+      case 'admin': return '/admin';
+      default: return '/';
     }
   };
 
@@ -40,142 +54,182 @@ export default function LoginPage() {
       if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/login')) {
         navigate(nextUrl, { replace: true });
       } else {
-        const dest = getRoleRedirect(res?.role);
-        navigate(dest, { replace: true });
+        navigate(getRoleRedirect(res?.role), { replace: true });
       }
     } catch (err) {
       setError(
-        err?.response?.data?.detail || err?.response?.data?.error?.message || 'Login failed. Check your credentials.'
+        err?.response?.data?.detail ||
+        err?.response?.data?.error?.message ||
+        'Login failed. Check your credentials.'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const fillAccount = (userEmail) => {
-    setEmail(userEmail);
-    setPassword('AcadFlow@123');
-  };
+  const fillAccount = (e) => { setEmail(e); setPassword('AcadFlow@123'); };
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: 'linear-gradient(135deg,#1e293b 0%,#0f172a 100%)',
-      padding: 20,
-    }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+
+      {/* ── Left panel (55%) – editorial / brand ── */}
       <div style={{
-        background: '#fff', borderRadius: 16, padding: 36, width: 420,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        width: '55%',
+        flexShrink: 0,
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'linear-gradient(175deg, var(--sand) 0%, var(--ink-800) 45%, var(--ink-900) 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+        padding: 'var(--space-12)',
       }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 36 }}>🎓</div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1e293b', margin: '6px 0 2px' }}>
+        {/* Floating capsules */}
+        {CAPSULES.map((c, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              left: c.x, top: c.y,
+              width: c.w, height: c.h,
+              background: c.bg,
+              borderRadius: 999,
+              opacity: c.opacity ?? 0.7,
+              transform: `rotate(${c.rotate}deg)`,
+            }}
+          />
+        ))}
+
+        {/* Wordmark */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <h1 style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: 52,
+            fontWeight: 700,
+            color: 'var(--on-dark)',
+            lineHeight: 1.1,
+            margin: 0,
+            letterSpacing: '-0.02em',
+          }}>
             AcadFlow
           </h1>
-          <p style={{ color: '#64748b', fontSize: 13 }}>Desktop Academic Workflow Platform</p>
-        </div>
-
-        {nextUrl && (
-          <div style={{
-            background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6,
-            padding: '8px 12px', fontSize: 12, color: '#475569', marginBottom: 16,
+          <p style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: 20,
+            color: 'var(--sand)',
+            marginTop: 12,
+            fontStyle: 'italic',
+            fontWeight: 400,
           }}>
-            ℹ️ Please sign in to continue to <code>{nextUrl}</code>
-          </div>
-        )}
+            Know where you stand, early.
+          </p>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>
-              Email
-            </label>
-            <input
+      {/* ── Right panel (45%) – form ── */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 'var(--space-12) var(--space-8)',
+        background: 'var(--bg)',
+      }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+
+          <h2 style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: 28,
+            fontWeight: 600,
+            color: 'var(--ink-900)',
+            marginBottom: 'var(--space-2)',
+          }}>
+            Sign in
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 'var(--space-8)' }}>
+            {nextUrl ? `You'll be taken to ${nextUrl} after signing in.` : 'Welcome back to AcadFlow.'}
+          </p>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <Input
+              label="Email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
               placeholder="you@university.edu"
-              style={inputStyle}
+              icon={<Mail size={16} />}
             />
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4 }}>
-              Password
-            </label>
-            <input
+            <Input
+              label="Password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
               placeholder="••••••••"
-              style={inputStyle}
+              icon={<Lock size={16} />}
             />
-          </div>
 
-          {error && (
+            {error && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                background: 'var(--crit-bg)',
+                border: '1px solid var(--crit-fg)',
+                borderRadius: 12, padding: '10px 14px',
+                fontSize: 13, color: 'var(--crit-fg)',
+              }}>
+                <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              loading={loading}
+              style={{ width: '100%', marginTop: 'var(--space-2)' }}
+            >
+              Sign in
+            </Button>
+          </form>
+
+          {/* Demo quick-fill */}
+          <div style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--border)' }}>
             <div style={{
-              background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca',
-              borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16,
+              fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 'var(--space-3)',
             }}>
-              ⚠️ {error}
+              Demo accounts — password: AcadFlow@123
             </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%', padding: '11px', background: loading ? '#93c5fd' : '#2563eb',
-              color: '#fff', border: 'none', borderRadius: 8, fontSize: 14,
-              fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            {loading ? 'Signing in...' : 'Sign In →'}
-          </button>
-        </form>
-
-        {/* Demo Accounts Quick-Fill */}
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>
-            Quick-Fill Demo Accounts (Pwd: AcadFlow@123)
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            <button type="button" onClick={() => fillAccount('student@acadflow.edu')} style={chipBtnStyle}>
-              🎓 Student
-            </button>
-            <button type="button" onClick={() => fillAccount('riya@acadflow.edu')} style={chipBtnStyle}>
-              🎓 Riya (App A)
-            </button>
-            <button type="button" onClick={() => fillAccount('faculty@acadflow.edu')} style={chipBtnStyle}>
-              👨‍🏫 Instructor
-            </button>
-            <button type="button" onClick={() => fillAccount('mentor@acadflow.edu')} style={chipBtnStyle}>
-              👥 Mentor + Coord
-            </button>
-            <button type="button" onClick={() => fillAccount('coordinator@acadflow.edu')} style={chipBtnStyle}>
-              📋 Dean / Coord
-            </button>
-            <button type="button" onClick={() => fillAccount('admin@acadflow.edu')} style={chipBtnStyle}>
-              ⚙️ Admin
-            </button>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {DEMO_ACCOUNTS.map(({ email: e, label }) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => fillAccount(e)}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: 12, fontWeight: 600,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-pill)',
+                    cursor: 'pointer',
+                    color: 'var(--text)',
+                    fontFamily: 'var(--font-sans)',
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e2 => e2.currentTarget.style.background = 'var(--bg)'}
+                  onMouseLeave={e2 => e2.currentTarget.style.background = 'var(--surface)'}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-const inputStyle = {
-  width: '100%', padding: '10px 14px', border: '1px solid #d1d5db',
-  borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box',
-  transition: 'border-color 0.2s',
-};
-
-const chipBtnStyle = {
-  padding: '4px 8px', fontSize: 11, background: '#f8fafc',
-  border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer',
-  color: '#334151', fontWeight: 500,
-};
