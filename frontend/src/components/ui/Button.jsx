@@ -23,7 +23,7 @@ const variants = {
     background: 'var(--crit-bg)',
     color: 'var(--crit-fg)',
     border: '1px solid var(--crit-fg)',
-    '--hover-bg': '#e8c0c0',
+    '--hover-bg': 'var(--crit-bg)',
   },
 };
 

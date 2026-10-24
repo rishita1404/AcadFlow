@@ -91,3 +91,14 @@ All contrast ratios pass ✅
 | `TimetableGrid` | — | ⏭ Not extracted (inline in StudentTimetable) |
 | `Banner` | — | ⏭ Not created (no use case present) |
 | `Toast` | — | ⏭ Not created (no use case present) |
+
+---
+
+## Phase Rollout Summary
+
+- **Phase 1 (Foundation & Shell)**: `tokens.css`, `global.css`, core UI primitives (`Button`, `Input`, `Card`, `Tabs`, `Table`, `Stepper`, `Drawer`, `Dialog`, `Skeleton`), `StatusBadge`, `BufferGauge`, `CourseCard`, `AppShell`, `LoginPage`, `ForbiddenPage`.
+- **Phase 2 (Student Pages)**: `StudentHome`, `StudentTasks`, `StudentRisk`, `StudentNotices`, `StudentCalendar`, `StudentTimetable`, `StudentCourseDetail`, `StudentAssignmentDetail`, `StudentNotifications`, `StudentPreferences`.
+- **Phase 3 (Faculty Pages)**: `FacultyHome`, `FacultyCourseDetail`, `FacultyAttendanceUpload`, `FacultyAtRisk`, `FacultyAssignments`, `FacultyMentees`, `FacultyMenteeDetail`, `FacultySections`, `FacultyTimetable`.
+- **Phase 4 (Coordinator, Admin, Notices & Legacy Pages)**: `CoordinatorSummary`, `CoordinatorDeadlines`, `CoordinatorStudents`, `CoordinatorTeachers`, `CoordinatorTimetable`, `AdminDashboard`, `AdminUsers`, `AdminRiskConfig`, `AdminML`, `AdminAuditLog`, `StaffNotices`, `ComposeNotice`, `DashboardPage`, `NotificationsPage`, `CalendarPage`, `AttendancePage`, `DeadlinesPage`, `PressurePage`.
+- **Phase 5 (Polish & Final Audit)**: Complete elimination of stray hex codes across JSX files (all mapped to `tokens.css` CSS variables except Recharts SVG color literals), verified WCAG contrast (13/13 pass), verified Vite production bundle (0 errors), verified backend test suite (168/168 passed).
+

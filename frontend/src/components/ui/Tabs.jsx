@@ -42,8 +42,8 @@ export default function Tabs({ tabs, defaultTab, style }) {
               {label}
               {badge != null && badge > 0 && (
                 <span style={{
-                  background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--accent)',
-                  color: isActive ? '#fff' : 'var(--on-dark)',
+                  background: isActive ? 'rgba(244, 241, 222, 0.25)' : 'var(--accent)',
+                  color: 'var(--on-dark)',
                   borderRadius: 'var(--radius-pill)',
                   fontSize: 10,
                   fontWeight: 700,
