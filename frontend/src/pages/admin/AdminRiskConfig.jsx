@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Sliders, CheckCircle2, AlertTriangle, TrendingUp, Clock, CalendarX, ArrowRight, BarChart2 } from 'lucide-react';
 import { adminApi } from '../../api/endpoints.js';
+import Skeleton from '../../components/Skeleton.jsx';
 
 export default function AdminRiskConfig() {
   const queryClient = useQueryClient();
@@ -69,7 +71,13 @@ export default function AdminRiskConfig() {
   }
 
   if (isLoading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>⏳ Loading risk engine configuration...</div>;
+    return (
+      <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 40 }}>
+        <Skeleton variant="title" width={340} height={36} />
+        <Skeleton variant="text" width={260} height={18} style={{ marginTop: 8, marginBottom: 24 }} />
+        <Skeleton variant="card" height={320} />
+      </div>
+    );
   }
 
   // Calculate live preview of simulated band changes
@@ -78,23 +86,27 @@ export default function AdminRiskConfig() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 40 }}>
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 13, color: '#64748b', marginBottom: 6 }}>
-          <Link to="/admin" style={{ color: '#3b82f6', textDecoration: 'none' }}>Admin</Link>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>
+          <Link to="/admin" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>Admin</Link>
           {' '}/ Risk Algorithm Calibration
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              🎛️ Academic Risk Engine Calibration
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--ink-900)', margin: 0 }}>
+              Academic Risk Engine Calibration
             </h1>
-            <p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
-              Active Version: <strong>{config?.version || 'v1.0 (Production)'}</strong> · Weights must sum to exactly 100% · Changes write to immutable audit log.
+            <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
+              Active Version: <strong style={{ color: 'var(--ink-900)' }}>{config?.version || 'v1.0 (Production)'}</strong> · Weights must sum to exactly 100% · Changes write to immutable audit log.
             </p>
           </div>
           {saveSuccess && (
-            <div style={{ background: '#dcfce7', color: '#15803d', padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700 }}>
-              ✓ Configuration Saved & Deployed!
+            <div style={{
+              background: 'var(--ok-bg)', color: 'var(--ok-fg)',
+              padding: '6px 14px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <CheckCircle2 size={16} /> Configuration Saved & Deployed
             </div>
           )}
         </div>
@@ -102,32 +114,37 @@ export default function AdminRiskConfig() {
 
       <form onSubmit={handleSave}>
         {/* Weights Sliders Section */}
-        <div style={{ background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0', marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{
+          background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24,
+          border: '1px solid var(--border)', marginBottom: 24, boxShadow: 'var(--shadow-card)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--ink-900)', margin: 0 }}>
                 1. Feature Component Weights
               </h2>
-              <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
                 Calibrate the relative importance of attendance buffer, trend, deadlines, and missed submissions.
               </div>
             </div>
             <div style={{
-              background: isWeightValid ? '#f0fdf4' : '#fef2f2',
-              color: isWeightValid ? '#15803d' : '#dc2626',
-              border: `1px solid ${isWeightValid ? '#86efac' : '#fca5a5'}`,
-              borderRadius: 8, padding: '6px 14px', fontWeight: 800, fontSize: 14,
+              background: isWeightValid ? 'var(--ok-bg)' : 'var(--risk-bg)',
+              color: isWeightValid ? 'var(--ok-fg)' : 'var(--risk-fg)',
+              border: `1px solid ${isWeightValid ? 'var(--border)' : 'var(--risk-fg)'}`,
+              borderRadius: 'var(--radius-pill)', padding: '6px 16px', fontWeight: 600, fontSize: 13,
+              display: 'flex', alignItems: 'center', gap: 6,
             }}>
+              {isWeightValid ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
               Total Weight: {totalWeight}% {isWeightValid ? '✓' : '(Must equal 100%)'}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
             {/* Margin Weight */}
-            <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Attendance Margin (w_margin)</label>
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#3b82f6' }}>{wMargin}%</span>
+            <div style={{ background: 'var(--bg)', padding: 18, borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-900)' }}>Attendance Margin (w_margin)</label>
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{wMargin}%</span>
               </div>
               <input
                 type="range"
@@ -135,18 +152,18 @@ export default function AdminRiskConfig() {
                 max="100"
                 value={wMargin}
                 onChange={e => setWMargin(Number(e.target.value))}
-                style={{ width: '100%', cursor: 'pointer' }}
+                style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--accent)' }}
               />
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
                 Penalizes class deficits below required 75% threshold. Recommended: 50%.
               </div>
             </div>
 
             {/* Trend Weight */}
-            <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Attendance Trend (w_trend)</label>
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#3b82f6' }}>{wTrend}%</span>
+            <div style={{ background: 'var(--bg)', padding: 18, borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-900)' }}>Attendance Trend (w_trend)</label>
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{wTrend}%</span>
               </div>
               <input
                 type="range"
@@ -154,18 +171,18 @@ export default function AdminRiskConfig() {
                 max="100"
                 value={wTrend}
                 onChange={e => setWTrend(Number(e.target.value))}
-                style={{ width: '100%', cursor: 'pointer' }}
+                style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--accent)' }}
               />
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
                 Detects negative slope over trailing 5 sessions. Recommended: 20%.
               </div>
             </div>
 
             {/* Deadline Weight */}
-            <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Pending Deadlines (w_deadline)</label>
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#3b82f6' }}>{wDeadline}%</span>
+            <div style={{ background: 'var(--bg)', padding: 18, borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-900)' }}>Pending Deadlines (w_deadline)</label>
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{wDeadline}%</span>
               </div>
               <input
                 type="range"
@@ -173,18 +190,18 @@ export default function AdminRiskConfig() {
                 max="100"
                 value={wDeadline}
                 onChange={e => setWDeadline(Number(e.target.value))}
-                style={{ width: '100%', cursor: 'pointer' }}
+                style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--accent)' }}
               />
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
                 Pressure penalty for overlapping upcoming assignment due dates. Recommended: 20%.
               </div>
             </div>
 
             {/* Missed Submissions Weight */}
-            <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Missed Submissions (w_missed)</label>
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#3b82f6' }}>{wMissed}%</span>
+            <div style={{ background: 'var(--bg)', padding: 18, borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-900)' }}>Missed Submissions (w_missed)</label>
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{wMissed}%</span>
               </div>
               <input
                 type="range"
@@ -192,9 +209,9 @@ export default function AdminRiskConfig() {
                 max="100"
                 value={wMissed}
                 onChange={e => setWMissed(Number(e.target.value))}
-                style={{ width: '100%', cursor: 'pointer' }}
+                style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--accent)' }}
               />
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
                 Direct penalty for unexcused submissions past hard grace cutoff. Recommended: 10%.
               </div>
             </div>
@@ -202,77 +219,96 @@ export default function AdminRiskConfig() {
         </div>
 
         {/* Band Thresholds & Min Classes */}
-        <div style={{ background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>
+        <div style={{
+          background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24,
+          border: '1px solid var(--border)', marginBottom: 24, boxShadow: 'var(--shadow-card)',
+        }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 4 }}>
             2. Risk Band Thresholds & Minimum Held Classes
           </h2>
-          <p style={{ color: '#64748b', fontSize: 13, marginBottom: 18 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20 }}>
             Scores are normalized to 0–100. Students below min_classes receive "Not enough data yet".
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#b45309', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--watch-fg)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                 Watch Threshold (t_watch)
               </label>
               <input
                 type="number"
                 value={tWatch}
                 onChange={e => setTWatch(Number(e.target.value))}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-input)',
+                  border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--ink-900)',
+                  fontSize: 14, boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums',
+                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#c2410c', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--risk-fg)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                 At-Risk Threshold (t_risk)
               </label>
               <input
                 type="number"
                 value={tRisk}
                 onChange={e => setTRisk(Number(e.target.value))}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-input)',
+                  border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--ink-900)',
+                  fontSize: 14, boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums',
+                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#dc2626', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--crit-fg)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                 Critical Threshold (t_critical)
               </label>
               <input
                 type="number"
                 value={tCritical}
                 onChange={e => setTCritical(Number(e.target.value))}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-input)',
+                  border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--ink-900)',
+                  fontSize: 14, boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums',
+                }}
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
                 Min Classes (min_classes)
               </label>
               <input
                 type="number"
                 value={minClasses}
                 onChange={e => setMinClasses(Number(e.target.value))}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-input)',
+                  border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--ink-900)',
+                  fontSize: 14, boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums',
+                }}
               />
             </div>
           </div>
 
           {/* Live Preview Bar */}
           <div style={{
-            background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 16,
+            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: '16px 20px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 20 }}>📊</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ color: 'var(--accent)' }}><BarChart2 size={20} /></div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-                  Live Simulation Preview:
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-900)' }}>
+                  Live Simulation Preview
                 </div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
-                  Based on active enrollment data, <strong>{simulatedBandShiftCount} students</strong> would shift risk bands with these parameters.
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Based on active enrollment data, <strong style={{ color: 'var(--ink-900)' }}>{simulatedBandShiftCount} students</strong> would shift risk bands with these parameters.
                 </div>
               </div>
             </div>
@@ -280,12 +316,12 @@ export default function AdminRiskConfig() {
         </div>
 
         {/* Submit Actions */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
           <Link
             to="/admin"
             style={{
-              background: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1',
-              padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none',
+              background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)',
+              padding: '10px 20px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, textDecoration: 'none',
             }}
           >
             Cancel
@@ -294,12 +330,13 @@ export default function AdminRiskConfig() {
             type="submit"
             disabled={!isWeightValid || updateMutation.isPending}
             style={{
-              background: !isWeightValid || updateMutation.isPending ? '#94a3b8' : '#3b82f6',
-              color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 8,
-              fontSize: 14, fontWeight: 700, cursor: !isWeightValid || updateMutation.isPending ? 'not-allowed' : 'pointer',
+              background: !isWeightValid || updateMutation.isPending ? 'var(--sand)' : 'var(--accent)',
+              color: 'var(--on-dark)', border: 'none', padding: '10px 24px', borderRadius: 'var(--radius-pill)',
+              fontSize: 14, fontWeight: 600, cursor: !isWeightValid || updateMutation.isPending ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
             }}
           >
-            {updateMutation.isPending ? 'Deploying Configuration...' : 'Save & Deploy New Version →'}
+            {updateMutation.isPending ? 'Deploying Configuration...' : 'Save & Deploy New Version'} <ArrowRight size={16} />
           </button>
         </div>
       </form>

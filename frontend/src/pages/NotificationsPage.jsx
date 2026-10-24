@@ -1,60 +1,71 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Bell, AlertTriangle, AlertCircle, Info, CheckCircle2, RotateCw, Trash2, Check } from 'lucide-react';
 import { notificationApi } from '../api/endpoints.js';
 import { LoadingScreen, ErrorMsg } from './DashboardPage.jsx';
 
 const KIND_STYLE = {
-  critical: { bg: '#fef2f2', border: '#fca5a5', icon: '🆘', label: 'Critical' },
-  alert:    { bg: '#fff7ed', border: '#fdba74', icon: '⚠️', label: 'Alert'    },
-  warning:  { bg: '#fffbeb', border: '#fcd34d', icon: '🟡', label: 'Warning'  },
-  reminder: { bg: '#eff6ff', border: '#93c5fd', icon: '🔔', label: 'Reminder' },
-  info:     { bg: '#f8fafc', border: '#e2e8f0', icon: 'ℹ️',  label: 'Info'    },
+  critical: { bg: 'var(--crit-bg)', border: 'var(--border)', icon: AlertCircle, label: 'Critical', fg: 'var(--crit-fg)' },
+  alert:    { bg: 'var(--risk-bg)', border: 'var(--border)', icon: AlertTriangle, label: 'Alert', fg: 'var(--risk-fg)' },
+  warning:  { bg: 'var(--watch-bg)', border: 'var(--border)', icon: AlertTriangle, label: 'Warning', fg: 'var(--watch-fg)' },
+  reminder: { bg: 'var(--bg)', border: 'var(--border)', icon: Bell, label: 'Reminder', fg: 'var(--accent)' },
+  info:     { bg: 'var(--bg)', border: 'var(--border)', icon: Info, label: 'Info', fg: 'var(--text-muted)' },
 };
 
 function NotifCard({ notif, onRead, onDelete }) {
   const s = KIND_STYLE[notif.kind] || KIND_STYLE.info;
+  const IconComponent = s.icon;
   const dt = new Date(notif.created_at).toLocaleString('en-IN', {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   });
 
   return (
     <div style={{
-      background: notif.is_read ? '#fafafa' : s.bg,
-      border: `1px solid ${notif.is_read ? '#e2e8f0' : s.border}`,
-      borderRadius: 10, padding: '14px 18px', marginBottom: 10,
-      opacity: notif.is_read ? 0.7 : 1,
-      display: 'flex', gap: 14, alignItems: 'flex-start',
+      background: notif.is_read ? 'var(--bg)' : 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderLeft: notif.is_read ? '1px solid var(--border)' : `4px solid ${s.fg}`,
+      borderRadius: 'var(--radius-card)', padding: '16px 20px', marginBottom: 12,
+      opacity: notif.is_read ? 0.75 : 1,
+      display: 'flex', gap: 16, alignItems: 'flex-start',
+      boxShadow: 'var(--shadow-card)',
     }}>
-      <span style={{ fontSize: 22, flexShrink: 0 }}>{s.icon}</span>
+      <div style={{ color: s.fg, flexShrink: 0, marginTop: 2 }}>
+        <IconComponent size={20} />
+      </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: 14, color: '#1e293b' }}>{notif.title}</strong>
+          <strong style={{ fontSize: 14, color: 'var(--ink-900)' }}>{notif.title}</strong>
           <span style={{
-            fontSize: 10, fontWeight: 700, background: s.bg,
-            border: `1px solid ${s.border}`, borderRadius: 4, padding: '1px 6px',
+            fontSize: 11, fontWeight: 600, background: s.bg, color: s.fg,
+            borderRadius: 'var(--radius-pill)', padding: '2px 8px', letterSpacing: '0.04em',
           }}>{s.label}</span>
           {!notif.is_read && (
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
           )}
         </div>
-        <p style={{ fontSize: 13, color: '#374151', margin: '4px 0' }}>{notif.message}</p>
-        <span style={{ fontSize: 11, color: '#94a3b8' }}>{dt}</span>
+        <p style={{ fontSize: 13, color: 'var(--text)', margin: '6px 0', lineHeight: 1.5 }}>{notif.message}</p>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{dt}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
         {!notif.is_read && (
-          <button onClick={() => onRead(notif.id)} style={smallBtn('#eff6ff', '#3b82f6')}>✓ Read</button>
+          <button onClick={() => onRead(notif.id)} style={smallBtn('var(--surface)', 'var(--accent)')}>
+            <Check size={12} style={{ marginRight: 4 }} /> Read
+          </button>
         )}
-        <button onClick={() => onDelete(notif.id)} style={smallBtn('#fef2f2', '#dc2626')}>✕</button>
+        <button onClick={() => onDelete(notif.id)} style={smallBtn('var(--surface)', 'var(--crit-fg)')}>
+          <Trash2 size={12} />
+        </button>
       </div>
     </div>
   );
 }
 
 const smallBtn = (bg, color) => ({
-  background: bg, color, border: `1px solid ${color}40`,
-  borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+  background: bg, color, border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-pill)', padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+  display: 'inline-flex', alignItems: 'center',
 });
 
 export default function NotificationsPage() {
@@ -100,53 +111,55 @@ export default function NotificationsPage() {
   });
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 10 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>
-          🔔 Alerts & Notifications
-          {unread > 0 && (
-            <span style={{
-              marginLeft: 12, background: '#ef4444', color: '#fff',
-              borderRadius: 9999, fontSize: 13, padding: '2px 10px', fontWeight: 700,
-            }}>{unread} unread</span>
-          )}
-        </h1>
+    <div style={{ maxWidth: 1080, margin: '0 auto', paddingBottom: 40 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--ink-900)', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            Alerts & Notifications
+            {unread > 0 && (
+              <span style={{
+                background: 'var(--crit-bg)', color: 'var(--crit-fg)',
+                borderRadius: 'var(--radius-pill)', fontSize: 12, padding: '2px 10px', fontWeight: 600,
+              }}>{unread} unread</span>
+            )}
+          </h1>
+          <p style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: 14 }}>
+            Attendance warnings, deadline reminders, and risk alerts.
+          </p>
+        </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={() => checkMut.mutate()}
             disabled={checkMut.isLoading}
-            style={{ ...actionBtn('#eff6ff', '#3b82f6'), opacity: checkMut.isLoading ? 0.6 : 1 }}
+            style={{ ...actionBtn('var(--surface)', 'var(--accent)'), opacity: checkMut.isLoading ? 0.6 : 1 }}
           >
-            {checkMut.isLoading ? 'Checking…' : '🔄 Check Reminders'}
+            <RotateCw size={14} style={{ marginRight: 6 }} />
+            {checkMut.isLoading ? 'Checking…' : 'Check Reminders'}
           </button>
           {unread > 0 && (
-            <button onClick={() => readAllMut.mutate()} style={actionBtn('#f0fdf4', '#16a34a')}>
-              ✓ Mark All Read
+            <button onClick={() => readAllMut.mutate()} style={actionBtn('var(--ok-bg)', 'var(--ok-fg)')}>
+              <CheckCircle2 size={14} style={{ marginRight: 6 }} /> Mark All Read
             </button>
           )}
         </div>
       </div>
 
-      <p style={{ color: '#64748b', marginBottom: 20, fontSize: 13 }}>
-        Attendance warnings, deadline reminders, and risk alerts.
-      </p>
-
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, marginTop: 16, flexWrap: 'wrap' }}>
         {['all', 'unread', 'critical', 'alert', 'warning', 'reminder', 'info'].map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             style={{
-              background: filter === f ? '#1e293b' : '#f1f5f9',
-              color: filter === f ? '#fff' : '#374151',
-              border: 'none', borderRadius: 8, padding: '6px 14px',
-              cursor: 'pointer', fontSize: 13, fontWeight: filter === f ? 700 : 400,
+              background: filter === f ? 'var(--accent)' : 'var(--surface)',
+              color: filter === f ? 'var(--on-dark)' : 'var(--text-muted)',
+              border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', padding: '6px 16px',
+              cursor: 'pointer', fontSize: 13, fontWeight: 600,
               textTransform: 'capitalize',
             }}
           >
-            {KIND_STYLE[f]?.icon || ''} {f}
+            {f}
           </button>
         ))}
       </div>
@@ -155,9 +168,9 @@ export default function NotificationsPage() {
       {error && <ErrorMsg msg={error?.response?.data?.detail || error.message} />}
 
       {data?.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-          <div style={{ fontSize: 48 }}>🎉</div>
-          <p style={{ marginTop: 12 }}>No notifications! You're all clear.</p>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
+          <div style={{ color: 'var(--ok-fg)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}><CheckCircle2 size={36} /></div>
+          <p style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: 0 }}>No notifications! You're all clear.</p>
         </div>
       )}
 
@@ -174,6 +187,7 @@ export default function NotificationsPage() {
 }
 
 const actionBtn = (bg, color) => ({
-  background: bg, color, border: `1px solid ${color}40`,
-  borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+  background: bg, color, border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-pill)', padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+  display: 'inline-flex', alignItems: 'center',
 });

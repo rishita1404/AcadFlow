@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Shield, Sparkles, History, UploadCloud, CheckCircle2, AlertTriangle, Download, ArrowRight } from 'lucide-react';
 import { attendanceApi, dashboardApi, courseApi } from '../api/endpoints.js';
 import { useAuth } from '../app/AuthContext.jsx';
 import { LoadingScreen, ErrorMsg } from './DashboardPage.jsx';
@@ -104,23 +105,23 @@ export default function AttendancePage() {
   });
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b' }}>
-          📋 Attendance Management & Buffer Engine
+    <div style={{ maxWidth: 1440, margin: '0 auto', paddingBottom: 40 }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--ink-900)', margin: 0 }}>
+          Attendance Management & Buffer Engine
         </h1>
-        <p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
           Track buffers, simulate future absences, review history, and {isFaculty ? 'upload class attendance via Excel/CSV' : 'view requirement metrics'}.
         </p>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e2e8f0', paddingBottom: 12 }}>
-        <TabButton label="🛡️ Buffers & Courses" active={activeTab === 'buffer'} onClick={() => setActiveTab('buffer')} />
-        <TabButton label="🔮 What-If Simulator" active={activeTab === 'simulator'} onClick={() => setActiveTab('simulator')} />
-        <TabButton label="📜 Attendance History" active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
+        <TabButton icon={<Shield size={14} />} label="Buffers & Courses" active={activeTab === 'buffer'} onClick={() => setActiveTab('buffer')} />
+        <TabButton icon={<Sparkles size={14} />} label="What-If Simulator" active={activeTab === 'simulator'} onClick={() => setActiveTab('simulator')} />
+        <TabButton icon={<History size={14} />} label="Attendance History" active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
         {isFaculty && (
-          <TabButton label="📤 Excel / CSV Upload" active={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
+          <TabButton icon={<UploadCloud size={14} />} label="Excel / CSV Upload" active={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
         )}
       </div>
 
@@ -129,75 +130,77 @@ export default function AttendancePage() {
         <div>
           {loadingDash && <LoadingScreen msg="Loading attendance metrics..." />}
           {dash && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
               {dash.courses.map((course) => {
                 const isShortfall = course.buffer != null && course.buffer < 0;
                 const isZero = course.buffer === 0;
-                const bufferBg = isShortfall ? '#fef2f2' : isZero ? '#fffbeb' : '#f0fdf4';
-                const bufferColor = isShortfall ? '#dc2626' : isZero ? '#d97706' : '#16a34a';
+                const bufferBg = isShortfall ? 'var(--crit-bg)' : isZero ? 'var(--watch-bg)' : 'var(--ok-bg)';
+                const bufferColor = isShortfall ? 'var(--crit-fg)' : isZero ? 'var(--watch-fg)' : 'var(--ok-fg)';
 
                 return (
                   <div
                     key={course.course_id}
                     style={{
-                      background: '#fff',
-                      borderRadius: 12,
-                      padding: 20,
-                      border: '1px solid #e2e8f0',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                      background: 'var(--surface)',
+                      borderRadius: 'var(--radius-card)',
+                      padding: 24,
+                      border: '1px solid var(--border)',
+                      boxShadow: 'var(--shadow-card)',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <span style={{ background: '#eff6ff', color: '#2563eb', fontWeight: 700, fontSize: 12, padding: '2px 8px', borderRadius: 4 }}>
+                      <span style={{ background: 'var(--bg)', color: 'var(--accent)', fontWeight: 600, fontSize: 12, padding: '2px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)' }}>
                         {course.code}
                       </span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: course.attendance_pct >= 75 ? '#16a34a' : '#dc2626' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: course.attendance_pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)', fontVariantNumeric: 'tabular-nums' }}>
                         {course.attendance_pct != null ? `${course.attendance_pct}%` : 'N/A'}
                       </span>
                     </div>
 
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1e293b', marginBottom: 14 }}>
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 16, margin: '0 0 16px 0' }}>
                       {course.name}
                     </h3>
 
                     {/* Buffer Pill */}
                     <div style={{
                       background: bufferBg,
-                      border: `1px solid ${bufferColor}40`,
-                      borderRadius: 8,
-                      padding: '12px 16px',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-card)',
+                      padding: '14px 18px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       marginBottom: 16,
                     }}>
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>LEAVE BUFFER</div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: bufferColor }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>LEAVE BUFFER</div>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: bufferColor, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
                           {course.buffer != null ? `${course.buffer} Classes` : 'Insufficient Data'}
                         </div>
                       </div>
-                      <span style={{ fontSize: 24 }}>{isShortfall ? '⛔' : isZero ? '⚠️' : '✅'}</span>
+                      <div style={{ color: bufferColor }}>
+                        {isShortfall ? <AlertTriangle size={24} /> : <CheckCircle2 size={24} />}
+                      </div>
                     </div>
 
                     {/* Details breakdown */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, textAlign: 'center', background: '#f8fafc', padding: 10, borderRadius: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, textAlign: 'center', background: 'var(--bg)', padding: 12, borderRadius: 'var(--radius-input)', border: '1px solid var(--border)' }}>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{course.attended}/{course.held}</div>
-                        <div style={{ fontSize: 10, color: '#64748b' }}>Attended</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{course.attended}/{course.held}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Attended</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#2563eb' }}>{course.required || '—'}</div>
-                        <div style={{ fontSize: 10, color: '#64748b' }}>Target (75%)</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>{course.required || '—'}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Target (75%)</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{course.still_need != null ? course.still_need : '—'}</div>
-                        <div style={{ fontSize: 10, color: '#64748b' }}>Still Needed</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--watch-fg)', fontVariantNumeric: 'tabular-nums' }}>{course.still_need != null ? course.still_need : '—'}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Still Needed</div>
                       </div>
                     </div>
 
-                    <div style={{ marginTop: 12, fontSize: 12, color: '#475569' }}>
-                      ℹ️ {course.status_message}
+                    <div style={{ marginTop: 14, fontSize: 12, color: 'var(--text-muted)' }}>
+                      {course.status_message}
                     </div>
                   </div>
                 );
@@ -209,17 +212,17 @@ export default function AttendancePage() {
 
       {/* TAB 2: What-If Attendance Simulator */}
       {activeTab === 'simulator' && (
-        <div style={{ maxWidth: 680, background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
-            🔮 What-If Leave & Absence Simulator
+        <div style={{ maxWidth: 680, background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 28, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 6 }}>
+            What-If Leave & Absence Simulator
           </h2>
-          <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
             Simulate the impact of missing future classes before taking leave. See your new buffer and projected percentage.
           </p>
 
-          <form onSubmit={handleSimulate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleSimulate} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 6 }}>
                 Select Course
               </label>
               <select
@@ -237,8 +240,8 @@ export default function AttendancePage() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                Number of future classes you might miss: <strong style={{ color: '#2563eb' }}>{missCount}</strong>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 8 }}>
+                Number of future classes you might miss: <strong style={{ color: 'var(--accent)' }}>{missCount}</strong>
               </label>
               <input
                 type="range"
@@ -246,9 +249,9 @@ export default function AttendancePage() {
                 max="15"
                 value={missCount}
                 onChange={(e) => setMissCount(e.target.value)}
-                style={{ width: '100%', cursor: 'pointer' }}
+                style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--accent)' }}
               />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
                 <span>1 class</span>
                 <span>5 classes</span>
                 <span>10 classes</span>
@@ -260,17 +263,19 @@ export default function AttendancePage() {
               type="submit"
               disabled={simMut.isPending}
               style={{
-                background: '#2563eb',
-                color: '#fff',
+                background: 'var(--accent)',
+                color: 'var(--on-dark)',
                 border: 'none',
-                borderRadius: 8,
+                borderRadius: 'var(--radius-pill)',
                 padding: '12px 20px',
                 fontWeight: 600,
+                fontSize: 14,
                 cursor: simMut.isPending ? 'not-allowed' : 'pointer',
                 opacity: simMut.isPending ? 0.7 : 1,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
-              {simMut.isPending ? 'Simulating…' : 'Run Simulation →'}
+              {simMut.isPending ? 'Simulating…' : 'Run Simulation'} <ArrowRight size={16} />
             </button>
           </form>
 
@@ -279,45 +284,47 @@ export default function AttendancePage() {
             <div style={{
               marginTop: 24,
               padding: 20,
-              borderRadius: 12,
-              background: simulationResult.is_recoverable ? '#f0fdf4' : '#fef2f2',
-              border: `1px solid ${simulationResult.is_recoverable ? '#86efac' : '#fca5a5'}`,
+              borderRadius: 'var(--radius-card)',
+              background: simulationResult.is_recoverable ? 'var(--ok-bg)' : 'var(--crit-bg)',
+              border: '1px solid var(--border)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 24 }}>{simulationResult.is_recoverable ? '🟢' : '🔴'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                <div style={{ color: simulationResult.is_recoverable ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
+                  {simulationResult.is_recoverable ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
+                </div>
                 <div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: simulationResult.is_recoverable ? '#166534' : '#991b1b' }}>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 600, color: simulationResult.is_recoverable ? 'var(--ok-fg)' : 'var(--crit-fg)', margin: 0 }}>
                     {simulationResult.is_recoverable ? 'Absence is Recoverable' : 'Target Unrecoverable!'}
                   </h3>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                  <div style={{ fontSize: 12, color: 'var(--ink-900)', marginTop: 2 }}>
                     Missing {simulationResult.miss_count} more class(es) in this course
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 14 }}>
-                <div style={{ background: '#fff', padding: 12, borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>Current → Simulated Buffer</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
+                <div style={{ background: 'var(--surface)', padding: 14, borderRadius: 'var(--radius-input)', textAlign: 'center', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current → Simulated Buffer</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
                     {simulationResult.current_buffer != null ? simulationResult.current_buffer : '—'} →{' '}
-                    <span style={{ color: simulationResult.simulated_buffer < 0 ? '#dc2626' : '#16a34a' }}>
+                    <span style={{ color: simulationResult.simulated_buffer < 0 ? 'var(--crit-fg)' : 'var(--ok-fg)' }}>
                       {simulationResult.simulated_buffer != null ? simulationResult.simulated_buffer : '—'}
                     </span>
                   </div>
                 </div>
 
-                <div style={{ background: '#fff', padding: 12, borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>Current → Simulated %</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginTop: 4 }}>
+                <div style={{ background: 'var(--surface)', padding: 14, borderRadius: 'var(--radius-input)', textAlign: 'center', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current → Simulated %</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
                     {simulationResult.current_attendance_pct != null ? `${simulationResult.current_attendance_pct}%` : '—'} →{' '}
-                    <span style={{ color: simulationResult.simulated_attendance_pct < 75 ? '#dc2626' : '#16a34a' }}>
+                    <span style={{ color: simulationResult.simulated_attendance_pct < 75 ? 'var(--crit-fg)' : 'var(--ok-fg)' }}>
                       {simulationResult.simulated_attendance_pct != null ? `${simulationResult.simulated_attendance_pct}%` : '—'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <p style={{ fontSize: 13, color: '#334151', lineHeight: 1.5 }}>
+              <p style={{ fontSize: 13, color: 'var(--ink-900)', lineHeight: 1.5, margin: 0 }}>
                 {simulationResult.impact_description || simulationResult.status_message}
               </p>
             </div>
@@ -327,11 +334,11 @@ export default function AttendancePage() {
 
       {/* TAB 3: Attendance History */}
       {activeTab === 'history' && (
-        <div style={{ background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 28, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>Detailed Session History</h2>
-              <p style={{ color: '#64748b', fontSize: 13 }}>Review your past attendance records session by session.</p>
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--ink-900)', margin: 0 }}>Detailed Session History</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>Review your past attendance records session by session.</p>
             </div>
 
             <select
@@ -351,43 +358,46 @@ export default function AttendancePage() {
 
           {historyData && (
             <div>
-              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
-                Total Sessions Conducted: <strong>{historyData.total_sessions}</strong>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+                Total Sessions Conducted: <strong style={{ color: 'var(--ink-900)' }}>{historyData.total_sessions}</strong>
               </div>
 
               {historyData.history?.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>No recorded sessions found.</div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No recorded sessions found.</div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                      <th style={{ padding: '10px 14px' }}>Session #</th>
-                      <th style={{ padding: '10px 14px' }}>Date</th>
-                      <th style={{ padding: '10px 14px' }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyData.history.map((rec, idx) => (
-                      <tr key={rec.session_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '10px 14px', color: '#64748b' }}>#{idx + 1}</td>
-                        <td style={{ padding: '10px 14px', fontWeight: 600 }}>{rec.date}</td>
-                        <td style={{ padding: '10px 14px' }}>
-                          <span style={{
-                            padding: '3px 10px',
-                            borderRadius: 9999,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            textTransform: 'uppercase',
-                            background: rec.status === 'present' ? '#f0fdf4' : rec.status === 'late' ? '#fffbeb' : '#fef2f2',
-                            color: rec.status === 'present' ? '#16a34a' : rec.status === 'late' ? '#d97706' : '#dc2626',
-                          }}>
-                            {rec.status === 'present' ? '✓ Present' : rec.status === 'late' ? '⏱ Late' : '✗ Absent'}
-                          </span>
-                        </td>
+                <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                        <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 11 }}>Session #</th>
+                        <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 11 }}>Date</th>
+                        <th style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 11 }}>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {historyData.history.map((rec, idx) => (
+                        <tr key={rec.session_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>#{idx + 1}</td>
+                          <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{rec.date}</td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <span style={{
+                              padding: '3px 10px',
+                              borderRadius: 'var(--radius-pill)',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                              background: rec.status === 'present' ? 'var(--ok-bg)' : rec.status === 'late' ? 'var(--watch-bg)' : 'var(--crit-bg)',
+                              color: rec.status === 'present' ? 'var(--ok-fg)' : rec.status === 'late' ? 'var(--watch-fg)' : 'var(--crit-fg)',
+                            }}>
+                              {rec.status === 'present' ? 'Present' : rec.status === 'late' ? 'Late' : 'Absent'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
@@ -396,17 +406,17 @@ export default function AttendancePage() {
 
       {/* TAB 4: Faculty Excel / CSV Upload */}
       {activeTab === 'upload' && isFaculty && (
-        <div style={{ maxWidth: 740, background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
-            📤 Direct Excel & Spreadsheet Attendance Upload
+        <div style={{ maxWidth: 740, background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 28, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 6 }}>
+            Direct Excel & Spreadsheet Attendance Upload
           </h2>
-          <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
             Upload class attendance sheets directly via CSV or XLSX. Uploads are editable: re-uploading an existing date will safely update previously marked records.
           </p>
 
-          <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 6 }}>
                 Target Course
               </label>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -428,33 +438,35 @@ export default function AttendancePage() {
                   type="button"
                   onClick={handleDownloadTemplate}
                   style={{
-                    background: '#f8fafc',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: 8,
-                    padding: '8px 14px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-pill)',
+                    padding: '8px 16px',
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
+                    color: 'var(--accent)',
+                    display: 'flex', alignItems: 'center', gap: 6,
                   }}
                 >
-                  📥 Download Template
+                  <Download size={14} /> Download Template
                 </button>
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 6 }}>
                 Spreadsheet File (.csv, .xlsx)
               </label>
               <input
                 type="file"
                 accept=".csv, .xlsx, .xls"
                 onChange={(e) => setUploadFile(e.target.files[0])}
-                style={{ ...inputStyle, padding: '8px' }}
+                style={{ ...inputStyle, padding: '10px' }}
                 required
               />
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
                 Required headers: <code>roll_no, date, status</code> (Accepted statuses: present / absent / late or P / A / L)
               </div>
             </div>
@@ -465,57 +477,62 @@ export default function AttendancePage() {
               type="submit"
               disabled={uploadMut.isPending}
               style={{
-                background: '#16a34a',
-                color: '#fff',
+                background: 'var(--accent)',
+                color: 'var(--on-dark)',
                 border: 'none',
-                borderRadius: 8,
-                padding: '12px 20px',
+                borderRadius: 'var(--radius-pill)',
+                padding: '12px 24px',
                 fontWeight: 600,
+                fontSize: 14,
                 cursor: uploadMut.isPending ? 'not-allowed' : 'pointer',
                 opacity: uploadMut.isPending ? 0.7 : 1,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              {uploadMut.isPending ? 'Processing File & Calculating Risk…' : '🚀 Upload & Process Attendance'}
+              <UploadCloud size={16} />
+              {uploadMut.isPending ? 'Processing File & Calculating Risk…' : 'Upload & Process Attendance'}
             </button>
           </form>
 
           {/* Results Summary */}
           {uploadResult && (
-            <div style={{ marginTop: 24, padding: 20, background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#166534', marginBottom: 10 }}>
-                ✅ Ingest Complete: {uploadResult.filename}
+            <div style={{ marginTop: 24, padding: 20, background: 'var(--bg)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CheckCircle2 size={16} /> Ingest Complete: {uploadResult.filename}
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, textAlign: 'center', marginBottom: 16 }}>
-                <StatPill label="Total Rows" val={uploadResult.total_rows} color="#1e293b" />
-                <StatPill label="Processed" val={uploadResult.processed} color="#16a34a" />
-                <StatPill label="Updated Dupes" val={uploadResult.skipped_duplicates} color="#d97706" />
-                <StatPill label="Errors" val={uploadResult.error_count} color={uploadResult.error_count > 0 ? '#dc2626' : '#16a34a'} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, textAlign: 'center', marginBottom: 16 }}>
+                <StatPill label="Total Rows" val={uploadResult.total_rows} color="var(--ink-900)" />
+                <StatPill label="Processed" val={uploadResult.processed} color="var(--ok-fg)" />
+                <StatPill label="Updated Dupes" val={uploadResult.skipped_duplicates} color="var(--watch-fg)" />
+                <StatPill label="Errors" val={uploadResult.error_count} color={uploadResult.error_count > 0 ? 'var(--crit-fg)' : 'var(--ok-fg)'} />
               </div>
 
               {uploadResult.error_count > 0 && (
                 <div>
-                  <h4 style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', marginBottom: 8 }}>
-                    ⚠️ Row-level Errors ({uploadResult.error_count})
+                  <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--crit-fg)', marginBottom: 8 }}>
+                    Row-level Errors ({uploadResult.error_count})
                   </h4>
-                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', background: '#fff', borderRadius: 6 }}>
-                    <thead>
-                      <tr style={{ background: '#fef2f2', borderBottom: '1px solid #fecaca', textAlign: 'left' }}>
-                        <th style={{ padding: '6px 10px' }}>Row</th>
-                        <th style={{ padding: '6px 10px' }}>Roll No</th>
-                        <th style={{ padding: '6px 10px' }}>Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {uploadResult.errors.map((err, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '6px 10px' }}>{err.row}</td>
-                          <td style={{ padding: '6px 10px', fontWeight: 600 }}>{err.roll_no}</td>
-                          <td style={{ padding: '6px 10px', color: '#dc2626' }}>{err.reason}</td>
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-input)', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', background: 'var(--surface)' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--crit-bg)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                          <th style={{ padding: '8px 12px' }}>Row</th>
+                          <th style={{ padding: '8px 12px' }}>Roll No</th>
+                          <th style={{ padding: '8px 12px' }}>Reason</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {uploadResult.errors.map((err, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '8px 12px' }}>{err.row}</td>
+                            <td style={{ padding: '8px 12px', fontWeight: 600 }}>{err.roll_no}</td>
+                            <td style={{ padding: '8px 12px', color: 'var(--crit-fg)' }}>{err.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
@@ -526,32 +543,35 @@ export default function AttendancePage() {
   );
 }
 
-function TabButton({ label, active, onClick }) {
+function TabButton({ icon, label, active, onClick }) {
   return (
     <button
       onClick={onClick}
       style={{
-        background: active ? '#1e293b' : 'transparent',
-        color: active ? '#fff' : '#64748b',
-        border: 'none',
-        borderRadius: 8,
+        background: active ? 'var(--accent)' : 'var(--surface)',
+        color: active ? 'var(--on-dark)' : 'var(--text-muted)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-pill)',
         padding: '8px 16px',
-        fontWeight: active ? 700 : 500,
+        fontWeight: 600,
         fontSize: 13,
         cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
         transition: 'all 0.15s',
       }}
     >
-      {label}
+      {icon} {label}
     </button>
   );
 }
 
 function StatPill({ label, val, color }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
-      <div style={{ fontSize: 18, fontWeight: 800, color }}>{val}</div>
-      <div style={{ fontSize: 10, color: '#94a3b8' }}>{label}</div>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-input)', padding: 12 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{val}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
     </div>
   );
 }
@@ -559,9 +579,11 @@ function StatPill({ label, val, color }) {
 const inputStyle = {
   width: '100%',
   padding: '10px 14px',
-  border: '1px solid #d1d5db',
-  borderRadius: 8,
-  fontSize: 14,
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-input)',
+  fontSize: 13,
+  background: 'var(--bg)',
+  color: 'var(--ink-900)',
   outline: 'none',
   boxSizing: 'border-box',
 };

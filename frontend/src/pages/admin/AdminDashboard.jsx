@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { Sliders, Users, FileText, Cpu, Calendar, Bell, Shield, Activity, GraduationCap, UserCheck, BookOpen } from 'lucide-react';
 import { adminApi } from '../../api/endpoints.js';
+import Skeleton from '../../components/Skeleton.jsx';
 
 export default function AdminDashboard() {
   const { data: stats, isLoading } = useQuery({
@@ -10,26 +12,40 @@ export default function AdminDashboard() {
   });
 
   if (isLoading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>⏳ Loading system overview...</div>;
+    return (
+      <div style={{ maxWidth: 1440, margin: '0 auto', paddingBottom: 40 }}>
+        <Skeleton variant="title" width={340} height={36} />
+        <Skeleton variant="text" width={280} height={18} style={{ marginTop: 8, marginBottom: 24 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          <Skeleton variant="card" height={100} />
+          <Skeleton variant="card" height={100} />
+          <Skeleton variant="card" height={100} />
+          <Skeleton variant="card" height={100} />
+        </div>
+      </div>
+    );
   }
 
   return (
     <div style={{ maxWidth: 1440, margin: '0 auto', paddingBottom: 40 }}>
       {/* Header */}
       <div style={{
-        background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0',
-        marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: '24px 28px', border: '1px solid var(--border)',
+        marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-card)',
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              ⚙️ AcadFlow Administration Command Hub
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--ink-900)', margin: 0 }}>
+              Administration Command Hub
             </h1>
-            <span style={{ fontSize: 11, background: '#fef3c7', color: '#b45309', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>
+            <span style={{
+              fontSize: 11, background: 'var(--watch-bg)', color: 'var(--watch-fg)',
+              padding: '3px 10px', borderRadius: 'var(--radius-pill)', fontWeight: 700, letterSpacing: '0.04em',
+            }}>
               ROOT PRIVILEGES
             </span>
           </div>
-          <p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 6, margin: 0 }}>
             System health telemetry, risk algorithm calibration, immutable audit trails, and global access governance.
           </p>
         </div>
@@ -37,76 +53,82 @@ export default function AdminDashboard() {
 
       {/* Health Status Telemetry Bar */}
       <div style={{
-        background: '#fff', borderRadius: 12, padding: '16px 20px', border: '1px solid #e2e8f0',
-        marginBottom: 24, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16,
+        background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: '16px 24px', border: '1px solid var(--border)',
+        marginBottom: 24, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, boxShadow: 'var(--shadow-card)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#22c55e' }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--ok-bg)' }} />
           <div>
-            <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>FastAPI Cluster</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{stats?.api_health || 'Healthy (2/2 Active)'}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>FastAPI Cluster</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)' }}>{stats?.api_health || 'Healthy (2/2 Active)'}</div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#22c55e' }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--ok-bg)' }} />
           <div>
-            <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Background Workers</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{stats?.worker_health || 'Healthy (Celery-Beat Active)'}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Background Workers</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)' }}>{stats?.worker_health || 'Healthy (Celery-Beat Active)'}</div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#3b82f6' }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)' }} />
           <div>
-            <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>ML Inference Engine</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{stats?.ml_health || 'Operational (v2.1-lgbm)'}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>ML Inference Engine</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)' }}>{stats?.ml_health || 'Operational (v2.1-lgbm)'}</div>
           </div>
         </div>
       </div>
 
       {/* System Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
-        <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: 24, marginBottom: 4 }}>👤</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{stats?.total_users || 150}</div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Total User Accounts</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+          <div style={{ color: 'var(--accent)', marginBottom: 8 }}><Users size={20} /></div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_users || 150}</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 4 }}>Total User Accounts</div>
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: 24, marginBottom: 4 }}>🎓</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#3b82f6' }}>{stats?.total_students || 120}</div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Students Enrolled</div>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+          <div style={{ color: 'var(--accent)', marginBottom: 8 }}><GraduationCap size={20} /></div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_students || 120}</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 4 }}>Students Enrolled</div>
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: 24, marginBottom: 4 }}>👨‍🏫</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#6366f1' }}>{stats?.total_faculty || 25}</div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Faculty & Trainers</div>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+          <div style={{ color: 'var(--accent)', marginBottom: 8 }}><UserCheck size={20} /></div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_faculty || 25}</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 4 }}>Faculty & Trainers</div>
         </div>
 
-        <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: 24, marginBottom: 4 }}>📚</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#22c55e' }}>{stats?.total_courses || 6}</div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Active Courses</div>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+          <div style={{ color: 'var(--accent)', marginBottom: 8 }}><BookOpen size={20} /></div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_courses || 6}</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 4 }}>Active Courses</div>
         </div>
       </div>
 
       {/* Admin Modules Grid */}
-      <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>
-        🛠️ System Administration Modules
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 16 }}>
+        Administration Modules
       </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
         <Link
           to="/admin/risk-config"
           style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 22,
-            textDecoration: 'none', color: '#1e293b', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: 24,
+            textDecoration: 'none', color: 'var(--ink-900)', display: 'block', boxShadow: 'var(--shadow-card)',
+            transition: 'border-color 0.15s ease',
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🎛️</div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>Risk Algorithm Calibration</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 'var(--radius-pill)', background: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginBottom: 14,
+          }}>
+            <Sliders size={22} />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 18, color: 'var(--ink-900)' }}>Risk Algorithm Calibration</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
             Adjust 4 weight sliders (Margin, Trend, Deadlines, Missed). Must total 100%. Live band shift preview.
           </div>
         </Link>
@@ -114,13 +136,19 @@ export default function AdminDashboard() {
         <Link
           to="/admin/users"
           style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 22,
-            textDecoration: 'none', color: '#1e293b', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: 24,
+            textDecoration: 'none', color: 'var(--ink-900)', display: 'block', boxShadow: 'var(--shadow-card)',
+            transition: 'border-color 0.15s ease',
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>👥</div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>User Directory & Roles</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 'var(--radius-pill)', background: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginBottom: 14,
+          }}>
+            <Users size={22} />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 18, color: 'var(--ink-900)' }}>User Directory & Roles</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
             Global user search, role assignment, login failure monitoring, and account lockout management.
           </div>
         </Link>
@@ -128,13 +156,19 @@ export default function AdminDashboard() {
         <Link
           to="/admin/audit"
           style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 22,
-            textDecoration: 'none', color: '#1e293b', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: 24,
+            textDecoration: 'none', color: 'var(--ink-900)', display: 'block', boxShadow: 'var(--shadow-card)',
+            transition: 'border-color 0.15s ease',
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📜</div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>Immutable Audit Trail</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 'var(--radius-pill)', background: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginBottom: 14,
+          }}>
+            <FileText size={22} />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 18, color: 'var(--ink-900)' }}>Immutable Audit Trail</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
             Verify tamper-evident audit records across attendance edits, profile opens, and timetable publications.
           </div>
         </Link>
@@ -142,13 +176,19 @@ export default function AdminDashboard() {
         <Link
           to="/admin/ml"
           style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 22,
-            textDecoration: 'none', color: '#1e293b', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: 24,
+            textDecoration: 'none', color: 'var(--ink-900)', display: 'block', boxShadow: 'var(--shadow-card)',
+            transition: 'border-color 0.15s ease',
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🤖</div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>ML Advisory & Drift Monitoring</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 'var(--radius-pill)', background: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginBottom: 14,
+          }}>
+            <Cpu size={22} />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 18, color: 'var(--ink-900)' }}>ML Advisory & Drift Monitoring</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
             MLflow model registry, population stability index (PSI) drift tracking, and advisory telemetry.
           </div>
         </Link>
@@ -156,13 +196,19 @@ export default function AdminDashboard() {
         <Link
           to="/coordinator/timetable"
           style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 22,
-            textDecoration: 'none', color: '#1e293b', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: 24,
+            textDecoration: 'none', color: 'var(--ink-900)', display: 'block', boxShadow: 'var(--shadow-card)',
+            transition: 'border-color 0.15s ease',
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🗓</div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>Global Timetable Governance</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 'var(--radius-pill)', background: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginBottom: 14,
+          }}>
+            <Calendar size={22} />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 18, color: 'var(--ink-900)' }}>Global Timetable Governance</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
             Inspect published version slots, resolve inter-department room clashes, and review timetable audits.
           </div>
         </Link>
@@ -170,13 +216,19 @@ export default function AdminDashboard() {
         <Link
           to="/student/notices"
           style={{
-            background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 22,
-            textDecoration: 'none', color: '#1e293b', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: 24,
+            textDecoration: 'none', color: 'var(--ink-900)', display: 'block', boxShadow: 'var(--shadow-card)',
+            transition: 'border-color 0.15s ease',
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📢</div>
-          <div style={{ fontWeight: 800, fontSize: 16 }}>Campus Notices & Broadcasts</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 'var(--radius-pill)', background: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', marginBottom: 14,
+          }}>
+            <Bell size={22} />
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 18, color: 'var(--ink-900)' }}>Campus Notices & Broadcasts</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
             Issue university-wide emergency broadcasts, examine read receipts, and monitor reminder schedules.
           </div>
         </Link>

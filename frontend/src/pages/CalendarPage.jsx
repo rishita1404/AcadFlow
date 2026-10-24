@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, ArrowLeft, ArrowRight, RotateCw, X } from 'lucide-react';
 import { attendanceApi, holidayApi } from '../api/endpoints.js';
 import { LoadingScreen, ErrorMsg } from './DashboardPage.jsx';
 
@@ -10,12 +11,12 @@ const MONTH_NAMES = [
 ];
 
 const STATUS_STYLE = {
-  present: { bg: '#f0fdf4', color: '#16a34a', icon: '✅' },
-  absent:  { bg: '#fef2f2', color: '#dc2626', icon: '❌' },
-  late:    { bg: '#fffbeb', color: '#d97706', icon: '⏱' },
-  partial: { bg: '#fff7ed', color: '#ea580c', icon: '◑' },
-  expected_present: { bg: '#eff6ff', color: '#3b82f6', icon: '🔵' },
-  planned_absent:   { bg: '#faf5ff', color: '#9333ea', icon: '📅' },
+  present: { bg: 'var(--ok-bg)', color: 'var(--ok-fg)', icon: CheckCircle2 },
+  absent:  { bg: 'var(--crit-bg)', color: 'var(--crit-fg)', icon: XCircle },
+  late:    { bg: 'var(--watch-bg)', color: 'var(--watch-fg)', icon: Clock },
+  partial: { bg: 'var(--risk-bg)', color: 'var(--risk-fg)', icon: Clock },
+  expected_present: { bg: 'var(--bg)', color: 'var(--accent)', icon: CheckCircle2 },
+  planned_absent:   { bg: 'var(--surface)', color: 'var(--ink-900)', icon: CalendarIcon },
 };
 
 function CalendarGrid({ calData, onMarkHoliday, onUnmarkHoliday, plannedHolidays }) {
@@ -33,22 +34,26 @@ function CalendarGrid({ calData, onMarkHoliday, onUnmarkHoliday, plannedHolidays
     <div>
       {/* Legend */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-        {Object.entries(STATUS_STYLE).map(([key, s]) => (
-          <span key={key} style={{
-            background: s.bg, color: s.color, border: `1px solid ${s.color}40`,
-            borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 600,
-          }}>
-            {s.icon} {key.replace('_', ' ')}
-          </span>
-        ))}
+        {Object.entries(STATUS_STYLE).map(([key, s]) => {
+          const IconC = s.icon;
+          return (
+            <span key={key} style={{
+              background: s.bg, color: s.color, border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-pill)', padding: '4px 10px', fontSize: 11, fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', gap: 4, letterSpacing: '0.04em', textTransform: 'capitalize',
+            }}>
+              <IconC size={12} /> {key.replace('_', ' ')}
+            </span>
+          );
+        })}
       </div>
 
       {/* Week headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 6 }}>
         {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
           <div key={d} style={{
-            textAlign: 'center', fontSize: 11, fontWeight: 700,
-            color: '#64748b', padding: '4px 0',
+            textAlign: 'center', fontSize: 11, fontWeight: 600,
+            color: 'var(--text-muted)', padding: '6px 0', textTransform: 'uppercase', letterSpacing: '0.04em',
           }}>{d}</div>
         ))}
       </div>
@@ -60,8 +65,8 @@ function CalendarGrid({ calData, onMarkHoliday, onUnmarkHoliday, plannedHolidays
 
           const st = STATUS_STYLE[day.attendance_status] ||
             (day.is_weekend || day.is_institution_holiday
-              ? { bg: '#f8fafc', color: '#94a3b8', icon: '—' }
-              : { bg: '#fff', color: '#1e293b', icon: '' });
+              ? { bg: 'var(--bg)', color: 'var(--text-muted)' }
+              : { bg: 'var(--surface)', color: 'var(--ink-900)' });
 
           const isPlanned = holidayDates.has(day.date);
           const isToday = day.is_today;
@@ -72,14 +77,14 @@ function CalendarGrid({ calData, onMarkHoliday, onUnmarkHoliday, plannedHolidays
               key={day.date}
               title={`${day.date} | ${day.attendance_status || 'no session'}`}
               style={{
-                background: day.is_institution_holiday ? '#f1f5f9'
-                  : day.is_weekend ? '#f8fafc'
+                background: day.is_institution_holiday ? 'var(--bg)'
+                  : day.is_weekend ? 'var(--bg)'
                   : st.bg,
-                borderRadius: 8, padding: '6px 4px', textAlign: 'center',
-                border: isToday ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                borderRadius: 'var(--radius-input)', padding: '8px 6px', textAlign: 'center',
+                border: isToday ? '2px solid var(--accent)' : '1px solid var(--border)',
                 cursor: (!day.is_past && !day.is_weekend && !day.is_institution_holiday && day.has_class)
                   ? 'pointer' : 'default',
-                minHeight: 54, position: 'relative',
+                minHeight: 58, position: 'relative',
               }}
               onClick={() => {
                 if (!day.is_past && !day.is_weekend && !day.is_institution_holiday) {
@@ -88,22 +93,22 @@ function CalendarGrid({ calData, onMarkHoliday, onUnmarkHoliday, plannedHolidays
                 }
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: isToday ? 800 : 500, color: isToday ? '#2563eb' : '#1e293b' }}>
+              <div style={{ fontSize: 13, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--accent)' : 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>
                 {dayNum}
               </div>
-              <div style={{ fontSize: 16, marginTop: 2 }}>
-                {day.is_institution_holiday ? '🏛'
+              <div style={{ fontSize: 11, marginTop: 4, fontWeight: 600, color: st.color }}>
+                {day.is_institution_holiday ? 'Holiday'
                   : day.is_weekend ? ''
-                  : isPlanned ? '📅'
-                  : st.icon}
+                  : isPlanned ? 'Planned'
+                  : day.attendance_status || ''}
               </div>
               {day.has_class && !day.is_past && !day.is_weekend && !day.is_institution_holiday && (
-                <div style={{ fontSize: 8, color: '#6366f1', marginTop: 1 }}>TAP TO PLAN</div>
+                <div style={{ fontSize: 8, color: 'var(--accent)', marginTop: 2, fontWeight: 600 }}>TAP TO PLAN</div>
               )}
               {day.attendance_pct_so_far != null && day.is_past && (
                 <div style={{
-                  position: 'absolute', bottom: 2, right: 3,
-                  fontSize: 8, color: '#94a3b8',
+                  position: 'absolute', bottom: 3, right: 4,
+                  fontSize: 9, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums',
                 }}>{day.attendance_pct_so_far}%</div>
               )}
             </div>
@@ -150,30 +155,34 @@ export default function CalendarPage() {
   };
 
   return (
-    <div>
-      <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>
-        📅 Attendance Calendar
+    <div style={{ maxWidth: 1080, margin: '0 auto', paddingBottom: 40 }}>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--ink-900)', margin: 0 }}>
+        Attendance Calendar
       </h1>
-      <p style={{ color: '#64748b', marginBottom: 20, fontSize: 13 }}>
+      <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: 14, marginTop: 4 }}>
         View past attendance · Plan future holidays · Tap a future class day to mark as planned absence.
       </p>
 
       {/* Month nav */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        <button onClick={prevMonth} style={navBtn}>← Prev</button>
-        <h2 style={{ fontSize: 18, fontWeight: 700, minWidth: 180, textAlign: 'center' }}>
+        <button onClick={prevMonth} style={navBtn}>
+          <ArrowLeft size={14} style={{ marginRight: 4 }} /> Prev
+        </button>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, minWidth: 180, textAlign: 'center', color: 'var(--ink-900)', margin: 0 }}>
           {MONTH_NAMES[month - 1]} {year}
         </h2>
-        <button onClick={nextMonth} style={navBtn}>Next →</button>
+        <button onClick={nextMonth} style={navBtn}>
+          Next <ArrowRight size={14} style={{ marginLeft: 4 }} />
+        </button>
       </div>
 
       {/* Monthly stats */}
       {calData && (
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <StatPill icon="✅" label="Attended" val={calData.total_attended_so_far} color="#16a34a" />
-          <StatPill icon="📊" label="Held so far" val={calData.total_held_so_far} color="#6366f1" />
-          <StatPill icon="%" label="Monthly %" val={calData.monthly_attendance_pct != null ? `${calData.monthly_attendance_pct}%` : 'N/A'}
-            color={calData.monthly_attendance_pct >= 75 ? '#16a34a' : '#dc2626'} />
+        <div style={{ display: 'flex', gap: 14, marginBottom: 24, flexWrap: 'wrap' }}>
+          <StatPill label="Attended" val={calData.total_attended_so_far} color="var(--ok-fg)" />
+          <StatPill label="Held so far" val={calData.total_held_so_far} color="var(--accent)" />
+          <StatPill label="Monthly %" val={calData.monthly_attendance_pct != null ? `${calData.monthly_attendance_pct}%` : 'N/A'}
+            color={calData.monthly_attendance_pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)'} />
         </div>
       )}
 
@@ -181,7 +190,7 @@ export default function CalendarPage() {
       {error && <ErrorMsg msg={error?.response?.data?.detail || error.message} />}
 
       {calData && (
-        <div style={{ background: '#fff', borderRadius: 14, padding: 20, border: '1px solid #e2e8f0' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
           <CalendarGrid
             calData={calData}
             plannedHolidays={holidays}
@@ -193,20 +202,24 @@ export default function CalendarPage() {
 
       {/* Planned holidays list */}
       {holidays && holidays.length > 0 && (
-        <div style={{ marginTop: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>📅 Your Planned Absences</h3>
+        <div style={{ marginTop: 24 }}>
+          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 12 }}>
+            Your Planned Absences
+          </h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {holidays.map(h => (
               <div key={h.id} style={{
-                background: '#faf5ff', border: '1px solid #c4b5fd', borderRadius: 8,
-                padding: '6px 12px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8,
+                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)',
+                padding: '6px 14px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                <span>📅 {h.holiday_date}</span>
-                {h.reason && <span style={{ color: '#7c3aed' }}>— {h.reason}</span>}
+                <span style={{ fontWeight: 600, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{h.holiday_date}</span>
+                {h.reason && <span style={{ color: 'var(--text-muted)' }}>— {h.reason}</span>}
                 <button
                   onClick={() => unmarkMut.mutate(h.holiday_date)}
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 700 }}
-                >✕</button>
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--crit-fg)', padding: 0, display: 'flex', alignItems: 'center' }}
+                >
+                  <X size={14} />
+                </button>
               </div>
             ))}
           </div>
@@ -217,20 +230,20 @@ export default function CalendarPage() {
 }
 
 const navBtn = {
-  background: '#f1f5f9', border: '1px solid #e2e8f0',
-  borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: 14,
+  background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-900)',
+  borderRadius: 'var(--radius-pill)', padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+  display: 'inline-flex', alignItems: 'center',
 };
 
-function StatPill({ icon, label, val, color }) {
+function StatPill({ label, val, color }) {
   return (
     <div style={{
-      background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-      padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8,
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)',
+      padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: 'var(--shadow-card)',
     }}>
-      <span style={{ fontSize: 18 }}>{icon}</span>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 800, color }}>{val}</div>
-        <div style={{ fontSize: 11, color: '#94a3b8' }}>{label}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{val}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
       </div>
     </div>
   );
