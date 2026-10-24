@@ -713,9 +713,17 @@ def seed_all(session=None, engine=None) -> dict:
         except Exception as ph8_err:
             print(f"[WARN] Phase 8 seed skipped: {ph8_err}")
 
+        # ── Phase 9: AI-ML Department, Faculty, Subjects & Sections ──────────
+        try:
+            from scripts.seed_aiml_department import seed_aiml
+            aiml_counts = seed_aiml(session=_session, engine=engine)
+            counts.update({f"aiml_{k}": v for k, v in aiml_counts.items()})
+        except Exception as aiml_err:
+            print(f"[WARN] AIML seed notice: {aiml_err}")
+
         if owns_session:
             _session.commit()
-            print("[OK] Seed complete! AcadFlow is populated with 500 students.")
+            print("[OK] Seed complete! AcadFlow is populated.")
             for k, v in counts.items():
                 print(f"   {k}: {v} created/verified")
         else:

@@ -95,19 +95,22 @@ export default function AppShell() {
   const sidebarW = collapsed ? 'var(--sidebar-collapsed-w)' : 'var(--sidebar-w)';
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
 
       {/* ── Sidebar ── */}
       <aside style={{
         width: sidebarW,
         flexShrink: 0,
+        height: '100vh',
         background: 'var(--ink-900)',
         color: 'var(--on-dark)',
         display: 'flex',
         flexDirection: 'column',
         transition: 'width 0.2s',
-        position: 'relative',
+        position: 'sticky',
+        top: 0,
         zIndex: 10,
+        overflow: 'hidden',
       }}>
 
         {/* Wordmark */}
@@ -289,7 +292,7 @@ export default function AppShell() {
       </aside>
 
       {/* ── Main area ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflow: 'hidden' }}>
 
         {/* Top bar */}
         <header style={{
@@ -323,7 +326,7 @@ export default function AppShell() {
           </NavLink>
         </header>
 
-        <main style={{ flex: 1, overflow: 'auto', padding: 'var(--space-8)' }}>
+        <main style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-8)' }}>
           <Outlet />
         </main>
       </div>
