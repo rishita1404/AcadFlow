@@ -15,12 +15,12 @@ const DEMO_ACCOUNTS = [
 ];
 
 const CAPSULES = [
-  { x: '8%', y: '12%', w: 120, h: 52, bg: '#0D1B2A', rotate: -18 },
-  { x: '18%', y: '62%', w: 90, h: 38, bg: '#415A77', rotate: 10 },
-  { x: '62%', y: '8%', w: 100, h: 44, bg: '#778D7A', rotate: -5 },
-  { x: '75%', y: '55%', w: 140, h: 56, bg: '#D4C4A8', rotate: 22 },
-  { x: '40%', y: '78%', w: 80, h: 34, bg: '#1B263B', rotate: -12 },
-  { x: '52%', y: '35%', w: 110, h: 46, bg: '#415A77', rotate: 8, opacity: 0.5 },
+  { x: '8%', y: '12%', w: 120, h: 52, bg: 'var(--ink-900)', rotate: -18 },
+  { x: '18%', y: '62%', w: 90, h: 38, bg: 'var(--accent)', rotate: 10 },
+  { x: '62%', y: '8%', w: 100, h: 44, bg: 'var(--sage)', rotate: -5 },
+  { x: '75%', y: '55%', w: 140, h: 56, bg: 'var(--sand)', rotate: 22 },
+  { x: '40%', y: '78%', w: 80, h: 34, bg: 'var(--ink-800)', rotate: -12 },
+  { x: '52%', y: '35%', w: 110, h: 46, bg: 'var(--accent)', rotate: 8, opacity: 0.5 },
 ];
 
 export default function LoginPage() {

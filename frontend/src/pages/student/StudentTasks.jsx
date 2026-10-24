@@ -102,7 +102,7 @@ export default function StudentTasks() {
                   marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '1px 6px',
                   borderRadius: 'var(--radius-pill)',
                   background: active ? 'rgba(255,255,255,0.25)' : 'var(--border)',
-                  color: active ? '#fff' : 'var(--text)',
+                  color: active ? 'var(--on-dark)' : 'var(--text)',
                 }}>
                   {t.count}
                 </span>

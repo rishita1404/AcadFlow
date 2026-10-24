@@ -171,7 +171,7 @@ export default function AppShell() {
                   {label}
                   {badge && unread > 0 && (
                     <span style={{
-                      background: '#ef4444', color: '#fff',
+                      background: 'var(--crit-bg)', color: 'var(--crit-fg)',
                       fontSize: 10, fontWeight: 700, lineHeight: 1,
                       padding: '2px 6px', borderRadius: 'var(--radius-pill)',
                     }}>
@@ -183,7 +183,7 @@ export default function AppShell() {
               {collapsed && badge && unread > 0 && (
                 <span style={{
                   position: 'absolute', top: 6, right: 6,
-                  width: 8, height: 8, borderRadius: '50%', background: '#ef4444',
+                  width: 8, height: 8, borderRadius: '50%', background: 'var(--crit-fg)',
                 }} />
               )}
             </NavLink>
@@ -225,7 +225,7 @@ export default function AppShell() {
               }}
             >
               {allowedRoles.map(r => (
-                <option key={r} value={r} style={{ background: '#1b263b' }}>{ROLE_LABEL[r] || r}</option>
+                <option key={r} value={r} style={{ background: 'var(--ink-800)' }}>{ROLE_LABEL[r] || r}</option>
               ))}
             </select>
           </div>

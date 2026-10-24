@@ -274,7 +274,7 @@ export default function StudentHome() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
               <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-900)', margin: 0 }}>Notices</h3>
               {unreadNoticesCount > 0 && (
-                <span style={{ fontSize: 11, background: 'var(--crit-fg)', color: '#fff', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>
+                <span style={{ fontSize: 11, background: 'var(--crit-fg)', color: 'var(--on-dark)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>
                   {unreadNoticesCount} new
                 </span>
               )}
