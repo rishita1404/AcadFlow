@@ -34,6 +34,8 @@ async def run_reminder_worker() -> None:
     from app.models import StudentModel
     from app.services.reminders import dispatch_deadline_reminders
 
+    await asyncio.sleep(45)
+
     while True:
         try:
             with SessionLocal() as db:

@@ -97,7 +97,12 @@ def _clear_refresh_cookie(response: Response) -> None:
 
 
 def _build_claims(user: UserModel) -> dict:
-    return {"sub": str(user.id), "email": user.email, "role": user.role}
+    return {
+        "sub": str(user.id),
+        "email": user.email,
+        "role": user.role,
+        "department_id": user.department_id,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -180,10 +185,32 @@ async def login(
     if not raw_email or not raw_password:
         raise UnauthorizedError("Invalid email or password.")
 
-    email = str(raw_email).lower().strip()
+    raw_ident = str(raw_email).lower().strip()
 
-    # 1. Lockout gate
-    is_locked, retry_secs = await lockout_policy.is_locked(email)
+    # 1. Flexible user lookup: exact email, student roll_no, email prefix, or full name
+    from app.models.user import StudentModel
+    from sqlalchemy import func
+
+    user = db.scalar(select(UserModel).where(func.lower(UserModel.email) == raw_ident))
+    if not user:
+        user = db.scalar(
+            select(UserModel)
+            .join(StudentModel, StudentModel.user_id == UserModel.id)
+            .where(func.lower(StudentModel.roll_no) == raw_ident)
+        )
+    if not user:
+        user = db.scalar(select(UserModel).where(func.lower(UserModel.email).startswith(raw_ident + "@")))
+    if not user:
+        user = db.scalar(select(UserModel).where(func.lower(UserModel.email).like(f"{raw_ident}%")))
+    if not user:
+        user = db.scalar(select(UserModel).where(func.lower(UserModel.name) == raw_ident))
+    if not user:
+        user = db.scalar(select(UserModel).where(func.lower(UserModel.name).like(f"%{raw_ident}%")))
+
+    canonical_email = user.email if user else raw_ident
+
+    # 2. Lockout gate
+    is_locked, retry_secs = await lockout_policy.is_locked(canonical_email)
     if is_locked:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -191,13 +218,10 @@ async def login(
             headers={"Retry-After": str(retry_secs)},
         )
 
-    # 2. Look up user
-    user = db.scalar(select(UserModel).where(UserModel.email == email))
-
     # 3. Verify password (constant-time even on user-not-found path)
     if not user or not verify_password(raw_password, user.password_hash):
         if user:
-            await lockout_policy.record_failed_attempt(email)
+            await lockout_policy.record_failed_attempt(canonical_email)
         raise UnauthorizedError("Invalid email or password.")
 
     # 4. Check DB-level lockout (set by a previous migration / manual lock)
@@ -208,7 +232,7 @@ async def login(
         )
 
     # 5. Success — clear lockout, issue tokens
-    await lockout_policy.reset_lockout(email)
+    await lockout_policy.reset_lockout(canonical_email)
 
     claims = _build_claims(user)
     access_token, access_exp = create_access_token(claims)

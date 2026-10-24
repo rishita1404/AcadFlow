@@ -36,6 +36,21 @@ from app.models.course import CourseStaffModel
 router = APIRouter()
 
 
+def _resolve_dept_id(db: Session, department_id: Optional[int], current_user: Optional[dict]) -> int:
+    if department_id:
+        return int(department_id)
+    if current_user:
+        dept = current_user.get("department_id")
+        if dept:
+            return int(dept)
+        sub = current_user.get("sub")
+        if sub:
+            u = db.get(UserModel, int(sub))
+            if u and u.department_id:
+                return u.department_id
+    return 1
+
+
 class CoordinatorOverviewOut(BaseModel):
     department_id: Optional[int]
     department_name: str
@@ -60,10 +75,7 @@ def get_department_overview(
     db: Session = Depends(get_db),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    dept_id = department_id
-    if dept_id is None and current_user:
-        dept_id = current_user.get("department_id", 1)
-    dept_id = dept_id or 1
+    dept_id = _resolve_dept_id(db, department_id, current_user)
 
     dept = db.get(DepartmentModel, dept_id)
     dept_name = dept.name if dept else "General Department"
@@ -105,7 +117,7 @@ def get_deadline_load(
     db: Session = Depends(get_db),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    dept_id = department_id or (current_user.get("department_id") if current_user else 1) or 1
+    dept_id = _resolve_dept_id(db, department_id, current_user)
     courses = db.scalars(select(CourseModel).where(CourseModel.department_id == dept_id)).all()
     course_ids = [c.id for c in courses]
 
@@ -143,9 +155,7 @@ def list_department_students(
     db: Session = Depends(get_db),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    dept_id = (
-        department_id or (current_user.get("department_id") if current_user else 1) or 1
-    )
+    dept_id = _resolve_dept_id(db, department_id, current_user)
 
     if current_user:
         verify_access(
@@ -200,7 +210,7 @@ def get_coordinator_student_detail(
 
     # Scope check: Other-department records return 403
     if current_user and current_user.get("role") != Role.ADMIN.value:
-        user_dept = current_user.get("department_id", 1)
+        user_dept = _resolve_dept_id(db, None, current_user)
         if u.department_id and u.department_id != user_dept:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -249,9 +259,7 @@ def list_department_teachers(
     db: Session = Depends(get_db),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    dept_id = (
-        department_id or (current_user.get("department_id") if current_user else 1) or 1
-    )
+    dept_id = _resolve_dept_id(db, department_id, current_user)
 
     teachers = db.scalars(
         select(UserModel).where(

@@ -6,11 +6,11 @@ import Button from '../components/ui/Button.jsx';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
 
 const DEMO_ACCOUNTS = [
-  { email: 'student@acadflow.edu', label: 'Student' },
-  { email: 'riya@acadflow.edu', label: 'Riya (At Risk)' },
-  { email: 'faculty@acadflow.edu', label: 'Instructor' },
-  { email: 'mentor@acadflow.edu', label: 'Mentor + Coord' },
-  { email: 'coordinator@acadflow.edu', label: 'Coordinator' },
+  { email: 'riya.aiml001@acadflow.edu', label: 'Riya (AIML Student)' },
+  { email: 'tarun.aiml014@acadflow.edu', label: 'Tarun (AIML Student)' },
+  { email: 'rajesh.faculty@acadflow.edu', label: 'Faculty (Dr. Rajesh)' },
+  { email: 'sneha.faculty@acadflow.edu', label: 'Faculty (Dr. Sneha)' },
+  { email: 'meera.coord@acadflow.edu', label: 'Coordinator (Dr. Meera)' },
   { email: 'admin@acadflow.edu', label: 'Admin' },
 ];
 
@@ -29,7 +29,7 @@ export default function LoginPage() {
   const location = useLocation();
   const nextUrl = new URLSearchParams(location.search).get('next');
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,24 +50,41 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const res = await login(email, password);
-      if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/login')) {
-        navigate(nextUrl, { replace: true });
-      } else {
-        navigate(getRoleRedirect(res?.role), { replace: true });
+      const res = await login(identifier, password);
+      const role = res?.role || res?.user?.role;
+      const roleHome = getRoleRedirect(role);
+
+      // Verify that nextUrl is permissible for this role, avoiding 403 Outside Your Access
+      let target = roleHome;
+      if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/login') && !nextUrl.startsWith('/403')) {
+        const isStudentPath = nextUrl.startsWith('/student');
+        const isFacultyPath = nextUrl.startsWith('/faculty');
+        const isCoordPath = nextUrl.startsWith('/coordinator');
+        const isAdminPath = nextUrl.startsWith('/admin');
+
+        if (role === 'student' && isStudentPath) target = nextUrl;
+        else if ((role === 'faculty' || role === 'trainer') && (isFacultyPath || isStudentPath)) target = nextUrl;
+        else if (role === 'coordinator' && (isCoordPath || isFacultyPath)) target = nextUrl;
+        else if (role === 'admin') target = nextUrl;
       }
+
+      navigate(target, { replace: true });
     } catch (err) {
       setError(
         err?.response?.data?.detail ||
         err?.response?.data?.error?.message ||
-        'Login failed. Check your credentials.'
+        'Login failed. Check your identifier and credentials.'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const fillAccount = (e) => { setEmail(e); setPassword('AcadFlow@123'); };
+  const fillAccount = (emailVal, passVal = 'AcadFlow@123') => {
+    setIdentifier(emailVal);
+    setPassword(passVal);
+    setError('');
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
@@ -153,12 +170,12 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              label="Email, Roll Number, or Name"
+              type="text"
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
               required
-              placeholder="you@university.edu"
+              placeholder="e.g. tarun.aiml014@acadflow.edu, 26AIML014, or Tarun"
               icon={<Mail size={16} />}
             />
             <Input
@@ -212,16 +229,20 @@ export default function LoginPage() {
                   style={{
                     padding: '5px 12px',
                     fontSize: 12, fontWeight: 600,
-                    background: 'var(--surface)',
+                    background: identifier === e ? 'var(--ink-900)' : 'var(--surface)',
+                    color: identifier === e ? 'var(--on-dark)' : 'var(--text)',
                     border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-pill)',
                     cursor: 'pointer',
-                    color: 'var(--text)',
                     fontFamily: 'var(--font-sans)',
-                    transition: 'background 0.12s',
+                    transition: 'all 0.12s',
                   }}
-                  onMouseEnter={e2 => e2.currentTarget.style.background = 'var(--bg)'}
-                  onMouseLeave={e2 => e2.currentTarget.style.background = 'var(--surface)'}
+                  onMouseEnter={e2 => {
+                    if (identifier !== e) e2.currentTarget.style.background = 'var(--bg)';
+                  }}
+                  onMouseLeave={e2 => {
+                    if (identifier !== e) e2.currentTarget.style.background = 'var(--surface)';
+                  }}
                 >
                   {label}
                 </button>

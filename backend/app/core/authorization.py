@@ -64,6 +64,7 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.EDIT_ATTENDANCE,
         Action.CREATE_ASSIGNMENT,
         Action.GRADE_SUBMISSION,
+        Action.VIEW_STUDENT_RECORD,
     },
     Role.TRAINER.value: {
         Action.VIEW_COURSE,
@@ -72,16 +73,19 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.EDIT_ATTENDANCE,
         Action.CREATE_ASSIGNMENT,
         Action.GRADE_SUBMISSION,
+        Action.VIEW_STUDENT_RECORD,
     },
     Role.MENTOR.value: {
         Action.VIEW_COURSE,
         Action.VIEW_MENTEE_RECORDS,
         Action.VIEW_MENTEE_RISK,
+        Action.VIEW_STUDENT_RECORD,
     },
     Role.COORDINATOR.value: {
         Action.VIEW_COURSE,
         Action.VIEW_DEPARTMENT_SUMMARY,
         Action.VIEW_COORDINATOR_RECORD,
+        Action.VIEW_STUDENT_RECORD,
         Action.TIMETABLE_WRITE,
     },
     Role.ADMIN.value: set(Action),  # Admin has full capabilities across all actions
