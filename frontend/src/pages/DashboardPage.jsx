@@ -1,20 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, BookOpen, CheckCircle2, TrendingUp, AlertCircle, RotateCw } from 'lucide-react';
 import { dashboardApi } from '../api/endpoints.js';
 
 const BAND_COLOR = {
-  'Safe':     { bg: '#f0fdf4', text: '#15803d', border: '#86efac' },
-  'Watch':    { bg: '#fffbeb', text: '#b45309', border: '#fcd34d' },
-  'At risk':  { bg: '#fff7ed', text: '#c2410c', border: '#fdba74' },
-  'Critical': { bg: '#fef2f2', text: '#dc2626', border: '#fca5a5' },
-  'Insufficient data': { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' },
-};
-
-const WARNING_LEVEL_COLOR = {
-  safe:     '#22c55e',
-  watch:    '#f59e0b',
-  danger:   '#f97316',
-  critical: '#ef4444',
+  'Safe':     { bg: 'var(--ok-bg)', text: 'var(--ok-fg)', border: 'var(--border)' },
+  'Watch':    { bg: 'var(--watch-bg)', text: 'var(--watch-fg)', border: 'var(--border)' },
+  'At risk':  { bg: 'var(--risk-bg)', text: 'var(--risk-fg)', border: 'var(--border)' },
+  'Critical': { bg: 'var(--crit-bg)', text: 'var(--crit-fg)', border: 'var(--border)' },
+  'Insufficient data': { bg: 'var(--nodata-bg)', text: 'var(--nodata-fg)', border: 'var(--border)' },
 };
 
 function BandBadge({ band }) {
@@ -22,7 +16,7 @@ function BandBadge({ band }) {
   return (
     <span style={{
       background: style.bg, color: style.text, border: `1px solid ${style.border}`,
-      borderRadius: 9999, padding: '3px 10px', fontSize: 11, fontWeight: 700,
+      borderRadius: 'var(--radius-pill)', padding: '3px 10px', fontSize: 11, fontWeight: 600,
     }}>
       {band}
     </span>
@@ -32,22 +26,22 @@ function BandBadge({ band }) {
 function AttendanceBar({ pct }) {
   const safe = pct >= 75;
   const warn = pct >= 65 && pct < 75;
-  const color = safe ? '#22c55e' : warn ? '#f59e0b' : '#ef4444';
+  const color = safe ? 'var(--ok-bg)' : warn ? 'var(--watch-fg)' : 'var(--crit-fg)';
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-        <span style={{ color: '#64748b' }}>Attendance</span>
-        <span style={{ fontWeight: 700, color }}>{pct != null ? `${pct}%` : 'N/A'}</span>
+        <span style={{ color: 'var(--text-muted)' }}>Attendance</span>
+        <span style={{ fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{pct != null ? `${pct}%` : 'N/A'}</span>
       </div>
-      <div style={{ background: '#e2e8f0', borderRadius: 4, height: 6 }}>
+      <div style={{ background: 'var(--bg)', borderRadius: 4, height: 6, border: '1px solid var(--border)' }}>
         <div style={{
           width: `${Math.min(pct || 0, 100)}%`, height: '100%',
           background: color, borderRadius: 4, transition: 'width 0.5s',
         }} />
       </div>
       {pct != null && pct < 75 && (
-        <div style={{ fontSize: 11, color: '#dc2626', marginTop: 2 }}>
-          ⚠ Below 75% threshold
+        <div style={{ fontSize: 11, color: 'var(--crit-fg)', marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <AlertTriangle size={12} /> Below 75% threshold
         </div>
       )}
     </div>
@@ -55,35 +49,26 @@ function AttendanceBar({ pct }) {
 }
 
 function CourseCard({ course }) {
-  const warnColor = WARNING_LEVEL_COLOR[course.warning_level] || '#22c55e';
   const bufferColor =
-    course.buffer == null ? '#94a3b8'
-    : course.buffer <= 0 ? '#ef4444'
-    : course.buffer <= 2 ? '#f59e0b'
-    : '#22c55e';
+    course.buffer == null ? 'var(--text-muted)'
+    : course.buffer <= 0 ? 'var(--crit-fg)'
+    : course.buffer <= 2 ? 'var(--watch-fg)'
+    : 'var(--ok-fg)';
 
   return (
     <div style={{
-      background: '#fff', borderRadius: 12, padding: 20,
-      border: `1px solid ${course.has_warning ? warnColor + '55' : '#e2e8f0'}`,
-      boxShadow: course.has_warning ? `0 0 0 2px ${warnColor}30` : '0 1px 4px rgba(0,0,0,0.06)',
+      background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20,
+      border: '1px solid var(--border)',
+      boxShadow: 'var(--shadow-card)',
       position: 'relative',
     }}>
-      {course.has_warning && (
-        <div style={{
-          position: 'absolute', top: 12, right: 12,
-          width: 10, height: 10, borderRadius: '50%',
-          background: warnColor, boxShadow: `0 0 6px ${warnColor}`,
-        }} />
-      )}
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <div>
           <span style={{
-            fontSize: 11, fontWeight: 700, color: '#3b82f6',
-            background: '#eff6ff', padding: '2px 8px', borderRadius: 4,
+            fontSize: 11, fontWeight: 600, color: 'var(--accent)',
+            background: 'var(--bg)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)',
           }}>{course.code}</span>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1e293b', marginTop: 4 }}>
+          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 600, color: 'var(--ink-900)', marginTop: 6, margin: 0 }}>
             {course.name}
           </h3>
         </div>
@@ -94,28 +79,30 @@ function CourseCard({ course }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 14 }}>
         <Stat label="Buffer" value={course.buffer != null ? course.buffer : '—'} color={bufferColor} />
-        <Stat label="Attended" value={`${course.attended}/${course.held}`} color="#6366f1" />
-        <Stat label="Still Need" value={course.still_need != null ? course.still_need : '—'} color="#f59e0b" />
+        <Stat label="Attended" value={`${course.attended}/${course.held}`} color="var(--accent)" />
+        <Stat label="Still Need" value={course.still_need != null ? course.still_need : '—'} color="var(--watch-fg)" />
       </div>
 
       {course.insufficient_data && (
-        <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
-          📊 Not enough data yet (need ≥8 sessions)
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+          Not enough data yet (need ≥8 sessions)
         </p>
       )}
 
-      <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
-        {course.status_message}
-      </p>
+      {course.status_message && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+          {course.status_message}
+        </p>
+      )}
     </div>
   );
 }
 
 function Stat({ label, value, color }) {
   return (
-    <div style={{ textAlign: 'center', background: '#f8fafc', borderRadius: 8, padding: '8px 4px' }}>
-      <div style={{ fontSize: 18, fontWeight: 800, color }}>{value}</div>
-      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>{label}</div>
+    <div style={{ textAlign: 'center', background: 'var(--bg)', borderRadius: 'var(--radius-input)', padding: '8px 4px', border: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
     </div>
   );
 }
@@ -128,21 +115,21 @@ function WarnBanner({ warnings }) {
         const isRed = w.severity === 'critical' || w.severity === 'high';
         return (
           <div key={i} style={{
-            background: isRed ? '#fef2f2' : '#fffbeb',
-            border: `1px solid ${isRed ? '#fca5a5' : '#fcd34d'}`,
-            borderRadius: 8, padding: '10px 16px', marginBottom: 8,
-            display: 'flex', alignItems: 'center', gap: 10, fontSize: 13,
+            background: isRed ? 'var(--crit-bg)' : 'var(--watch-bg)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-card)', padding: '12px 18px', marginBottom: 8,
+            display: 'flex', alignItems: 'center', gap: 12, fontSize: 13,
           }}>
-            <span>{isRed ? '🚨' : '⚠️'}</span>
+            <AlertTriangle size={18} style={{ color: isRed ? 'var(--crit-fg)' : 'var(--watch-fg)' }} />
             <div>
-              <strong>{w.title}</strong>
-              <div style={{ color: '#64748b', fontSize: 12 }}>{w.message}</div>
+              <strong style={{ color: isRed ? 'var(--crit-fg)' : 'var(--watch-fg)' }}>{w.title}</strong>
+              <div style={{ color: 'var(--ink-900)', fontSize: 12, marginTop: 2 }}>{w.message}</div>
             </div>
           </div>
         );
       })}
       {warnings.length > 3 && (
-        <p style={{ fontSize: 12, color: '#94a3b8' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           + {warnings.length - 3} more warnings. Go to Alerts page.
         </p>
       )}
@@ -168,13 +155,13 @@ export default function DashboardPage() {
   const overall = dash?.overall_attendance_pct;
 
   return (
-    <div>
+    <div style={{ maxWidth: 1440, margin: '0 auto', paddingBottom: 40 }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b' }}>
-          👋 Welcome back, {dash?.name?.split(' ')[0]}
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600, color: 'var(--ink-900)', margin: 0 }}>
+          Welcome back, {dash?.name?.split(' ')[0]}
         </h1>
-        <p style={{ color: '#64748b', marginTop: 4 }}>
+        <p style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: 14 }}>
           Roll No: {dash?.roll_no || 'N/A'} · {dash?.total_courses} courses enrolled
         </p>
       </div>
@@ -183,33 +170,30 @@ export default function DashboardPage() {
       <WarnBanner warnings={warnings} />
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 24 }}>
-        <SummaryCard icon="📈" label="Overall Attendance"
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <SummaryCard icon={<TrendingUp size={22} />} label="Overall Attendance"
           value={overall != null ? `${overall}%` : 'N/A'}
-          sub={overall != null && overall < 75 ? '⚠ Below 75%!' : 'Across all courses'}
-          color={overall >= 75 ? '#22c55e' : '#ef4444'} />
-        <SummaryCard icon="📚" label="Courses"
+          sub={overall != null && overall < 75 ? 'Below 75% threshold' : 'Across all courses'}
+          color={overall >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)'} />
+        <SummaryCard icon={<BookOpen size={22} />} label="Courses"
           value={dash?.total_courses}
-          sub="enrolled this semester" color="#6366f1" />
-        <SummaryCard icon="⚠️" label="At Risk"
+          sub="enrolled this semester" color="var(--accent)" />
+        <SummaryCard icon={<AlertTriangle size={22} />} label="At Risk"
           value={dash?.at_risk_courses_count}
-          sub="courses need attention" color="#f59e0b" />
-        <SummaryCard icon="🆘" label="Critical"
+          sub="courses need attention" color="var(--watch-fg)" />
+        <SummaryCard icon={<AlertCircle size={22} />} label="Critical"
           value={dash?.critical_courses_count}
-          sub="courses are critical" color="#ef4444" />
-        <SummaryCard icon="🔴" label="Active Warnings"
-          value={dash?.active_warnings}
-          sub="require immediate action" color={dash?.active_warnings > 0 ? '#ef4444' : '#22c55e'} />
+          sub="courses are critical" color="var(--crit-fg)" />
       </div>
 
       {/* Course cards */}
-      <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1e293b', marginBottom: 14 }}>
-        📋 Course Overview
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 14 }}>
+        Course Overview
       </h2>
       {dash?.courses?.length === 0 ? (
-        <p style={{ color: '#94a3b8', fontSize: 14 }}>No courses enrolled yet.</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>No courses enrolled yet.</p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
           {dash?.courses?.map(c => <CourseCard key={c.course_id} course={c} />)}
         </div>
       )}
@@ -220,22 +204,21 @@ export default function DashboardPage() {
 function SummaryCard({ icon, label, value, sub, color }) {
   return (
     <div style={{
-      background: '#fff', borderRadius: 12, padding: 20,
-      border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+      background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20,
+      border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)',
     }}>
-      <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, color }}>{value}</div>
-      <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 13 }}>{label}</div>
-      <div style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }}>{sub}</div>
+      <div style={{ color: 'var(--accent)', marginBottom: 8 }}>{icon}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ fontWeight: 600, color: 'var(--ink-900)', fontSize: 13, marginTop: 4 }}>{label}</div>
+      <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>{sub}</div>
     </div>
   );
 }
 
 export function LoadingScreen({ msg }) {
   return (
-    <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>
-      <p>{msg || 'Loading…'}</p>
+    <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>
+      <p style={{ fontSize: 14 }}>{msg || 'Loading…'}</p>
     </div>
   );
 }
@@ -243,10 +226,10 @@ export function LoadingScreen({ msg }) {
 export function ErrorMsg({ msg }) {
   return (
     <div style={{
-      background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10,
-      padding: 20, color: '#dc2626', maxWidth: 500,
+      background: 'var(--crit-bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)',
+      padding: 20, color: 'var(--crit-fg)', maxWidth: 500,
     }}>
-      <strong>⚠ Error</strong>
+      <strong style={{ display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={16} /> Error</strong>
       <p style={{ marginTop: 4, fontSize: 14 }}>{msg}</p>
     </div>
   );

@@ -78,3 +78,5 @@ export function ErrorState({ message, retry }) {
     </div>
   );
 }
+
+export default Skeleton;
