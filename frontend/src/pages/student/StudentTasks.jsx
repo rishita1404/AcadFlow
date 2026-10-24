@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { tasksApi, courseApi } from '../../api/endpoints.js';
+import { Skeleton, EmptyState } from '../../components/ui/Skeleton.jsx';
 
 export default function StudentTasks() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState('upcoming'); // 'this_week' | 'upcoming' | 'submitted' | 'missed'
+  const [tab, setTab] = useState('upcoming');
   const [selectedCourse, setSelectedCourse] = useState('all');
 
   const { data: courses = [] } = useQuery({
@@ -18,15 +19,10 @@ export default function StudentTasks() {
     queryFn: () => tasksApi.getMyTasks(90).then(r => r.data),
   });
 
-  if (isLoading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>⏳ Loading tasks...</div>;
-  }
+  if (isLoading) return <Skeleton lines={8} />;
 
-  // Filter tasks
   let filtered = allTasks;
-  if (selectedCourse !== 'all') {
-    filtered = filtered.filter(t => t.course_code === selectedCourse);
-  }
+  if (selectedCourse !== 'all') filtered = filtered.filter(t => t.course_code === selectedCourse);
 
   const thisWeekTasks = filtered.filter(t => !t.submitted && t.days_remaining !== null && t.days_remaining >= 0 && t.days_remaining <= 7);
   const upcomingTasks = filtered.filter(t => !t.submitted && (t.days_remaining === null || t.days_remaining >= 0));
@@ -38,163 +34,153 @@ export default function StudentTasks() {
   else if (tab === 'submitted') currentList = submittedTasks;
   else if (tab === 'missed') currentList = missedTasks;
 
+  const TABS = [
+    { key: 'upcoming', label: 'Upcoming', count: upcomingTasks.length },
+    { key: 'this_week', label: 'This Week', count: thisWeekTasks.length },
+    { key: 'submitted', label: 'Submitted', count: submittedTasks.length },
+    { key: 'missed', label: 'Missed', count: missedTasks.length },
+  ];
+
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto' }}>
       {/* Header */}
       <div style={{
-        background: '#fff', borderRadius: 14, padding: '20px 24px', border: '1px solid #e2e8f0',
-        marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+        background: 'var(--surface)', borderRadius: 'var(--radius-card)',
+        padding: 'var(--space-6)', border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-card)', marginBottom: 'var(--space-6)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-4)',
       }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-            📋 Academic Tasks & Deadlines
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--ink-900)', margin: 0 }}>
+            Academic Tasks & Deadlines
           </h1>
-          <p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
             Assignments, lab submissions, and notice deadlines with automated reminder triggers.
           </p>
         </div>
-
-        {/* Course Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Filter Course:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Course:</span>
           <select
             value={selectedCourse}
             onChange={e => setSelectedCourse(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+            style={{
+              padding: '7px 12px', borderRadius: 'var(--radius-input)',
+              border: '1px solid var(--border)', fontSize: 13,
+              background: 'var(--surface)', color: 'var(--text)',
+              fontFamily: 'var(--font-sans)',
+            }}
           >
             <option value="all">All Courses</option>
-            {courses.map(c => (
-              <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-            ))}
+            {courses.map(c => <option key={c.id} value={c.code}>{c.code} – {c.name}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {[
-          { key: 'upcoming', label: `Upcoming (${upcomingTasks.length})` },
-          { key: 'this_week', label: `This Week (${thisWeekTasks.length})` },
-          { key: 'submitted', label: `Submitted (${submittedTasks.length})` },
-          { key: 'missed', label: `Missed (${missedTasks.length})` },
-        ].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: '8px 18px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              background: tab === t.key ? '#2563eb' : '#fff',
-              color: tab === t.key ? '#fff' : '#475569',
-              boxShadow: tab === t.key ? '0 1px 3px rgba(37,99,235,0.2)' : '0 1px 2px rgba(0,0,0,0.04)',
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Pill tabs */}
+      <div style={{
+        display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-6)',
+        background: 'var(--bg)', borderRadius: 'var(--radius-pill)',
+        padding: 4, width: 'fit-content', border: '1px solid var(--border)',
+      }}>
+        {TABS.map(t => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                padding: '6px 18px', borderRadius: 'var(--radius-pill)', border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: active ? 700 : 500,
+                background: active ? 'var(--accent)' : 'transparent',
+                color: active ? 'var(--on-dark)' : 'var(--text-muted)',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span style={{
+                  marginLeft: 6, fontSize: 10, fontWeight: 700, padding: '1px 6px',
+                  borderRadius: 'var(--radius-pill)',
+                  background: active ? 'rgba(255,255,255,0.25)' : 'var(--border)',
+                  color: active ? '#fff' : 'var(--text)',
+                }}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tasks Table / List */}
-      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+      {/* Task table */}
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
         {currentList.length === 0 ? (
-          <div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
-            <p>No tasks found in this section.</p>
-          </div>
+          <EmptyState title="No tasks here" message="You're all clear in this category." />
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, fontFamily: 'var(--font-sans)' }}>
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                <th style={{ padding: '12px 18px', color: '#475569' }}>Task / Title</th>
-                <th style={{ padding: '12px 18px', color: '#475569' }}>Course</th>
-                <th style={{ padding: '12px 18px', color: '#475569' }}>Due Date & Countdown</th>
-                <th style={{ padding: '12px 18px', color: '#475569' }}>Status</th>
-                <th style={{ padding: '12px 18px', color: '#475569' }}>Reminders</th>
-                <th style={{ padding: '12px 18px', textAlign: 'right', color: '#475569' }}>Action</th>
+              <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                {['Task / Title', 'Course', 'Due & Countdown', 'Status', 'Action'].map(h => (
+                  <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {currentList.map(task => {
                 const isNotice = task.type === 'notice';
                 const isUrgent = task.days_remaining !== null && task.days_remaining <= 2 && !task.submitted;
-
+                const isOverdue = task.days_remaining !== null && task.days_remaining < 0;
                 return (
-                  <tr
-                    key={task.id}
-                    style={{
-                      borderBottom: '1px solid #f1f5f9',
-                      background: isUrgent ? '#fef2f208' : '#fff',
-                    }}
+                  <tr key={task.id} style={{ borderBottom: '1px solid var(--border)', background: isUrgent ? 'rgba(240,208,208,0.18)' : 'transparent' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                    onMouseLeave={e => e.currentTarget.style.background = isUrgent ? 'rgba(240,208,208,0.18)' : 'transparent'}
                   >
-                    <td style={{ padding: '14px 18px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {isNotice && (
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#fef3c7', color: '#b45309', borderRadius: 4 }}>
-                            NOTICE
-                          </span>
-                        )}
-                        <strong style={{ color: '#1e293b', fontSize: 14 }}>{task.title}</strong>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                        {task.course_name}
-                      </div>
+                    <td style={{ padding: '13px 16px' }}>
+                      {isNotice && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: 'var(--watch-bg)', color: 'var(--watch-fg)', borderRadius: 'var(--radius-pill)', marginRight: 6 }}>
+                          NOTICE
+                        </span>
+                      )}
+                      <strong style={{ color: 'var(--text)', fontSize: 14 }}>{task.title}</strong>
+                      {task.course_name && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{task.course_name}</div>}
                     </td>
-
-                    <td style={{ padding: '14px 18px' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: '#eff6ff', color: '#2563eb' }}>
+                    <td style={{ padding: '13px 16px' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--border)' }}>
                         {task.course_code}
                       </span>
                     </td>
-
-                    <td style={{ padding: '14px 18px' }}>
-                      <div style={{ fontWeight: 600, color: '#1e293b' }}>{task.due_at?.slice(0, 10)}</div>
-                      <div style={{ fontSize: 11, color: isUrgent ? '#dc2626' : '#64748b', fontWeight: isUrgent ? 700 : 400 }}>
+                    <td style={{ padding: '13px 16px', fontVariantNumeric: 'tabular-nums' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{task.due_at?.slice(0, 10)}</div>
+                      <div style={{ fontSize: 11, color: isOverdue ? 'var(--crit-fg)' : isUrgent ? 'var(--must-attend)' : 'var(--text-muted)', fontWeight: isUrgent || isOverdue ? 700 : 400, marginTop: 2 }}>
                         {task.days_remaining != null ? (task.days_remaining < 0 ? `${Math.abs(task.days_remaining)}d overdue` : `${task.days_remaining}d remaining`) : ''}
                       </div>
                     </td>
-
-                    <td style={{ padding: '14px 18px' }}>
+                    <td style={{ padding: '13px 16px' }}>
                       {task.submitted ? (
-                        <span style={{ padding: '3px 8px', borderRadius: 4, background: '#dcfce7', color: '#15803d', fontSize: 11, fontWeight: 700 }}>
-                          ✓ Submitted
-                        </span>
+                        <span style={{ padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--ok-bg)', color: 'var(--ok-fg)', fontSize: 11, fontWeight: 700 }}>Submitted</span>
+                      ) : isOverdue ? (
+                        <span style={{ padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--crit-bg)', color: 'var(--crit-fg)', fontSize: 11, fontWeight: 700 }}>Overdue</span>
                       ) : isUrgent ? (
-                        <span style={{ padding: '3px 8px', borderRadius: 4, background: '#fee2e2', color: '#dc2626', fontSize: 11, fontWeight: 700 }}>
-                          ⚠️ Due Soon
-                        </span>
+                        <span style={{ padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--risk-bg)', color: 'var(--risk-fg)', fontSize: 11, fontWeight: 700 }}>Due Soon</span>
                       ) : (
-                        <span style={{ padding: '3px 8px', borderRadius: 4, background: '#f1f5f9', color: '#475569', fontSize: 11, fontWeight: 600 }}>
-                          Pending
-                        </span>
+                        <span style={{ padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--bg)', color: 'var(--text-muted)', fontSize: 11, border: '1px solid var(--border)' }}>Pending</span>
                       )}
                     </td>
-
-                    <td style={{ padding: '14px 18px', color: '#64748b', fontSize: 12 }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        🔔 {task.reminder_state}
-                      </span>
-                    </td>
-
-                    <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                      {isNotice ? (
-                        <button
-                          onClick={() => navigate('/student/notices')}
-                          style={actionBtnStyle}
-                        >
-                          View Notice →
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => navigate(`/student/assignments/${task.id}`)}
-                          style={{
-                            ...actionBtnStyle,
-                            background: task.submitted ? '#f1f5f9' : '#2563eb',
-                            color: task.submitted ? '#334151' : '#fff',
-                            border: task.submitted ? '1px solid #cbd5e1' : 'none',
-                          }}
-                        >
-                          {task.submitted ? 'View Submission' : 'Submit Now →'}
-                        </button>
-                      )}
+                    <td style={{ padding: '13px 16px', textAlign: 'right' }}>
+                      <button
+                        onClick={() => isNotice ? navigate('/student/notices') : navigate(`/student/assignments/${task.id}`)}
+                        style={{
+                          padding: '5px 14px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                          background: task.submitted ? 'var(--surface)' : 'var(--accent)',
+                          color: task.submitted ? 'var(--text)' : 'var(--on-dark)',
+                          border: task.submitted ? '1px solid var(--border)' : 'none',
+                          fontFamily: 'var(--font-sans)',
+                        }}
+                      >
+                        {isNotice ? 'View Notice' : task.submitted ? 'View' : 'Submit →'}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -206,14 +192,3 @@ export default function StudentTasks() {
     </div>
   );
 }
-
-const actionBtnStyle = {
-  padding: '6px 12px',
-  borderRadius: 6,
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: 'pointer',
-  background: '#eff6ff',
-  color: '#2563eb',
-  border: '1px solid #bfdbfe',
-};

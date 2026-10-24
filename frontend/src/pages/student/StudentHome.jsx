@@ -5,7 +5,9 @@ import { dashboardApi, tasksApi, timetableApi, noticeApi } from '../../api/endpo
 import { useAuth } from '../../app/AuthContext.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import CourseCard from '../../components/CourseCard.jsx';
-import ScoreExpander from '../../components/ScoreExpander.jsx';
+import { Skeleton, ErrorState } from '../../components/ui/Skeleton.jsx';
+import Button from '../../components/ui/Button.jsx';
+import { Calendar, AlertTriangle } from 'lucide-react';
 
 export default function StudentHome() {
   const { user } = useAuth();
@@ -39,25 +41,22 @@ export default function StudentHome() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-        <p>Loading your academic radar...</p>
+      <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
+        <Skeleton lines={2} />
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
+          <Skeleton lines={6} />
+          <Skeleton lines={4} />
+        </div>
       </div>
     );
   }
 
   if (error) {
-    return (
-      <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: 20, borderRadius: 10, color: '#dc2626' }}>
-        <strong>Error loading dashboard:</strong> {error?.response?.data?.detail || error.message}
-      </div>
-    );
+    return <ErrorState message={error?.response?.data?.detail || error.message} retry={() => window.location.reload()} />;
   }
 
-  // Determine worst course status
   const courses = dash?.courses || [];
   let worstBand = 'Safe';
-  let worstScore = 0;
   for (const c of courses) {
     if (c.risk_band === 'Critical') { worstBand = 'Critical'; break; }
     if (c.risk_band === 'At risk') { worstBand = 'At risk'; }
@@ -70,100 +69,70 @@ export default function StudentHome() {
 
   return (
     <div style={{ maxWidth: 1440, margin: '0 auto' }}>
-      {/* Top Header Card */}
+      {/* Header card */}
       <div style={{
-        background: '#fff', borderRadius: 14, padding: '24px', border: '1px solid #e2e8f0',
-        marginBottom: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
+        background: 'var(--surface)',
+        borderRadius: 'var(--radius-card)',
+        padding: 'var(--space-6)',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-card)',
+        marginBottom: 'var(--space-6)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-4)',
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              Welcome back, {dash?.name?.split(' ')[0] || user?.name?.split(' ')[0]} 👋
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-2)' }}>
+            <h1 style={{
+              fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 600,
+              color: 'var(--ink-900)', margin: 0,
+            }}>
+              Welcome back, {dash?.name?.split(' ')[0] || user?.name?.split(' ')[0]}
             </h1>
-            <StatusBadge status={worstBand} />
+            <StatusBadge band={worstBand} />
           </div>
-          <p style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>
-            Roll No: <strong>{dash?.roll_no || '26CSE000'}</strong> · {dash?.total_courses ?? courses.length} Courses Enrolled · Overall Attendance: <strong>{dash?.overall_attendance_pct != null ? `${dash.overall_attendance_pct}%` : 'N/A'}</strong>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+            Roll No: <strong style={{ color: 'var(--text)' }}>{dash?.roll_no || '—'}</strong>
+            {' · '}{dash?.total_courses ?? courses.length} courses enrolled
+            {' · '}Overall: <strong style={{ color: 'var(--text)' }}>{dash?.overall_attendance_pct != null ? `${dash.overall_attendance_pct}%` : 'N/A'}</strong>
           </p>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-            Overall status reflects worst course condition. Last computed: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
-          </div>
         </div>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={() => navigate('/student/calendar')}
-            style={{
-              padding: '9px 16px', background: '#eff6ff', color: '#2563eb',
-              border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            📅 Leave Planner
-          </button>
-          <button
-            onClick={() => navigate('/student/risk')}
-            style={{
-              padding: '9px 16px', background: '#2563eb', color: '#fff',
-              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            ⚠️ Risk Details
-          </button>
+        <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+          <Button variant="secondary" size="sm" icon={<Calendar size={14} />} onClick={() => navigate('/student/calendar')}>
+            Leave Planner
+          </Button>
+          <Button variant="primary" size="sm" icon={<AlertTriangle size={14} />} onClick={() => navigate('/student/risk')}>
+            Risk Details
+          </Button>
         </div>
       </div>
 
-      {/* Warning Banner (Shown for Watch, At risk, or Critical) */}
+      {/* Warning banners */}
       {warnings.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 'var(--space-6)', display: 'grid', gap: 'var(--space-3)' }}>
           {warnings.slice(0, 2).map((w, idx) => {
             const isDanger = w.severity === 'critical' || w.severity === 'high';
             return (
               <div
                 key={idx}
                 style={{
-                  background: isDanger ? '#fef2f2' : '#fffbeb',
-                  border: `1px solid ${isDanger ? '#fca5a5' : '#fde68a'}`,
-                  borderRadius: 10,
-                  padding: '14px 18px',
-                  marginBottom: 10,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 12,
+                  background: isDanger ? 'var(--crit-bg)' : 'var(--watch-bg)',
+                  border: `1px solid ${isDanger ? 'var(--crit-fg)' : 'var(--border)'}`,
+                  borderLeft: `4px solid ${isDanger ? 'var(--crit-fg)' : 'var(--must-attend)'}`,
+                  borderRadius: 'var(--radius-card)',
+                  padding: 'var(--space-4) var(--space-6)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-4)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 22 }}>{isDanger ? '🚨' : '⚠️'}</span>
-                  <div>
-                    <strong style={{ color: isDanger ? '#b91c1c' : '#92400e', fontSize: 14 }}>
-                      {w.title}
-                    </strong>
-                    <div style={{ color: isDanger ? '#991b1b' : '#78350f', fontSize: 13, marginTop: 2 }}>
-                      {w.message}
-                    </div>
+                <div>
+                  <strong style={{ color: isDanger ? 'var(--crit-fg)' : 'var(--must-attend)', fontSize: 14 }}>
+                    {w.title}
+                  </strong>
+                  <div style={{ color: isDanger ? 'var(--crit-fg)' : 'var(--text)', fontSize: 13, marginTop: 4, opacity: 0.85 }}>
+                    {w.message}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Link
-                    to="/student/risk"
-                    style={{
-                      background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6,
-                      padding: '5px 12px', fontSize: 12, fontWeight: 600, color: '#334151', textDecoration: 'none',
-                    }}
-                  >
-                    View Risk
-                  </Link>
-                  <Link
-                    to="/student/calendar"
-                    style={{
-                      background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6,
-                      padding: '5px 12px', fontSize: 12, fontWeight: 600, color: '#334151', textDecoration: 'none',
-                    }}
-                  >
-                    Open Planner
-                  </Link>
+                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                  <Link to="/student/risk" style={linkStyle}>View Risk</Link>
+                  <Link to="/student/calendar" style={linkStyle}>Open Planner</Link>
                 </div>
               </div>
             );
@@ -171,67 +140,60 @@ export default function StudentHome() {
         </div>
       )}
 
-      {/* Multi-Column Desktop Grid Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
-        {/* Left Column: Courses + Timetable */}
+      {/* 2-column grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
+        {/* Left: courses + today */}
         <div>
-          {/* Course Cards Grid */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-              📚 Course Attendance & Buffer Gauges
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: 0 }}>
+              Course Attendance & Buffer
             </h2>
-            <Link to="/student/calendar" style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+            <Link to="/student/calendar" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
               Simulate Absence →
             </Link>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
-            {courses.map(c => (
-              <CourseCard key={c.course_id} course={c} />
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+            {courses.map(c => <CourseCard key={c.course_id} course={c} />)}
           </div>
 
-          {/* Today's Classes */}
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0', marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-                🗓 Today's Classes ({todayDayName})
+          {/* Today's classes */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-900)', margin: 0 }}>
+                Today's Classes — {todayDayName}
               </h3>
-              <Link to="/student/timetable" style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+              <Link to="/student/timetable" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
                 Full Timetable →
               </Link>
             </div>
-
             {todayClasses.length === 0 ? (
-              <div style={{ padding: '16px', background: '#f8fafc', borderRadius: 8, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
-                ☕ No classes scheduled for today!
+              <div style={{ padding: 'var(--space-4)', background: 'var(--bg)', borderRadius: 12, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                No classes scheduled for today
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
                 {todayClasses.map(s => (
-                  <div
-                    key={s.id}
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0',
-                    }}
-                  >
+                  <div key={s.id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: 'var(--space-3) var(--space-4)', background: 'var(--bg)',
+                    borderRadius: 12, border: '1px solid var(--border)',
+                  }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>
                         {s.course_code}: {s.course_name}
                       </div>
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                        📍 {s.room_name || 'Room 101'} · 👨‍🏫 {s.teacher_name} · Section {s.section || 'A'}
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {s.room_name || 'Room 101'} · {s.teacher_name} · Section {s.section || 'A'}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4,
-                        background: '#eff6ff', color: '#2563eb',
-                      }}>
-                        {s.period_label}
-                      </span>
-                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: '3px 10px',
+                      borderRadius: 'var(--radius-pill)',
+                      background: 'var(--bg)', color: 'var(--accent)',
+                      border: '1px solid var(--border)',
+                    }}>
+                      {s.period_label}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -239,132 +201,106 @@ export default function StudentHome() {
           </div>
         </div>
 
-        {/* Right Column: Deadlines Due + Mini Pressure + Notices */}
-        <div>
-          {/* Due This Week Strip */}
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0', marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-                📋 Due This Week
-              </h3>
-              <Link to="/student/tasks" style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
-                View All Tasks →
-              </Link>
+        {/* Right: tasks + pressure + notices */}
+        <div style={{ display: 'grid', gap: 'var(--space-6)', alignContent: 'start' }}>
+          {/* Due this week */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-900)', margin: 0 }}>Due This Week</h3>
+              <Link to="/student/tasks" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>View All →</Link>
             </div>
-
             {tasks.length === 0 ? (
-              <div style={{ padding: '20px', background: '#f0fdf4', borderRadius: 8, textAlign: 'center', color: '#16a34a', fontSize: 13 }}>
-                ✅ All caught up! No assignments due this week.
+              <div style={{ padding: 'var(--space-4)', background: 'var(--ok-bg)', borderRadius: 12, textAlign: 'center', color: 'var(--ok-fg)', fontSize: 13, fontWeight: 600 }}>
+                All caught up! No assignments due this week.
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
                 {tasks.slice(0, 4).map(t => (
-                  <div
-                    key={t.id}
-                    style={{
-                      padding: '12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    }}
-                  >
+                  <div key={t.id} style={{
+                    padding: 'var(--space-3)', background: 'var(--bg)',
+                    borderRadius: 12, border: '1px solid var(--border)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
-                        {t.title}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                        {t.course_code} · Due: {t.due_at?.slice(0, 10)}
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{t.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {t.course_code} · Due {t.due_at?.slice(0, 10)}
                       </div>
                     </div>
-                    <div>
-                      {t.submitted ? (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '3px 8px', borderRadius: 4 }}>
-                          Submitted
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => navigate(`/student/assignments/${t.id}`)}
-                          style={{
-                            padding: '4px 10px', background: '#2563eb', color: '#fff',
-                            border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                          }}
-                        >
-                          Submit →
-                        </button>
-                      )}
-                    </div>
+                    {t.submitted ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ok-fg)', background: 'var(--ok-bg)', padding: '3px 10px', borderRadius: 'var(--radius-pill)' }}>
+                        Submitted
+                      </span>
+                    ) : (
+                      <button onClick={() => navigate(`/student/assignments/${t.id}`)} style={{
+                        padding: '4px 12px', background: 'var(--accent)', color: 'var(--on-dark)',
+                        border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      }}>
+                        Submit
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* 4-Week Mini Pressure Forecast Strip */}
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0', marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-                📈 Pressure Forecast
-              </h3>
-              <Link to="/student/calendar" style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
-                Calendar Heatmap →
-              </Link>
+          {/* Pressure forecast placeholder */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-900)', margin: 0 }}>Pressure Forecast</h3>
+              <Link to="/student/calendar" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>Heatmap →</Link>
             </div>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 12px' }}>
-              Academic pressure load based on deadlines & class density:
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 var(--space-4)' }}>
+              Academic load based on deadlines & class density:
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, textAlign: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-2)', textAlign: 'center' }}>
               {[
-                { week: 'Week 1', level: 'Low', color: '#16a34a', bg: '#f0fdf4' },
-                { week: 'Week 2', level: 'Med', color: '#d97706', bg: '#fffbeb' },
-                { week: 'Week 3', level: 'High', color: '#dc2626', bg: '#fef2f2' },
-                { week: 'Week 4', level: 'Low', color: '#16a34a', bg: '#f0fdf4' },
+                { week: 'W1', level: 'Low', bg: 'var(--heat-0)', color: 'var(--text)' },
+                { week: 'W2', level: 'Med', bg: 'var(--heat-1)', color: 'var(--text)' },
+                { week: 'W3', level: 'High', bg: 'var(--heat-2)', color: 'var(--on-dark)' },
+                { week: 'W4', level: 'Low', bg: 'var(--heat-0)', color: 'var(--text)' },
               ].map(w => (
-                <div key={w.week} style={{ padding: '8px 4px', background: w.bg, borderRadius: 6, border: `1px solid ${w.color}33` }}>
-                  <div style={{ fontSize: 11, color: '#475569', fontWeight: 500 }}>{w.week}</div>
+                <div key={w.week} style={{ padding: 'var(--space-3) var(--space-2)', background: w.bg, borderRadius: 10 }}>
+                  <div style={{ fontSize: 10, color: w.color, opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{w.week}</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: w.color, marginTop: 2 }}>{w.level}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Important Notices Strip */}
-          <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: 0 }}>
-                📢 Important Notices
-              </h3>
+          {/* Notices strip */}
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-900)', margin: 0 }}>Notices</h3>
               {unreadNoticesCount > 0 && (
-                <span style={{ fontSize: 11, background: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: 9999, fontWeight: 700 }}>
+                <span style={{ fontSize: 11, background: 'var(--crit-fg)', color: '#fff', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>
                   {unreadNoticesCount} new
                 </span>
               )}
             </div>
-
             {notices.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: 12 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-4)' }}>
                 No active announcements
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
                 {notices.slice(0, 3).map(n => (
                   <div
                     key={n.id}
                     onClick={() => navigate('/student/notices')}
                     style={{
-                      padding: '10px 12px', background: n.urgent ? '#fef2f2' : '#f8fafc',
-                      borderRadius: 8, border: `1px solid ${n.urgent ? '#fca5a5' : '#e2e8f0'}`,
+                      padding: 'var(--space-3)', background: n.urgent ? 'var(--crit-bg)' : 'var(--bg)',
+                      borderRadius: 12, border: `1px solid ${n.urgent ? 'var(--crit-fg)' : 'var(--border)'}`,
                       cursor: 'pointer',
+                      borderLeft: n.urgent ? '3px solid var(--crit-fg)' : '1px solid var(--border)',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, fontSize: 12, color: '#1e293b' }}>
-                        {n.title}
-                      </span>
-                      {n.urgent && (
-                        <span style={{ fontSize: 10, color: '#dc2626', fontWeight: 700 }}>
-                          URGENT
-                        </span>
-                      )}
+                      <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--text)' }}>{n.title}</span>
+                      {n.urgent && <span style={{ fontSize: 10, color: 'var(--crit-fg)', fontWeight: 700 }}>URGENT</span>}
                     </div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                       {n.sender_name} · {n.created_at?.slice(0, 10)}
                     </div>
                   </div>
@@ -377,3 +313,9 @@ export default function StudentHome() {
     </div>
   );
 }
+
+const linkStyle = {
+  background: 'var(--surface)', border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-pill)', padding: '4px 12px',
+  fontSize: 12, fontWeight: 600, color: 'var(--text)', textDecoration: 'none',
+};

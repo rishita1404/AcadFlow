@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assignmentApi, submissionApi } from '../../api/endpoints.js';
+import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
 export default function StudentAssignmentDetail() {
   const { id } = useParams();
@@ -51,42 +52,47 @@ export default function StudentAssignmentDetail() {
   });
 
   if (loadingAssn) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>⏳ Loading assignment...</div>;
+    return (
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+        <Skeleton height={200} style={{ marginBottom: 20 }} />
+        <Skeleton height={300} />
+      </div>
+    );
   }
 
   const isClosed = assignment?.is_active === false;
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto', color: 'var(--text)' }}>
       {/* Back button */}
       <div style={{ marginBottom: 14 }}>
-        <Link to="/student/tasks" style={{ color: '#2563eb', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>
+        <Link to="/student/tasks" style={{ color: 'var(--accent)', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>
           ← Back to Tasks
         </Link>
       </div>
 
       {/* Main Assignment Card */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0', marginBottom: 20 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, border: '1px solid var(--border)', marginBottom: 20, boxShadow: 'var(--shadow-card)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: '#eff6ff', color: '#2563eb' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--radius-pill)', background: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--border)' }}>
               Assignment #{assignment?.id}
             </span>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', margin: '6px 0 4px' }}>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 700, color: 'var(--ink-900)', margin: '6px 0 4px' }}>
               {assignment?.title}
             </h1>
-            <div style={{ color: '#64748b', fontSize: 13 }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
               Due: <strong>{assignment?.due_date}</strong> · Max Marks: 100
             </div>
           </div>
 
           <div>
             {isClosed ? (
-              <span style={{ background: '#fee2e2', color: '#dc2626', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
-                Submissions Closed (409)
+              <span style={{ background: 'var(--crit-bg)', color: 'var(--crit-fg)', padding: '4px 12px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700 }}>
+                Submissions Closed
               </span>
             ) : (
-              <span style={{ background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+              <span style={{ background: 'var(--ok-bg)', color: 'var(--ok-fg)', padding: '4px 12px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700 }}>
                 Submissions Open
               </span>
             )}
@@ -94,34 +100,34 @@ export default function StudentAssignmentDetail() {
         </div>
 
         {/* Timeline Bar: Due -> Grace (48h) -> Closed */}
-        <div style={{ margin: '24px 0 20px', padding: 16, background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
+        <div style={{ margin: '24px 0 20px', padding: 16, background: 'var(--bg)', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12 }}>
             Submission Timeline & Grace Window:
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
             <div style={{ textAlign: 'center', zIndex: 1 }}>
-              <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#16a34a', margin: '0 auto 4px' }} />
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>Due Date</div>
-              <div style={{ fontSize: 10, color: '#64748b' }}>{assignment?.due_date}</div>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'var(--ok-bg)', border: '2px solid var(--surface)', margin: '0 auto 4px' }} />
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-900)' }}>Due Date</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{assignment?.due_date}</div>
             </div>
-            <div style={{ flex: 1, height: 3, background: '#d1d5db', margin: '0 8px', position: 'relative', top: -10 }} />
+            <div style={{ flex: 1, height: 2, background: 'var(--border)', margin: '0 8px', position: 'relative', top: -10 }} />
             <div style={{ textAlign: 'center', zIndex: 1 }}>
-              <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#d97706', margin: '0 auto 4px' }} />
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706' }}>Grace Period</div>
-              <div style={{ fontSize: 10, color: '#64748b' }}>+48 hours</div>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'var(--watch-bg)', border: '2px solid var(--surface)', margin: '0 auto 4px' }} />
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-900)' }}>Grace Period</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>+48 hours</div>
             </div>
-            <div style={{ flex: 1, height: 3, background: '#d1d5db', margin: '0 8px', position: 'relative', top: -10 }} />
+            <div style={{ flex: 1, height: 2, background: 'var(--border)', margin: '0 8px', position: 'relative', top: -10 }} />
             <div style={{ textAlign: 'center', zIndex: 1 }}>
-              <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#dc2626', margin: '0 auto 4px' }} />
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626' }}>Closed</div>
-              <div style={{ fontSize: 10, color: '#64748b' }}>Hard cutoff</div>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'var(--crit-bg)', border: '2px solid var(--surface)', margin: '0 auto 4px' }} />
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-900)' }}>Closed</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Hard cutoff</div>
             </div>
           </div>
         </div>
 
         {/* Instructions */}
-        <div style={{ fontSize: 14, color: '#334151', lineHeight: 1.6, marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Description & Instructions:</div>
+        <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, color: 'var(--ink-900)', marginBottom: 6 }}>Description & Instructions:</div>
           <p style={{ margin: 0 }}>
             {assignment?.description || 'Implement the assigned problems and submit your solution documentation and code as a single PDF or ZIP archive. Ensure clean code and test case verifications.'}
           </p>
@@ -131,18 +137,18 @@ export default function StudentAssignmentDetail() {
       {/* Submission Receipt Card (if recently submitted) */}
       {receipt && (
         <div style={{
-          background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: 18, marginBottom: 20,
+          background: 'var(--surface)', border: '1px solid var(--border)', borderLeft: '4px solid var(--sage)', borderRadius: 'var(--radius-card)', padding: 18, marginBottom: 20, boxShadow: 'var(--shadow-card)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#15803d', fontWeight: 800, fontSize: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ink-900)', fontWeight: 700, fontSize: 14 }}>
             <span>✅</span>
             <span>Submission Successful — Cryptographic Receipt</span>
           </div>
-          <div style={{ fontSize: 12, color: '#166534', marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
+          <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
             <div>Receipt ID: <strong>REC-{receipt.id}</strong></div>
             <div>Timestamp: <strong>{new Date(receipt.timestamp).toLocaleString()}</strong></div>
             <div>File: <strong>{receipt.fileName}</strong></div>
           </div>
-          <div style={{ fontSize: 11, color: '#15803d', marginTop: 6, wordBreak: 'break-all' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, wordBreak: 'break-all' }}>
             Verification Hash: <code>{receipt.fileHash}</code>
           </div>
         </div>
@@ -150,25 +156,25 @@ export default function StudentAssignmentDetail() {
 
       {/* Submission Form (Active if not closed) */}
       {!isClosed && (
-        <div style={{ background: '#fff', borderRadius: 14, padding: 24, border: '1px solid #e2e8f0', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 14 }}>
-            Upload & Submit Solution (Resubmission allowed until hard cutoff)
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, border: '1px solid var(--border)', marginBottom: 20, boxShadow: 'var(--shadow-card)' }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 14 }}>
+            Upload & Submit Solution
           </h2>
 
           {/* Drag & Drop Box */}
           <div
             style={{
-              border: '2px dashed #cbd5e1', borderRadius: 10, padding: 32,
-              textAlign: 'center', background: '#f8fafc', cursor: 'pointer',
-              marginBottom: 16,
+              border: '2px dashed var(--border)', borderRadius: 'var(--radius-input)', padding: 32,
+              textAlign: 'center', background: 'var(--bg)', cursor: 'pointer',
+              marginBottom: 16, transition: 'all 0.15s',
             }}
             onClick={() => document.getElementById('assignment-file-input')?.click()}
           >
             <div style={{ fontSize: 32, marginBottom: 8 }}>📤</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-900)' }}>
               {selectedFile ? `Selected: ${selectedFile.name}` : 'Click to select or drag and drop your file here'}
             </div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
               Accepted formats: PDF, ZIP, TAR.GZ (Max 25 MB)
             </div>
             <input
@@ -182,7 +188,7 @@ export default function StudentAssignmentDetail() {
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
               Submission Notes / Text:
             </label>
             <textarea
@@ -191,14 +197,15 @@ export default function StudentAssignmentDetail() {
               placeholder="Add any notes, assumptions, or GitHub link here..."
               rows={3}
               style={{
-                width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1',
-                borderRadius: 8, fontSize: 13, boxSizing: 'border-box',
+                width: '100%', padding: '10px 12px', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-input)', fontSize: 13, boxSizing: 'border-box',
+                background: 'var(--surface)', color: 'var(--text)', fontFamily: 'var(--font-sans)',
               }}
             />
           </div>
 
           {errorMsg && (
-            <div style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>
+            <div style={{ color: 'var(--crit-fg)', background: 'var(--crit-bg)', padding: '8px 12px', borderRadius: 'var(--radius-input)', fontSize: 13, marginBottom: 12 }}>
               ⚠️ {errorMsg}
             </div>
           )}
@@ -207,9 +214,10 @@ export default function StudentAssignmentDetail() {
             onClick={() => submitMutation.mutate()}
             disabled={submitMutation.isPending}
             style={{
-              padding: '10px 24px', background: '#2563eb', color: '#fff',
-              border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
+              padding: '10px 24px', background: 'var(--accent)', color: 'var(--on-dark)',
+              border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 14, fontWeight: 600,
               cursor: submitMutation.isPending ? 'not-allowed' : 'pointer',
+              transition: 'background 0.15s',
             }}
           >
             {submitMutation.isPending ? 'Uploading...' : 'Confirm Submission'}
@@ -218,35 +226,35 @@ export default function StudentAssignmentDetail() {
       )}
 
       {/* Version History Table */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: 20, border: '1px solid #e2e8f0' }}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
+        <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 12 }}>
           Submission Version History
         </h3>
         {submissions.length === 0 ? (
-          <div style={{ color: '#94a3b8', fontSize: 13, padding: 12 }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: 12 }}>
             No submissions recorded yet.
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                <th style={{ padding: '8px 12px', color: '#475569' }}>Version / ID</th>
-                <th style={{ padding: '8px 12px', color: '#475569' }}>Date</th>
-                <th style={{ padding: '8px 12px', color: '#475569' }}>Status</th>
-                <th style={{ padding: '8px 12px', color: '#475569' }}>Content / Notes</th>
+              <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                <th style={{ padding: '8px 12px', color: 'var(--text)' }}>Version / ID</th>
+                <th style={{ padding: '8px 12px', color: 'var(--text)' }}>Date</th>
+                <th style={{ padding: '8px 12px', color: 'var(--text)' }}>Status</th>
+                <th style={{ padding: '8px 12px', color: 'var(--text)' }}>Content / Notes</th>
               </tr>
             </thead>
             <tbody>
               {submissions.map((s, idx) => (
-                <tr key={s.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '10px 12px', fontWeight: 600 }}>v{submissions.length - idx} (#{s.id})</td>
-                  <td style={{ padding: '10px 12px', color: '#64748b' }}>{s.submitted_at || 'Just now'}</td>
+                <tr key={s.id || idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--ink-900)' }}>v{submissions.length - idx} (#{s.id})</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{s.submitted_at || 'Just now'}</td>
                   <td style={{ padding: '10px 12px' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: '#dcfce7', color: '#15803d' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--radius-pill)', background: 'var(--ok-bg)', color: 'var(--ok-fg)' }}>
                       Received
                     </span>
                   </td>
-                  <td style={{ padding: '10px 12px', color: '#334151' }}>{s.content || 'Uploaded assignment file'}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text)' }}>{s.content || 'Uploaded assignment file'}</td>
                 </tr>
               ))}
             </tbody>
