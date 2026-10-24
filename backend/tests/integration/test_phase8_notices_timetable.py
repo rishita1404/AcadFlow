@@ -6,10 +6,9 @@ attendance preview dry-run, bearer auth + body refresh token.
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Optional
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -47,8 +46,16 @@ def _setup_faculty_student(client: TestClient, db: Session):
     Register a faculty and a student, create a course, enrol student.
     Returns (faculty_email, student_email, course_id).
     """
-    from app.models import CourseModel, DepartmentModel, EnrolmentModel, SemesterModel, StudentModel, UserModel
     from sqlalchemy import select
+
+    from app.models import (
+        CourseModel,
+        DepartmentModel,
+        EnrolmentModel,
+        SemesterModel,
+        StudentModel,
+        UserModel,
+    )
 
     dept = db.scalar(select(DepartmentModel))
     assert dept, "No department seeded – run conftest fixture"
@@ -66,6 +73,7 @@ def _setup_faculty_student(client: TestClient, db: Session):
     assert stu_res.status_code in (201, 409)
 
     fac_user = db.scalar(select(UserModel).where(UserModel.email == fac_email))
+    assert fac_user is not None
     stu_user = db.scalar(select(UserModel).where(UserModel.email == stu_email))
 
     # Ensure student model exists
@@ -174,9 +182,10 @@ class TestNotices:
         fac_email, stu_email, course_id = _setup_faculty_student(client, db_session)
 
         # Assign faculty to the course so scope check passes
-        from app.models.course import CourseStaffModel
-        from app.models import UserModel
         from sqlalchemy import select
+
+        from app.models import UserModel
+        from app.models.course import CourseStaffModel
         fac_user = db_session.scalar(select(UserModel).where(UserModel.email == fac_email))
         existing_cs = db_session.scalar(
             select(CourseStaffModel).where(
@@ -219,9 +228,10 @@ class TestNotices:
         fac_email, stu_email, course_id = _setup_faculty_student(client, db_session)
 
         # Assign faculty to course
-        from app.models.course import CourseStaffModel
-        from app.models import UserModel
         from sqlalchemy import select
+
+        from app.models import UserModel
+        from app.models.course import CourseStaffModel
         fac_user = db_session.scalar(select(UserModel).where(UserModel.email == fac_email))
         existing_cs = db_session.scalar(
             select(CourseStaffModel).where(
@@ -254,9 +264,10 @@ class TestNotices:
         """Student can mark a notice as seen."""
         fac_email, stu_email, course_id = _setup_faculty_student(client, db_session)
 
-        from app.models.course import CourseStaffModel
-        from app.models import UserModel
         from sqlalchemy import select
+
+        from app.models import UserModel
+        from app.models.course import CourseStaffModel
         fac_user = db_session.scalar(select(UserModel).where(UserModel.email == fac_email))
         existing_cs = db_session.scalar(
             select(CourseStaffModel).where(
@@ -301,9 +312,10 @@ class TestNotices:
         """Faculty can withdraw own notice (sets status=archived)."""
         fac_email, stu_email, course_id = _setup_faculty_student(client, db_session)
 
-        from app.models.course import CourseStaffModel
-        from app.models import UserModel
         from sqlalchemy import select
+
+        from app.models import UserModel
+        from app.models.course import CourseStaffModel
         fac_user = db_session.scalar(select(UserModel).where(UserModel.email == fac_email))
         existing_cs = db_session.scalar(
             select(CourseStaffModel).where(
@@ -337,11 +349,13 @@ class TestNotices:
 class TestTimetable:
     def _seed_timetable(self, db: Session):
         """Seed minimal timetable data for tests."""
+        from sqlalchemy import select
+
         from app.models import DepartmentModel, SemesterModel, UserModel
         from app.models.timetable import (
-            PeriodConfigModel, RoomModel, TimetableSlotModel, TimetableVersionModel
+            RoomModel,
+            TimetableVersionModel,
         )
-        from sqlalchemy import select
 
         dept = db.scalar(select(DepartmentModel))
         sem  = db.scalar(select(SemesterModel))
@@ -404,9 +418,9 @@ class TestTimetable:
 
     def test_clash_detection_same_room_same_time(self, client: TestClient, db_session: Session):
         """POST /timetable/draft/validate detects room clash when two courses share same room/day/period."""
-        from app.models import CourseModel, DepartmentModel, SemesterModel, UserModel
-        from app.models.timetable import RoomModel, TimetableVersionModel
         from sqlalchemy import select
+
+        from app.models import CourseModel, DepartmentModel, SemesterModel, UserModel
 
         room, version, coord = self._seed_timetable(db_session)
 
@@ -426,7 +440,6 @@ class TestTimetable:
 
         _register(client, "tt_clash@acadflow.edu", role="coordinator")
         # Make this user a department user
-        from app.models import UserModel
         clash_user = db_session.scalar(select(UserModel).where(UserModel.email == "tt_clash@acadflow.edu"))
         clash_user.department_id = dept.id
         db_session.flush()
@@ -472,8 +485,9 @@ class TestTimetable:
 class TestAttendancePreview:
     def test_attendance_preview_endpoint_exists(self, client: TestClient, db_session: Session):
         """POST /courses/{id}/attendance/preview exists and accepts multipart."""
-        from app.models import CourseModel
         from sqlalchemy import select
+
+        from app.models import CourseModel
 
         course = db_session.scalar(select(CourseModel))
         if not course:
@@ -502,8 +516,9 @@ class TestAttendancePreview:
 
     def test_attendance_preview_returns_stats(self, client: TestClient, db_session: Session):
         """Attendance preview returns parsed rows without persisting."""
-        from app.models import ClassSessionModel, CourseModel
         from sqlalchemy import select
+
+        from app.models import CourseModel
 
         course = db_session.scalar(select(CourseModel))
         if not course:
@@ -514,8 +529,6 @@ class TestAttendancePreview:
             db_session.add(course)
             db_session.flush()
 
-        session_obj = db_session.scalar(select(ClassSessionModel).where(ClassSessionModel.course_id == course.id))
-
         _register(client, "att_prev2@acadflow.edu", role="faculty")
         headers = _bearer(client, "att_prev2@acadflow.edu")
 
@@ -525,6 +538,7 @@ class TestAttendancePreview:
             files={"file": ("att.csv", csv_content, "text/csv")},
             headers=headers,
         )
+        assert res.status_code == 200
         # Key check: database must not have been mutated (no new AttendanceRecord created)
         from app.models import AttendanceRecordModel
         count_before = db_session.query(AttendanceRecordModel).count()
@@ -533,6 +547,7 @@ class TestAttendancePreview:
             files={"file": ("att.csv", csv_content, "text/csv")},
             headers=headers,
         )
+        assert res2.status_code == 200
         count_after = db_session.query(AttendanceRecordModel).count()
         assert count_after == count_before, "Preview must not persist any records"
 

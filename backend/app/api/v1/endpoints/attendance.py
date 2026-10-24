@@ -19,7 +19,16 @@ and buffer-warning notifications are auto-dispatched.
 from datetime import date, datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -42,7 +51,10 @@ from app.schemas.risk import (
     ClassSessionOut,
 )
 from app.services.buffer import compute_attendance_buffer
-from app.services.csv_ingest import generate_attendance_template_csv, ingest_attendance_file
+from app.services.csv_ingest import (
+    generate_attendance_template_csv,
+    ingest_attendance_file,
+)
 from app.services.notification_service import notify_attendance_buffer
 from app.services.risk_data import (
     get_attendance_inputs,
@@ -462,21 +474,7 @@ def upload_attendance_file(
     course = db.get(CourseModel, course_id)
     course_code = course.code if course else f"course_{course_id}"
 
-    # Collect unique student_ids that were processed
-    from app.models import StudentModel
-
-    affected_roll_nos = {
-        err.roll_no for err in result.errors  # exclude errored rows
-    }
-    all_students = db.scalars(select(StudentModel)).all()
-    roll_map = {s.roll_no: s.user_id for s in all_students}
-
-    for err_row in result.errors:
-        pass  # errors were already excluded from processing
-
-    # For processed rows, trigger risk update
-    # (we can't easily get student_ids back from result without re-querying,
-    #  so we trigger for all enrolled students in the course)
+    # For processed rows, trigger risk update for all enrolled students in the course
     from app.models import EnrolmentModel
 
     enrolled_ids = list(

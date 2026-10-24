@@ -19,8 +19,6 @@ from app.core.authorization import Role
 from app.core.deps import get_db
 from app.core.errors import NotFoundError
 from app.models import (
-    CourseModel,
-    DepartmentModel,
     EnrolmentModel,
     MentorAssignmentModel,
     StudentModel,

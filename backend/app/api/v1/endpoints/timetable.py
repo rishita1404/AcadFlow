@@ -7,27 +7,24 @@ notification dispatch to affected users upon publication.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
-from app.core.authorization import Action, Role, verify_access
+from app.core.authorization import Action, verify_access
 from app.core.deps import get_db
 from app.core.errors import NotFoundError
 from app.models import (
     CourseModel,
-    DepartmentModel,
     EnrolmentModel,
-    StudentModel,
     UserModel,
 )
 from app.models.audit import AuditLogModel
 from app.models.timetable import (
-    PeriodConfigModel,
     RoomModel,
     TimetableSlotModel,
     TimetableVersionModel,

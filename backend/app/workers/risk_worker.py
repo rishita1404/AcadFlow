@@ -26,10 +26,11 @@ async def run_risk_recalculation_worker() -> None:
     """
     logger.info("Risk recalculation worker started (interval=%dh).", INTERVAL_HOURS)
 
+    from sqlalchemy import select
+
     from app.db.postgres import SessionLocal
     from app.models import EnrolmentModel
     from app.services.risk_data import persist_risk_snapshot
-    from sqlalchemy import select
 
     while True:
         try:

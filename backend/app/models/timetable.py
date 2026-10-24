@@ -1,6 +1,8 @@
 from typing import Optional
-from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
+
+from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db.base import Base
 
 

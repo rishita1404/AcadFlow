@@ -10,12 +10,12 @@ from app.api.v1.endpoints import (
     health,
     me,
     mentor,
+    notices,
     notifications,
     risk,
     students,
     submissions,
     timetable,
-    notices,
 )
 
 api_router = APIRouter()

@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
-from app.core.authorization import Action, Role, verify_access
+from app.core.authorization import Role
 from app.core.deps import get_db
 from app.core.errors import NotFoundError
 from app.models import (

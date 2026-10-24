@@ -25,7 +25,7 @@ import csv
 import io
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
-from typing import IO, List, Optional
+from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -42,7 +42,7 @@ from app.models import (
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
 
-REQUIRED_COLUMNS = {"roll_no", "date", "status"}
+REQUIRED_COLUMNS = {"roll_no", "status"}
 
 STATUS_MAP = {
     "present": "present", "p": "present",
@@ -267,20 +267,23 @@ def ingest_attendance_file(
             continue
 
         # ── Parse date ─────────────────────────────────────────────────────
-        parsed_date = _parse_date(date_str)
-        if parsed_date is None:
-            result.errors.append(
-                RowError(
-                    row_number=row_idx,
-                    roll_no=roll_no,
-                    date_str=date_str,
-                    status_str=status_str,
-                    reason=f"Cannot parse date '{date_str}'. "
-                    "Accepted formats: YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY.",
+        if not date_str:
+            parsed_date = now_utc.date()
+            date_str = str(parsed_date)
+        else:
+            parsed_date = _parse_date(date_str)
+            if parsed_date is None:
+                result.errors.append(
+                    RowError(
+                        row_number=row_idx,
+                        roll_no=roll_no,
+                        date_str=date_str,
+                        status_str=status_str,
+                        reason=f"Cannot parse date '{date_str}'. "
+                        "Accepted formats: YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY.",
+                    )
                 )
-            )
-            continue
-
+                continue
         # ── Normalize status ───────────────────────────────────────────────
         normalized_status = _normalize_status(status_str)
         if normalized_status is None:

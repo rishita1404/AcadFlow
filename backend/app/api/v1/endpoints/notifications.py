@@ -11,12 +11,12 @@ Endpoints:
   DELETE /notifications/{id}        — delete a notification
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select, func, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user

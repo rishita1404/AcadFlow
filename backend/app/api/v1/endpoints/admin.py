@@ -65,8 +65,9 @@ def get_admin_stats(
     if current_user:
         verify_access(current_user, Action.ADMIN_MANAGE)
 
-    from app.models import CourseModel, StudentModel
     from sqlalchemy import func
+
+    from app.models import CourseModel, StudentModel
 
     total_users = db.scalar(select(func.count(UserModel.id))) or 0
     total_students = db.scalar(select(func.count(StudentModel.user_id))) or 0
