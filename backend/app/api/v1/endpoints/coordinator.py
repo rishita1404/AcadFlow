@@ -24,11 +24,11 @@ from app.core.authorization import (
 )
 from app.core.deps import get_db
 from app.models import (
+    AssignmentModel,
     CourseModel,
     DepartmentModel,
     StudentModel,
     UserModel,
-    AssignmentModel,
 )
 from app.models.audit import AuditLogModel
 from app.models.course import CourseStaffModel

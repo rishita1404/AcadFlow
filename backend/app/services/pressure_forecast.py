@@ -17,9 +17,8 @@ The heatmap also returns:
 
 from __future__ import annotations
 
-import math
 from calendar import monthrange
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
@@ -36,9 +35,8 @@ from app.models import (
     StudentHolidayModel,
     SubmissionModel,
 )
-from app.services.buffer import compute_attendance_buffer, DEFAULT_THRESHOLD
+from app.services.buffer import DEFAULT_THRESHOLD, compute_attendance_buffer
 from app.services.risk_data import get_attendance_inputs, load_risk_config
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Output schemas (dataclasses — serialized to dict for the API)

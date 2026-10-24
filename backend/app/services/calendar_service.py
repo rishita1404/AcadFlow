@@ -13,8 +13,8 @@ Used by GET /me/calendar/{year}/{month}
 from __future__ import annotations
 
 from calendar import monthrange
-from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from dataclasses import dataclass
+from datetime import date
 from typing import Dict, List, Optional
 
 from sqlalchemy import select

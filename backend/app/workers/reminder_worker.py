@@ -28,10 +28,11 @@ async def run_reminder_worker() -> None:
     logger.info("Reminder worker started (interval=%dh).", INTERVAL_HOURS)
 
     # Import here to avoid circular imports at module load time
-    from app.db.postgres import SessionLocal
-    from app.models import EnrolmentModel, StudentModel
-    from app.services.reminders import dispatch_deadline_reminders
     from sqlalchemy import select
+
+    from app.db.postgres import SessionLocal
+    from app.models import StudentModel
+    from app.services.reminders import dispatch_deadline_reminders
 
     while True:
         try:

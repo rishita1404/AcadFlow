@@ -29,16 +29,16 @@ async def run_missed_submission_worker() -> None:
     """
     logger.info("Missed submission worker started (interval=%dh).", INTERVAL_HOURS)
 
+    from sqlalchemy import select
+
     from app.db.postgres import SessionLocal
     from app.models import (
         AssignmentModel,
         CourseModel,
         EnrolmentModel,
-        StudentModel,
         SubmissionModel,
     )
     from app.services.notification_service import notify_missed_submission
-    from sqlalchemy import select
 
     while True:
         try:

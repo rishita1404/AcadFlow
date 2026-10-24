@@ -47,15 +47,16 @@ def create_app() -> FastAPI:
         if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("TESTING"):
             return
 
-        from app.db.base import Base
-        from app.db.postgres import engine, SessionLocal
         import app.models  # noqa: F401 - load all models
+        from app.db.base import Base
+        from app.db.postgres import SessionLocal, engine
 
         try:
             Base.metadata.create_all(bind=engine)
             with SessionLocal() as db:
-                from app.models import UserModel
                 from sqlalchemy import select
+
+                from app.models import UserModel
                 first_user = db.scalar(select(UserModel.id).limit(1))
                 if not first_user:
                     repo_root = Path(__file__).resolve().parent.parent.parent
@@ -68,8 +69,8 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("Database startup init notice: %s", e)
 
-        from app.workers.reminder_worker import run_reminder_worker
         from app.workers.missed_submission_worker import run_missed_submission_worker
+        from app.workers.reminder_worker import run_reminder_worker
         from app.workers.risk_worker import run_risk_recalculation_worker
 
         loop = asyncio.get_event_loop()

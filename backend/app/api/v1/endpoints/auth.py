@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
-from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,7 +18,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.deps import get_db
 from app.core.errors import ConflictError, UnauthorizedError
-from app.core.lockout import check_lockout, lockout_policy, record_failure, record_success
+from app.core.lockout import (
+    lockout_policy,
+)
 from app.core.security import get_password_hash, verify_password
 from app.core.tokens import (
     create_access_token,

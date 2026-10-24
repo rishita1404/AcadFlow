@@ -6,7 +6,8 @@ Unit tests for AcadFlow Evaluation 1 additions:
 - Academic pressure forecast engine
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -14,24 +15,22 @@ from sqlalchemy.orm import sessionmaker
 from app.db.base import Base
 from app.models import (
     AssignmentModel,
-    AttendanceRecordModel,
-    ClassSessionModel,
     CourseModel,
     DepartmentModel,
     EnrolmentModel,
-    HolidayModel,
-    NotificationModel,
     SemesterModel,
     StudentHolidayModel,
     StudentModel,
-    SubmissionModel,
     UserModel,
 )
 from app.services.calendar_service import build_attendance_calendar
-from app.services.csv_ingest import _normalize_status, _parse_date, ingest_attendance_file
+from app.services.csv_ingest import (
+    _normalize_status,
+    _parse_date,
+    ingest_attendance_file,
+)
 from app.services.notification_service import (
     _upsert_notification,
-    notify_attendance_buffer,
 )
 from app.services.pressure_forecast import compute_monthly_pressure
 

@@ -16,7 +16,6 @@ Implements PRD Section 9:
   POST /me/check-reminders     — on-demand deadline reminder dispatch
 """
 
-from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -34,11 +33,8 @@ from app.models import (
     ClassSessionModel,
     CourseModel,
     CourseStaffModel,
-    DeanAssignmentModel,
     EnrolmentModel,
-    HolidayModel,
     MentorAssignmentModel,
-    NotificationModel,
     RiskSnapshotModel,
     StudentHolidayModel,
     StudentModel,
@@ -424,7 +420,7 @@ def get_dashboard(
                 db.scalars(
                     select(ClassSessionModel.id).where(
                         ClassSessionModel.course_id == cid,
-                        ClassSessionModel.is_cancelled == False,
+                        ClassSessionModel.is_cancelled.is_(False),
                         ClassSessionModel.held_on <= date.today(),
                     )
                 ).all()
@@ -736,7 +732,7 @@ def get_my_warnings(
                 db.scalars(
                     select(AssignmentModel).where(
                         AssignmentModel.course_id.in_(taught_course_ids),
-                        AssignmentModel.is_published == True,
+                        AssignmentModel.is_published.is_(True),
                         AssignmentModel.due_at >= now - timedelta(hours=1),
                         AssignmentModel.due_at <= now + timedelta(hours=48),
                     )
@@ -805,7 +801,7 @@ def simulate_attendance(
                 db.scalars(
                     select(ClassSessionModel.id).where(
                         ClassSessionModel.course_id == payload.course_id,
-                        ClassSessionModel.is_cancelled == False,
+                        ClassSessionModel.is_cancelled.is_(False),
                         ClassSessionModel.held_on <= date.today(),
                     )
                 ).all()
@@ -1412,7 +1408,7 @@ def project_leave_plan(
                 status_message = f"Borderline attendance ({projected_pct}%). Keep an eye."
             else:
                 projected_band = "At risk"
-                status_message = f"Projected below 65%. Needs attention."
+                status_message = "Projected below 65%. Needs attention."
 
         results.append(
             CourseProjectionOut(
@@ -1469,7 +1465,6 @@ def get_my_tasks(
     user, student = _get_user_and_student(current_user, db)
     user_id = user.id
     today = date.today()
-    cutoff = today + timedelta(days=days)
 
     tasks: List[TaskItemOut] = []
 
@@ -1487,7 +1482,7 @@ def get_my_tasks(
             assignments = db.scalars(
                 select(AssignmentModel).where(
                     AssignmentModel.course_id.in_(enrolled_courses),
-                    AssignmentModel.is_published == True,
+                    AssignmentModel.is_published.is_(True),
                 )
             ).all()
 
@@ -1521,7 +1516,11 @@ def get_my_tasks(
                 )
 
         # 2. Notice deadlines
-        from app.models.notice import NoticeModel, NoticeRecipientModel, NoticeDeadlineModel
+        from app.models.notice import (
+            NoticeDeadlineModel,
+            NoticeModel,
+            NoticeRecipientModel,
+        )
         try:
             recipient_records = db.scalars(
                 select(NoticeRecipientModel).where(NoticeRecipientModel.user_id == user_id)
@@ -1624,7 +1623,11 @@ def get_my_timetable(
     """
     Returns weekly timetable slots (Monday to Saturday) for current user.
     """
-    from app.models.timetable import TimetableVersionModel, TimetableSlotModel, RoomModel
+    from app.models.timetable import (
+        RoomModel,
+        TimetableSlotModel,
+        TimetableVersionModel,
+    )
     user, student = _get_user_and_student(current_user, db)
     user_id = user.id
 
