@@ -9,15 +9,15 @@ Run:
     cd backend && python -m pytest tests/unit/test_buffer.py -v
 """
 
-import math
 import pytest
-from app.services.buffer import compute_attendance_buffer, compute_margin_score
 
+from app.services.buffer import compute_attendance_buffer, compute_margin_score
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Appendix A reference fixtures  (course = 60 classes, threshold = 75%)
 # required = ceil(0.75 × 60) = ceil(45) = 45
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class TestAppendixAFixtures:
     """
@@ -34,9 +34,7 @@ class TestAppendixAFixtures:
         buffer = 20−15 = 5
         margin = 50×(1−5/20) = 50×0.75 = 37.5
         """
-        result = compute_attendance_buffer(
-            attended=30, held=40, total_classes=60
-        )
+        result = compute_attendance_buffer(attended=30, held=40, total_classes=60)
         assert result["insufficient_data"] is False
         assert result["required"] == 45
         assert result["still_need"] == 15
@@ -54,9 +52,7 @@ class TestAppendixAFixtures:
         remaining = 20, buffer = 20−9 = 11
         margin = 50×(1−11/20) = 50×0.45 = 22.5
         """
-        result = compute_attendance_buffer(
-            attended=36, held=40, total_classes=60
-        )
+        result = compute_attendance_buffer(attended=36, held=40, total_classes=60)
         assert result["buffer"] == 11
         margin = compute_margin_score(buffer=11, remaining=20)
         assert margin == pytest.approx(22.5, abs=0.001)
@@ -68,9 +64,7 @@ class TestAppendixAFixtures:
         remaining = 20, buffer = 20−5 = 15
         margin = 50×(1−15/20) = 50×0.25 = 12.5
         """
-        result = compute_attendance_buffer(
-            attended=40, held=40, total_classes=60
-        )
+        result = compute_attendance_buffer(attended=40, held=40, total_classes=60)
         assert result["buffer"] == 15
         margin = compute_margin_score(buffer=15, remaining=20)
         assert margin == pytest.approx(12.5, abs=0.001)
@@ -83,9 +77,7 @@ class TestAppendixAFixtures:
         buffer = 10−15 = -5  (negative!)
         margin = full 50 (not recoverable)
         """
-        result = compute_attendance_buffer(
-            attended=30, held=50, total_classes=60
-        )
+        result = compute_attendance_buffer(attended=30, held=50, total_classes=60)
         assert result["insufficient_data"] is False
         assert result["buffer"] == -5
         assert "Not recoverable" in result["status_message"]
@@ -97,9 +89,7 @@ class TestAppendixAFixtures:
         """
         Dev: held=5 — below min_classes=8 → 'Not enough data yet'
         """
-        result = compute_attendance_buffer(
-            attended=5, held=5, total_classes=60
-        )
+        result = compute_attendance_buffer(attended=5, held=5, total_classes=60)
         assert result["insufficient_data"] is True
         assert result["status_message"] == "Not enough data yet"
         assert result["buffer"] is None
@@ -110,21 +100,17 @@ class TestAppendixAFixtures:
 # Edge cases
 # ──────────────────────────────────────────────────────────────────────────────
 
-class TestEdgeCases:
 
+class TestEdgeCases:
     def test_zero_sessions_held(self):
         """No sessions yet → insufficient data."""
-        result = compute_attendance_buffer(
-            attended=0, held=0, total_classes=60
-        )
+        result = compute_attendance_buffer(attended=0, held=0, total_classes=60)
         assert result["insufficient_data"] is True
         assert result["status_message"] == "Not enough data yet"
 
     def test_exactly_at_min_classes(self):
         """held == min_classes (8) → data is sufficient."""
-        result = compute_attendance_buffer(
-            attended=6, held=8, total_classes=60
-        )
+        result = compute_attendance_buffer(attended=6, held=8, total_classes=60)
         assert result["insufficient_data"] is False
         # required=45, still_need=max(0,45-6)=39, remaining=60-8=52, buffer=52-39=13
         assert result["required"] == 45
@@ -151,7 +137,7 @@ class TestEdgeCases:
         assert result["remaining"] == 0
         assert result["buffer"] == 0
         margin = compute_margin_score(buffer=0, remaining=0)
-        assert margin == 0.0   # no future classes → no margin risk
+        assert margin == 0.0  # no future classes → no margin risk
 
     def test_perfect_attendance(self):
         """All sessions attended."""
@@ -171,7 +157,7 @@ class TestEdgeCases:
         result = compute_attendance_buffer(
             attended=7, held=10, total_classes=10, min_classes=8
         )
-        assert result["required"] == 8   # ceil(7.5) = 8, NOT 7
+        assert result["required"] == 8  # ceil(7.5) = 8, NOT 7
 
     def test_holiday_count_reduces_remaining(self):
         """Holidays reduce the remaining sessions count."""
@@ -201,7 +187,9 @@ class TestEdgeCases:
 
     def test_attendance_pct_calculation(self):
         """attendance_pct = attended/held × 100, rounded to 2 dp."""
-        result = compute_attendance_buffer(attended=7, held=9, total_classes=20, min_classes=8)
+        result = compute_attendance_buffer(
+            attended=7, held=9, total_classes=20, min_classes=8
+        )
         expected = round(7 / 9 * 100, 2)
         assert result["attendance_pct"] == pytest.approx(expected, abs=0.01)
 
@@ -210,8 +198,8 @@ class TestEdgeCases:
 # Input validation
 # ──────────────────────────────────────────────────────────────────────────────
 
-class TestInputValidation:
 
+class TestInputValidation:
     def test_attended_exceeds_held(self):
         with pytest.raises(ValueError, match="cannot exceed held"):
             compute_attendance_buffer(attended=10, held=5, total_classes=60)
@@ -234,23 +222,29 @@ class TestInputValidation:
 
     def test_invalid_threshold_zero(self):
         with pytest.raises(ValueError, match="threshold"):
-            compute_attendance_buffer(attended=5, held=10, total_classes=20, threshold=0.0)
+            compute_attendance_buffer(
+                attended=5, held=10, total_classes=20, threshold=0.0
+            )
 
     def test_invalid_threshold_over_one(self):
         with pytest.raises(ValueError, match="threshold"):
-            compute_attendance_buffer(attended=5, held=10, total_classes=20, threshold=1.5)
+            compute_attendance_buffer(
+                attended=5, held=10, total_classes=20, threshold=1.5
+            )
 
     def test_negative_holiday_count(self):
         with pytest.raises(ValueError, match="holiday_count"):
-            compute_attendance_buffer(attended=5, held=10, total_classes=20, holiday_count=-1)
+            compute_attendance_buffer(
+                attended=5, held=10, total_classes=20, holiday_count=-1
+            )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Margin score edge cases
 # ──────────────────────────────────────────────────────────────────────────────
 
-class TestMarginScore:
 
+class TestMarginScore:
     def test_margin_full_when_buffer_negative(self):
         assert compute_margin_score(-1, 10, 50.0) == pytest.approx(50.0)
         assert compute_margin_score(-10, 10, 50.0) == pytest.approx(50.0)

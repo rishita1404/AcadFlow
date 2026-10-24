@@ -6,7 +6,7 @@ Ensures raw user input is safely encoded when rendered in HTML contexts.
 """
 
 import html
-from typing import Any, Dict, List
+from typing import Any
 
 
 def escape_html(text: Any) -> str:

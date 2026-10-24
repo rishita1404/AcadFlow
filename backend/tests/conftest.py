@@ -1,3 +1,5 @@
+import asyncio
+import inspect
 import sys
 from datetime import date
 from pathlib import Path
@@ -17,6 +19,16 @@ from app.core.deps import get_db
 from app.db.base import Base
 from app.main import app
 from app.models import DepartmentModel, SemesterModel, StudentModel, UserModel
+
+
+def pytest_pyfunc_call(pyfuncitem):
+    """Run async test functions in an asyncio event loop without requiring pytest-asyncio."""
+    if inspect.iscoroutinefunction(pyfuncitem.obj):
+        sig = inspect.signature(pyfuncitem.obj)
+        kwargs = {k: v for k, v in pyfuncitem.funcargs.items() if k in sig.parameters}
+        asyncio.run(pyfuncitem.obj(**kwargs))
+        return True
+
 
 # Separate isolated in-memory test database
 TEST_DATABASE_URL = "sqlite:///:memory:"

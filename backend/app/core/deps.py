@@ -1,6 +1,8 @@
 from typing import Any, Generator
+
 from sqlalchemy.orm import Session
 
+from app.core.authorization import can_access as auth_can_access
 from app.db.postgres import SessionLocal
 
 
@@ -13,10 +15,13 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def can_access(user: Any, action: str, resource: Any) -> bool:
-    """STUB permission check.
+def can_access(user: Any, action: str, resource: Any = None) -> bool:
+    """Central RBAC check.
 
-    TODO: Security teammate (Himanshi) will replace this with real scope-based
-    access control (can_access check).
+    Delegates to app.core.authorization.can_access when a user is provided.
+    If user is None (unauthenticated development / backward compatibility),
+    returns True so development requests without auth pass through.
     """
-    return True
+    if user is None:
+        return True
+    return auth_can_access(user, action, resource)

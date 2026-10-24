@@ -2,6 +2,7 @@
 Pydantic schemas for Risk Engine API responses and Attendance endpoints.
 Member 3 (Raghav) — Evaluation 1
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -9,13 +10,14 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Attendance schemas
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class AttendanceMarkRequest(BaseModel):
     """Payload to mark/update attendance for a single session."""
+
     session_id: int = Field(..., description="ID of the class session")
     student_id: int = Field(..., description="student.user_id")
     status: str = Field(
@@ -27,6 +29,7 @@ class AttendanceMarkRequest(BaseModel):
 
 class AttendanceBulkMarkRequest(BaseModel):
     """Payload to mark attendance for multiple students in one session."""
+
     session_id: int = Field(..., description="ID of the class session")
     records: List[AttendanceMarkRequest] = Field(
         ..., min_length=1, description="List of per-student status entries"
@@ -62,11 +65,13 @@ class ClassSessionOut(BaseModel):
 # Buffer / risk schemas
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class AttendanceBufferOut(BaseModel):
     """
     Per-course attendance buffer result returned by the API.
     Distinguishes insufficient data from a valid (possibly negative) buffer.
     """
+
     student_id: int
     course_id: int
     total_classes: int
@@ -96,6 +101,7 @@ class RiskScoreOut(BaseModel):
     API consumers can distinguish insufficient data (insufficient_data=True)
     from a genuine Safe score (score=0, band='Safe').
     """
+
     student_id: int
     course_id: int
     score: Optional[float] = Field(

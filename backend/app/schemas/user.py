@@ -1,5 +1,8 @@
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.common import EmailStr
 
 
 class UserBase(BaseModel):

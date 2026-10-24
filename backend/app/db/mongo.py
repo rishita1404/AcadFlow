@@ -1,6 +1,10 @@
-from motor.motor_asyncio import AsyncIOMotorClient
+try:
+    from motor.motor_asyncio import AsyncIOMotorClient
 
-from app.core.config import settings
+    from app.core.config import settings
 
-mongo_client = AsyncIOMotorClient(settings.MONGO_URI)
-mongo_db = mongo_client.acadflow_mongo
+    mongo_client = AsyncIOMotorClient(settings.MONGO_URI)
+    mongo_db = mongo_client.acadflow_mongo
+except Exception:
+    mongo_client = None
+    mongo_db = None

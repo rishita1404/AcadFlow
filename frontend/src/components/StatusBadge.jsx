@@ -1,108 +1,77 @@
 import React from 'react';
+import { CheckCircle, Eye, AlertTriangle, HeartHandshake, Hourglass } from 'lucide-react';
 
-const STATUS_CONFIG = {
-  safe: {
+const BANDS = {
+  Safe: {
     label: 'On track',
-    icon: '🟢',
-    bg: '#f0fdf4',
-    text: '#15803d',
-    border: '#86efac',
+    Icon: CheckCircle,
+    bg: 'var(--ok-bg)',
+    fg: 'var(--ok-fg)',
   },
-  'on track': {
-    label: 'On track',
-    icon: '🟢',
-    bg: '#f0fdf4',
-    text: '#15803d',
-    border: '#86efac',
-  },
-  watch: {
+  Watch: {
     label: 'Keep an eye',
-    icon: '🟡',
-    bg: '#fffbeb',
-    text: '#b45309',
-    border: '#fcd34d',
+    Icon: Eye,
+    bg: 'var(--watch-bg)',
+    fg: 'var(--watch-fg)',
   },
-  'keep an eye': {
-    label: 'Keep an eye',
-    icon: '🟡',
-    bg: '#fffbeb',
-    text: '#b45309',
-    border: '#fcd34d',
-  },
-  at_risk: {
+  'At risk': {
     label: 'Needs attention',
-    icon: '🟠',
-    bg: '#fff7ed',
-    text: '#c2410c',
-    border: '#fdba74',
+    Icon: AlertTriangle,
+    bg: 'var(--risk-bg)',
+    fg: 'var(--risk-fg)',
   },
-  'at risk': {
-    label: 'Needs attention',
-    icon: '🟠',
-    bg: '#fff7ed',
-    text: '#c2410c',
-    border: '#fdba74',
-  },
-  'needs attention': {
-    label: 'Needs attention',
-    icon: '🟠',
-    bg: '#fff7ed',
-    text: '#c2410c',
-    border: '#fdba74',
-  },
-  critical: {
+  Critical: {
     label: 'Priority support',
-    icon: '🔴',
-    bg: '#fef2f2',
-    text: '#dc2626',
-    border: '#fca5a5',
+    Icon: HeartHandshake,
+    bg: 'var(--crit-bg)',
+    fg: 'var(--crit-fg)',
   },
-  'priority support': {
-    label: 'Priority support',
-    icon: '🔴',
-    bg: '#fef2f2',
-    text: '#dc2626',
-    border: '#fca5a5',
-  },
-  insufficient_data: {
+  'Insufficient data': {
     label: 'Not enough data yet',
-    icon: '⏳',
-    bg: '#f8fafc',
-    text: '#64748b',
-    border: '#cbd5e1',
-  },
-  'not enough data yet': {
-    label: 'Not enough data yet',
-    icon: '⏳',
-    bg: '#f8fafc',
-    text: '#64748b',
-    border: '#cbd5e1',
+    Icon: Hourglass,
+    bg: 'var(--nodata-bg)',
+    fg: 'var(--nodata-fg)',
   },
 };
 
-export default function StatusBadge({ status, style = {} }) {
-  const key = String(status || '').toLowerCase().trim();
-  const conf = STATUS_CONFIG[key] || STATUS_CONFIG.safe;
+// Normalise backend band values to the canonical set above
+function normaliseBand(band) {
+  if (!band) return 'Insufficient data';
+  const b = String(band).trim();
+  if (b === 'Safe' || b === 'safe') return 'Safe';
+  if (b === 'Watch' || b === 'watch') return 'Watch';
+  if (b === 'At risk' || b === 'at-risk' || b === 'at_risk') return 'At risk';
+  if (b === 'Critical' || b === 'critical') return 'Critical';
+  return 'Insufficient data';
+}
+
+export default function StatusBadge({ band, size = 'md' }) {
+  const key = normaliseBand(band);
+  const { label, Icon, bg, fg } = BANDS[key] || BANDS['Insufficient data'];
+  const iconSize = size === 'sm' ? 12 : 14;
+  const fontSize = size === 'sm' ? 11 : 13;
+  const padding = size === 'sm' ? '3px 10px' : '5px 14px';
 
   return (
     <span
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '5px',
-        padding: '3px 10px',
-        borderRadius: '9999px',
-        fontSize: '12px',
+        gap: 6,
+        padding,
+        borderRadius: 'var(--radius-pill)',
+        background: bg,
+        color: fg,
+        fontSize,
         fontWeight: 600,
-        backgroundColor: conf.bg,
-        color: conf.text,
-        border: `1px solid ${conf.border}`,
+        fontFamily: 'var(--font-sans)',
+        lineHeight: 1.2,
         whiteSpace: 'nowrap',
-        ...style,
       }}
+      title={`Status: ${label}`}
     >
-      <span style={{ fontSize: '11px' }}>{conf.icon}</span>
-      <span>{conf.label}</span>
+      <Icon size={iconSize} strokeWidth={2.5} />
+      {label}
     </span>
   );
 }

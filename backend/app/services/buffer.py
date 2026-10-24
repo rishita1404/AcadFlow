@@ -23,7 +23,6 @@ import math
 from dataclasses import dataclass
 from typing import Optional
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Result dataclass
 # ──────────────────────────────────────────────────────────────────────────────
@@ -119,9 +118,7 @@ def compute_attendance_buffer(
             f"total_classes must be positive."
         )
     if attended > held:
-        raise ValueError(
-            f"attended ({attended}) cannot exceed held ({held})."
-        )
+        raise ValueError(f"attended ({attended}) cannot exceed held ({held}).")
     if held > total_classes:
         raise ValueError(
             f"held ({held}) cannot exceed total_classes ({total_classes})."
@@ -188,8 +185,8 @@ def compute_margin_score(buffer: int, remaining: int, w_margin: float = 50.0) ->
     float in [0, w_margin]
     """
     if buffer < 0:
-        return float(w_margin)          # full weight: not recoverable
+        return float(w_margin)  # full weight: not recoverable
     if remaining == 0:
-        return 0.0                      # no future classes; no margin risk
+        return 0.0  # no future classes; no margin risk
     score = w_margin * (1.0 - buffer / remaining)
     return max(0.0, min(float(w_margin), score))

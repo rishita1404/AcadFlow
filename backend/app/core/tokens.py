@@ -10,13 +10,14 @@ Features:
 - In-memory testing fallback when Redis server is offline.
 """
 
+import asyncio as _asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
-from jose import JWTError, jwt
-from app.core.config import settings
-from app.db.redis import redis_client
 
+from app.core.config import settings
+from app.core.security import JWTError, jwt
+from app.db.redis import redis_client
 
 TOKEN_ISSUER = "acadflow"
 TOKEN_AUDIENCE = "acadflow-web"
@@ -68,7 +69,11 @@ class TokenService:
     ) -> str:
         """Generate a signed short-lived access token."""
         now = datetime.now(timezone.utc)
-        duration = timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES or DEFAULT_ACCESS_EXPIRE_MINUTES)
+        duration = timedelta(
+            minutes=expires_minutes
+            or settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            or DEFAULT_ACCESS_EXPIRE_MINUTES
+        )
         jti = str(uuid.uuid4())
 
         payload: Dict[str, Any] = {
@@ -111,10 +116,10 @@ class TokenService:
         }
         return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-    async def verify_token(self, token: str, expected_type: str = "access") -> Optional[Dict[str, Any]]:
-        """
-        Verify token cryptographic signature, issuer, audience, type, and revocation status.
-        """
+    async def verify_token(
+        self, token: str, expected_type: str = "access"
+    ) -> Optional[Dict[str, Any]]:
+        """Verify token cryptographic signature, issuer, audience, type, and revocation status."""
         try:
             payload = jwt.decode(
                 token,
@@ -137,13 +142,14 @@ class TokenService:
 
         return payload
 
-    async def rotate_refresh_token(self, refresh_token_str: str) -> Optional[Tuple[str, str]]:
-        """
-        Exchanges an existing valid refresh token for a new (access_token, refresh_token) pair.
+    async def rotate_refresh_token(
+        self, refresh_token_str: str
+    ) -> Optional[Tuple[str, str]]:
+        """Exchanges an existing valid refresh token for a new (access_token, refresh_token) pair.
+
         The old refresh token is revoked to prevent replay attacks.
         Returns None if token is invalid or already revoked.
         """
-        # Decode without full verification to inspect JTI in case of replay attack
         try:
             unverified_claims = jwt.get_unverified_claims(refresh_token_str)
             jti = unverified_claims.get("jti")
@@ -170,7 +176,9 @@ class TokenService:
 
         # Issue new token pair preserving token family
         new_access = self.create_access_token(user_id=user_id, role=role)
-        new_refresh = self.create_refresh_token(user_id=user_id, role=role, family_id=family_id)
+        new_refresh = self.create_refresh_token(
+            user_id=user_id, role=role, family_id=family_id
+        )
 
         return new_access, new_refresh
 
@@ -179,60 +187,51 @@ class TokenService:
 token_service = TokenService()
 
 
-# ---------------------------------------------------------------------------
-# Module-level sync-friendly helpers for use in synchronous FastAPI routes.
-# ---------------------------------------------------------------------------
-
-import asyncio as _asyncio
-from datetime import datetime as _datetime, timezone as _tz
-
-
 def _run_async(coro):
     """Execute a coroutine from a sync context without blocking the existing loop."""
     try:
-        loop = _asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures as _cf
-            fut = _asyncio.run_coroutine_threadsafe(coro, loop)
-            return fut.result(timeout=2)
-        else:
-            return loop.run_until_complete(coro)
+        loop = _asyncio.get_running_loop()
     except RuntimeError:
         return _asyncio.run(coro)
 
+    fut = _asyncio.run_coroutine_threadsafe(coro, loop)
+    try:
+        return fut.result(timeout=3)
+    except Exception:
+        return None
 
-def create_access_token(claims: dict) -> tuple[str, _datetime]:
-    """Create a signed access JWT.  Returns (token_str, expiry_datetime)."""
+
+def create_access_token(claims: dict) -> tuple[str, datetime]:
+    """Create a signed access JWT. Returns (token_str, expiry_datetime)."""
     user_id = claims.get("sub") or claims.get("user_id", 0)
     role = claims.get("role", "student")
     email = claims.get("email")
     custom = {"email": email} if email else None
-    token = token_service.create_access_token(user_id=user_id, role=role, custom_claims=custom)
-    # Decode only to get expiry (no revocation check needed immediately after issuing)
-    from jose import jwt as _jwt
-    payload = _jwt.decode(
+    token = token_service.create_access_token(
+        user_id=user_id, role=role, custom_claims=custom
+    )
+    payload = jwt.decode(
         token,
         settings.SECRET_KEY,
         algorithms=[settings.ALGORITHM],
         options={"verify_aud": False},
     )
-    exp = _datetime.fromtimestamp(payload["exp"], tz=_tz.utc)
+    exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
     return token, exp
 
 
-def create_refresh_token(claims: dict) -> tuple[str, _datetime]:
-    """Create a signed refresh JWT.  Returns (token_str, expiry_datetime)."""
+def create_refresh_token(claims: dict) -> tuple[str, datetime]:
+    """Create a signed refresh JWT. Returns (token_str, expiry_datetime)."""
     user_id = claims.get("sub") or claims.get("user_id", 0)
     role = claims.get("role", "student")
     token = token_service.create_refresh_token(user_id=user_id, role=role)
-    from jose import jwt as _jwt
-    payload = _jwt.decode(
+    payload = jwt.decode(
         token,
         settings.SECRET_KEY,
         algorithms=[settings.ALGORITHM],
         options={"verify_aud": False},
     )
-    exp = _datetime.fromtimestamp(payload["exp"], tz=_tz.utc)
+    exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
     return token, exp
 
 
@@ -244,8 +243,7 @@ def decode_token(token: str, token_type: str = "access") -> Optional[Dict[str, A
 def revoke_token(token: str) -> None:
     """Revoke a token by its JTI (sync-safe)."""
     try:
-        from jose import jwt as _jwt
-        payload = _jwt.decode(
+        payload = jwt.decode(
             token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
@@ -253,9 +251,8 @@ def revoke_token(token: str) -> None:
         )
         jti = payload.get("jti")
         exp = payload.get("exp", 0)
-        remaining = max(60, int(exp - _datetime.now(_tz.utc).timestamp()))
+        remaining = max(60, int(exp - datetime.now(timezone.utc).timestamp()))
         if jti:
             _run_async(token_service.revoke_token(jti, remaining_seconds=remaining))
     except Exception:
-        pass  # Best-effort revocation; token will expire naturally
-
+        pass

@@ -1,13 +1,18 @@
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class CourseBase(BaseModel):
-    code: str = Field(..., min_length=1, max_length=50, description="Unique course code e.g. CS101")
+    code: str = Field(
+        ..., min_length=1, max_length=50, description="Unique course code e.g. CS101"
+    )
     name: str = Field(..., min_length=1, max_length=150, description="Full course name")
     semester_id: int = Field(..., description="ID of semester")
     department_id: int = Field(..., description="ID of department")
-    total_classes: int = Field(..., gt=0, description="Total planned classes in semester")
+    total_classes: int = Field(
+        ..., gt=0, description="Total planned classes in semester"
+    )
 
 
 class CourseCreate(CourseBase):

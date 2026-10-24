@@ -12,9 +12,9 @@ Implements PRD Section 6 / Week 3 security requirements:
 """
 
 from datetime import datetime, timezone
-from typing import Dict, Optional, Tuple
-from app.db.redis import redis_client
+from typing import Dict, Tuple
 
+from app.db.redis import redis_client
 
 DEFAULT_LOCKOUT_THRESHOLD = 5
 DEFAULT_LOCKOUT_DURATION_SECONDS = 900  # 15 minutes
@@ -130,7 +130,6 @@ def _run(coro):
         loop = _asyncio.get_event_loop()
         if loop.is_running():
             # Inside an existing event loop (e.g. pytest-asyncio) — use run_coroutine_threadsafe
-            import concurrent.futures
             future = _asyncio.run_coroutine_threadsafe(coro, loop)
             return future.result(timeout=2)
         else:
@@ -154,4 +153,3 @@ def record_failure(identifier: str) -> dict:
 def record_success(identifier: str) -> None:
     """Sync wrapper: clears the failure counter on successful login."""
     _run(lockout_policy.reset_lockout(identifier))
-

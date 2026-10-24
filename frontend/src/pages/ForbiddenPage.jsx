@@ -1,51 +1,43 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext.jsx';
+import Button from '../components/ui/Button.jsx';
+import { ShieldOff } from 'lucide-react';
 
 export default function ForbiddenPage() {
   const navigate = useNavigate();
-  const { activeRole } = useAuth();
+  const { user } = useAuth();
 
-  const handleBackHome = () => {
-    if (activeRole === 'student') navigate('/student/home');
-    else if (activeRole === 'faculty') navigate('/faculty/home');
-    else if (activeRole === 'coordinator') navigate('/coordinator/summary');
-    else if (activeRole === 'admin') navigate('/admin');
-    else navigate('/');
-  };
+  const homeRoute = {
+    student: '/student/home',
+    faculty: '/faculty/home',
+    trainer: '/faculty/home',
+    coordinator: '/coordinator/summary',
+    admin: '/admin',
+  }[user?.role] ?? '/';
 
   return (
     <div style={{
+      minHeight: '100vh',
       display: 'flex',
-      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '60vh',
+      background: 'var(--bg)',
+      flexDirection: 'column',
+      gap: 'var(--space-6)',
+      padding: 'var(--space-12)',
       textAlign: 'center',
-      padding: 24,
     }}>
-      <div style={{ fontSize: 64, marginBottom: 16 }}>🚫</div>
-      <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
-        403 - Access Denied
+      <ShieldOff size={64} strokeWidth={1} color="var(--text-muted)" />
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 32, color: 'var(--ink-900)' }}>
+        Outside your access
       </h1>
-      <p style={{ color: '#64748b', maxWidth: 460, marginBottom: 24, fontSize: 14 }}>
-        Your current role or scope lacks permission to access this resource or perform this action.
+      <p style={{ color: 'var(--text-muted)', fontSize: 15, maxWidth: 380 }}>
+        You don't have permission to view this page. If you think this is a mistake, contact your administrator.
       </p>
-      <button
-        onClick={handleBackHome}
-        style={{
-          background: '#2563eb',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 8,
-          padding: '10px 20px',
-          fontWeight: 600,
-          fontSize: 14,
-          cursor: 'pointer',
-        }}
-      >
-        ← Back to my home
-      </button>
+      <Button variant="secondary" onClick={() => navigate(homeRoute)}>
+        Back to my home
+      </Button>
     </div>
   );
 }

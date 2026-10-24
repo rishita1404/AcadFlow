@@ -13,9 +13,8 @@ import json
 import secrets
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
-from app.core.config import settings
-from app.db.redis import redis_client
 
+from app.db.redis import redis_client
 
 DEFAULT_SESSION_TTL_SECONDS = 86400 * 7  # 7 days
 SESSION_COOKIE_NAME = "acadflow_session"
@@ -25,6 +24,7 @@ class SessionStore:
     """
     Session store supporting Redis with in-memory fallback for isolated testing.
     """
+
     def __init__(self, client=None, default_ttl: int = DEFAULT_SESSION_TTL_SECONDS):
         self.client = client if client is not None else redis_client
         self.default_ttl = default_ttl
@@ -64,7 +64,9 @@ class SessionStore:
 
         return session_id
 
-    async def get_session(self, session_id: str, touch: bool = True) -> Optional[Dict[str, Any]]:
+    async def get_session(
+        self, session_id: str, touch: bool = True
+    ) -> Optional[Dict[str, Any]]:
         """Validate and retrieve session data; optionally refreshes sliding expiration."""
         if not session_id or len(session_id) < 16:
             return None
@@ -83,7 +85,10 @@ class SessionStore:
                 if datetime.now(timezone.utc).timestamp() <= exp:
                     encoded = val
                     if touch:
-                        self._memory_fallback[key] = (val, datetime.now(timezone.utc).timestamp() + self.default_ttl)
+                        self._memory_fallback[key] = (
+                            val,
+                            datetime.now(timezone.utc).timestamp() + self.default_ttl,
+                        )
                 else:
                     self._memory_fallback.pop(key, None)
 

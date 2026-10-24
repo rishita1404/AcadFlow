@@ -8,15 +8,16 @@ when using session cookies:
 3. Safe exemption for read-only methods (GET, HEAD, OPTIONS).
 """
 
-import hmac
 import hashlib
+import hmac
 import secrets
 from typing import List, Optional
 from urllib.parse import urlparse
-from fastapi import Request, HTTPException, status
+
+from fastapi import HTTPException, Request, status
+
 from app.core.config import settings
 from app.core.session import SESSION_COOKIE_NAME
-
 
 CSRF_HEADER_NAME = "x-csrf-token"
 CSRF_COOKIE_NAME = "acadflow_csrf"
@@ -39,7 +40,7 @@ class CSRFProtector:
         signature = hmac.new(
             settings.SECRET_KEY.encode(),
             f"{session_id}:{salt}".encode(),
-            hashlib.sha256
+            hashlib.sha256,
         ).hexdigest()
         return f"{salt}.{signature}"
 
@@ -54,7 +55,7 @@ class CSRFProtector:
             expected_sig = hmac.new(
                 settings.SECRET_KEY.encode(),
                 f"{session_id}:{salt}".encode(),
-                hashlib.sha256
+                hashlib.sha256,
             ).hexdigest()
             return hmac.compare_digest(sig, expected_sig)
         except Exception:
@@ -68,13 +69,17 @@ class CSRFProtector:
         if origin:
             parsed = urlparse(origin)
             origin_base = f"{parsed.scheme}://{parsed.netloc}"
-            return any(origin_base == allowed.rstrip("/") for allowed in self.allowed_origins)
+            return any(
+                origin_base == allowed.rstrip("/") for allowed in self.allowed_origins
+            )
 
         referer = request.headers.get("referer")
         if referer:
             parsed = urlparse(referer)
             referer_base = f"{parsed.scheme}://{parsed.netloc}"
-            return any(referer_base == allowed.rstrip("/") for allowed in self.allowed_origins)
+            return any(
+                referer_base == allowed.rstrip("/") for allowed in self.allowed_origins
+            )
 
         # In non-browser API testing or tools without origin, reject if session cookie is present
         return False
@@ -97,15 +102,23 @@ class CSRFProtector:
         if not self.validate_origin(request):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "CSRF_ORIGIN_INVALID", "message": "Cross-site request origin rejected"}
+                detail={
+                    "code": "CSRF_ORIGIN_INVALID",
+                    "message": "Cross-site request origin rejected",
+                },
             )
 
         # 2. Validate CSRF Token
-        token = request.headers.get(CSRF_HEADER_NAME) or request.cookies.get(CSRF_COOKIE_NAME)
+        token = request.headers.get(CSRF_HEADER_NAME) or request.cookies.get(
+            CSRF_COOKIE_NAME
+        )
         if not token or not self.verify_csrf_token(token, session_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"code": "CSRF_TOKEN_INVALID", "message": "Missing or invalid CSRF token"}
+                detail={
+                    "code": "CSRF_TOKEN_INVALID",
+                    "message": "Missing or invalid CSRF token",
+                },
             )
 
 

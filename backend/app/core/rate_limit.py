@@ -13,9 +13,10 @@ Implements PRD Section 6 / Week 4 requirements:
 import ipaddress
 import time
 from typing import Dict, List, Optional, Tuple
-from fastapi import Request, HTTPException, status
-from app.db.redis import redis_client
 
+from fastapi import HTTPException, Request, status
+
+from app.db.redis import redis_client
 
 DEFAULT_TRUSTED_PROXIES = [
     "127.0.0.1",
@@ -141,13 +142,17 @@ class RateLimiter:
                 detail={
                     "error": {
                         "code": "RATE_429",
-                        "message": f"Rate limit exceeded. Try again in {retry_after} seconds."
+                        "message": f"Rate limit exceeded. Try again in {retry_after} seconds.",
                     }
                 },
-                headers={"Retry-After": str(retry_after)}
+                headers={"Retry-After": str(retry_after)},
             )
 
 
 # Preconfigured instances for PRD routes
-login_rate_limiter = RateLimiter(requests_per_minute=10, window_seconds=60, key_prefix="rl:login")
-upload_rate_limiter = RateLimiter(requests_per_minute=5, window_seconds=60, key_prefix="rl:upload")
+login_rate_limiter = RateLimiter(
+    requests_per_minute=10, window_seconds=60, key_prefix="rl:login"
+)
+upload_rate_limiter = RateLimiter(
+    requests_per_minute=5, window_seconds=60, key_prefix="rl:upload"
+)

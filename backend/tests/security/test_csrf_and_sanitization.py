@@ -1,5 +1,3 @@
-import pytest
-from fastapi import HTTPException
 from app.core.csrf import CSRFProtector
 from app.core.sanitization import escape_html, sanitize_payload
 
@@ -14,7 +12,7 @@ def test_html_escaping_and_sanitization():
     nested_dict = {
         "title": "Assignment 1",
         "description": "<img src=x onerror=alert(1)>",
-        "tags": ["<b>urgent</b>", "safe"]
+        "tags": ["<b>urgent</b>", "safe"],
     }
     sanitized = sanitize_payload(nested_dict)
 

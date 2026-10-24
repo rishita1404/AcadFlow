@@ -9,6 +9,7 @@ Run:
 """
 
 import pytest
+
 from app.services.risk import (
     DEFAULT_RISK_CONFIG,
     RiskConfig,
@@ -19,13 +20,12 @@ from app.services.risk import (
     compute_trend_score,
 )
 
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Band classification
 # ──────────────────────────────────────────────────────────────────────────────
 
-class TestBandClassification:
 
+class TestBandClassification:
     def test_safe_lower_bound(self):
         assert classify_band(0.0) == "Safe"
 
@@ -59,8 +59,8 @@ class TestBandClassification:
 # RiskConfig validation
 # ──────────────────────────────────────────────────────────────────────────────
 
-class TestRiskConfigValidation:
 
+class TestRiskConfigValidation:
     def test_default_config_is_valid(self):
         cfg = DEFAULT_RISK_CONFIG
         assert cfg.w_margin == 50.0
@@ -88,8 +88,8 @@ class TestRiskConfigValidation:
 # Component functions
 # ──────────────────────────────────────────────────────────────────────────────
 
-class TestTrendScore:
 
+class TestTrendScore:
     def test_none_slope_zero_penalty(self):
         pts, _ = compute_trend_score(None)
         assert pts == 0.0
@@ -119,7 +119,6 @@ class TestTrendScore:
 
 
 class TestDeadlineScore:
-
     def test_no_deadlines(self):
         pts, _ = compute_deadline_score(0)
         assert pts == 0.0
@@ -139,7 +138,6 @@ class TestDeadlineScore:
 
 
 class TestMissedScore:
-
     def test_no_submissions_no_penalty(self):
         """PRD: student with no submissions has no missed penalty."""
         pts, _ = compute_missed_score(0, 0)
@@ -151,7 +149,7 @@ class TestMissedScore:
 
     def test_one_of_five_missed(self):
         pts, f = compute_missed_score(1, 5, w_missed=10.0)
-        assert pts == pytest.approx(2.0, abs=0.01)   # 1/5 * 10 = 2
+        assert pts == pytest.approx(2.0, abs=0.01)  # 1/5 * 10 = 2
         assert len(f) > 0
 
     def test_all_missed(self):
@@ -167,8 +165,8 @@ class TestMissedScore:
 # Full risk score — PRD Appendix A scenarios
 # ──────────────────────────────────────────────────────────────────────────────
 
-class TestFullRiskScore:
 
+class TestFullRiskScore:
     def test_riya_risk_score(self):
         """
         Riya: buffer=5, remaining=20 → margin=37.5
@@ -221,7 +219,7 @@ class TestFullRiskScore:
         )
         assert result.insufficient_data is True
         assert result.band == "Insufficient data"
-        assert result.score == 0.0   # internal; API layer maps to None
+        assert result.score == 0.0  # internal; API layer maps to None
 
     def test_high_risk_combination(self):
         """
@@ -251,7 +249,7 @@ class TestFullRiskScore:
         result = compute_risk_score(
             buffer=15,
             remaining=20,
-            attendance_slope=2.0,    # improving
+            attendance_slope=2.0,  # improving
             upcoming_deadline_count=0,
             missed_count=0,
             total_submissions=5,
@@ -315,9 +313,13 @@ class TestFullRiskScore:
         )
         r_default = compute_risk_score(**kwargs)
         high_weight_config = RiskConfig(
-            w_margin=100.0,   # double the margin weight
-            w_trend=20.0, w_deadline=20.0, w_missed=10.0,
-            t_watch=30.0, t_risk=55.0, t_critical=80.0,
+            w_margin=100.0,  # double the margin weight
+            w_trend=20.0,
+            w_deadline=20.0,
+            w_missed=10.0,
+            t_watch=30.0,
+            t_risk=55.0,
+            t_critical=80.0,
         )
         r_custom = compute_risk_score(**kwargs, config=high_weight_config)
         assert r_custom.margin_points > r_default.margin_points

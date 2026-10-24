@@ -4,10 +4,12 @@ Revision ID: 001_initial_schema
 Revises:
 Create Date: 2026-10-16 18:05:00
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "001_initial_schema"
@@ -54,8 +56,12 @@ def upgrade() -> None:
             "role IN ('student', 'faculty', 'coordinator', 'admin')",
             name="check_user_role",
         ),
-        sa.ForeignKeyConstraint(["department_id"], ["departments.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["department_id"], ["departments.id"], ondelete="SET NULL"
+        ),
+        sa.ForeignKeyConstraint(
+            ["organization_id"], ["organizations.id"], ondelete="SET NULL"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_users_email", "users", ["email"], unique=True)
@@ -86,7 +92,9 @@ def upgrade() -> None:
         "dean_assignments",
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("department_id", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(["department_id"], ["departments.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["department_id"], ["departments.id"], ondelete="CASCADE"
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("user_id", "department_id"),
     )
@@ -97,7 +105,9 @@ def upgrade() -> None:
         sa.Column("mentor_id", sa.Integer(), nullable=False),
         sa.Column("student_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(["mentor_id"], ["users.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["student_id"], ["students.user_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["student_id"], ["students.user_id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("mentor_id", "student_id"),
     )
 
@@ -132,7 +142,9 @@ def upgrade() -> None:
         sa.Column("semester_id", sa.Integer(), nullable=False),
         sa.Column("department_id", sa.Integer(), nullable=False),
         sa.Column("total_classes", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(["department_id"], ["departments.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(
+            ["department_id"], ["departments.id"], ondelete="RESTRICT"
+        ),
         sa.ForeignKeyConstraint(["semester_id"], ["semesters.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -160,10 +172,14 @@ def upgrade() -> None:
         sa.Column("course_id", sa.Integer(), nullable=False),
         sa.Column("enrolled_on", sa.Date(), nullable=False),
         sa.ForeignKeyConstraint(["course_id"], ["courses.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["student_id"], ["students.user_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["student_id"], ["students.user_id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("student_id", "course_id"),
     )
-    op.create_index("ix_enrolments_course_id", "enrolments", ["course_id"], unique=False)
+    op.create_index(
+        "ix_enrolments_course_id", "enrolments", ["course_id"], unique=False
+    )
 
     # 12. class_sessions
     op.create_table(
@@ -171,10 +187,17 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("course_id", sa.Integer(), nullable=False),
         sa.Column("held_on", sa.Date(), nullable=False),
-        sa.Column("is_cancelled", sa.Boolean(), server_default=sa.text("false"), nullable=False),
+        sa.Column(
+            "is_cancelled",
+            sa.Boolean(),
+            server_default=sa.text("false"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["course_id"], ["courses.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("course_id", "held_on", name="uq_class_sessions_course_held_on"),
+        sa.UniqueConstraint(
+            "course_id", "held_on", name="uq_class_sessions_course_held_on"
+        ),
     )
     op.create_index(
         "ix_class_sessions_course_held_on",
@@ -197,12 +220,23 @@ def upgrade() -> None:
             name="check_attendance_status",
         ),
         sa.ForeignKeyConstraint(["marked_by"], ["users.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["session_id"], ["class_sessions.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["student_id"], ["students.user_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["session_id"], ["class_sessions.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["student_id"], ["students.user_id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("student_id", "session_id", name="uq_attendance_records_student_session"),
+        sa.UniqueConstraint(
+            "student_id", "session_id", name="uq_attendance_records_student_session"
+        ),
     )
-    op.create_index("ix_attendance_records_session_id", "attendance_records", ["session_id"], unique=False)
+    op.create_index(
+        "ix_attendance_records_session_id",
+        "attendance_records",
+        ["session_id"],
+        unique=False,
+    )
 
     # 14. assignments
     op.create_table(
@@ -214,7 +248,12 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("due_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("grace_hours", sa.Integer(), server_default="48", nullable=False),
-        sa.Column("is_published", sa.Boolean(), server_default=sa.text("false"), nullable=False),
+        sa.Column(
+            "is_published",
+            sa.Boolean(),
+            server_default=sa.text("false"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "kind IN ('assignment', 'lab file', 'review', 'exam')",
             name="check_assignment_kind",
@@ -245,8 +284,12 @@ def upgrade() -> None:
             "status IN ('on_time', 'late', 'missed', 'excused')",
             name="check_submission_status",
         ),
-        sa.ForeignKeyConstraint(["assignment_id"], ["assignments.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["student_id"], ["students.user_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["assignment_id"], ["assignments.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["student_id"], ["students.user_id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("dedupe_key", name="uq_submissions_dedupe_key"),
         sa.UniqueConstraint(
@@ -284,8 +327,12 @@ def upgrade() -> None:
         sa.Column("worst_course_id", sa.Integer(), nullable=False),
         sa.Column("config_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(["config_id"], ["risk_config.id"], ondelete="RESTRICT"),
-        sa.ForeignKeyConstraint(["student_id"], ["students.user_id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["worst_course_id"], ["courses.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(
+            ["student_id"], ["students.user_id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["worst_course_id"], ["courses.id"], ondelete="RESTRICT"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -314,7 +361,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Drop circular FK first
-    op.drop_constraint("fk_organizations_head_user_id", "organizations", type_="foreignkey")
+    op.drop_constraint(
+        "fk_organizations_head_user_id", "organizations", type_="foreignkey"
+    )
 
     # Drop in reverse topological order
     op.drop_table("audit_log")

@@ -1,10 +1,65 @@
+/* AcadFlow – Holst Design System tokens
+   All design values live here. No hex codes anywhere else. */
 :root {
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-bg: #f8fafc;
-  --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
+  /* Palette */
+  --bg: #F4F1DE;
+  --surface: #FFFDF5;
+  --border: #D4C4A8;
+  --sand: #D4C4A8;
+  --sage: #778D7A;
+  --ink-900: #0D1B2A;
+  --ink-800: #1B263B;
+  --accent: #415A77;
+  --accent-hover: #1B263B;
+  --text: #1B263B;
+  --text-muted: #415A77;
+  --on-dark: #F4F1DE;
+
+  /* Status colours */
+  --ok-bg: #778D7A;
+  --ok-fg: #0D1B2A;
+  --watch-bg: #D4C4A8;
+  --watch-fg: #0D1B2A;
+  --risk-bg: #F4D9CC;
+  --risk-fg: #9A4A2F;
+  --crit-bg: #F0D0D0;
+  --crit-fg: #7A2E2E;
+  --nodata-bg: #F4F1DE;
+  --nodata-fg: #415A77;
+
+  /* Pressure / heatmap */
+  --heat-0: #F4F1DE;
+  --heat-1: #C9D3DF;
+  --heat-2: #415A77;
+  --heat-3: #0D1B2A;
+  --must-attend: #9A4A2F;
+
+  /* Shape */
+  --radius-card: 16px;
+  --radius-input: 12px;
+  --radius-pill: 999px;
+  --radius-dialog: 20px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(13, 27, 42, .06), 0 8px 24px rgba(13, 27, 42, .06);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+
+  /* Spacing (8px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Typography */
+  --font-serif: 'Fraunces Variable', Georgia, serif;
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: 'Menlo', 'Consolas', monospace;
+
+  /* Sidebar */
+  --sidebar-w: 248px;
+  --sidebar-collapsed-w: 60px;
+  --topbar-h: 64px;
 }

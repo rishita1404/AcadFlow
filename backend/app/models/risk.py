@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
+
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,17 +30,11 @@ class RiskSnapshotModel(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    student_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("students.user_id")
-    )
-    computed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True)
-    )
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.user_id"))
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     score: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     band: Mapped[str] = mapped_column(String(20))
-    worst_course_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("courses.id")
-    )
+    worst_course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id"))
     config_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("risk_config.id")
     )

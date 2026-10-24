@@ -1,5 +1,6 @@
 import pytest
-from app.core.audit import AuditLogger, AuditAction, redact_sensitive_data
+
+from app.core.audit import AuditAction, AuditLogger, redact_sensitive_data
 
 
 def test_audit_sensitive_data_redaction():
@@ -14,7 +15,7 @@ def test_audit_sensitive_data_redaction():
             "auth_header": "Bearer secret_token",
             "safe_detail": "Course attendance update",
             "submission_content": "print('hello')",
-        }
+        },
     }
 
     cleaned = redact_sensitive_data(payload)
@@ -47,8 +48,8 @@ async def test_audit_logger_event_creation():
         metadata={
             "student_id": 501,
             "reason": "Medical certificate verified",
-            "admin_token": "secret_internal_token"
-        }
+            "admin_token": "secret_internal_token",
+        },
     )
 
     assert event["actor_id"] == "202"

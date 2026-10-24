@@ -25,7 +25,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models import (
-    AssignmentModel,
     AttendanceRecordModel,
     ClassSessionModel,
     CourseModel,
@@ -34,24 +33,26 @@ from app.models import (
     RiskConfigModel,
     SemesterModel,
     StudentModel,
-    SubmissionModel,
     UserModel,
 )
-from app.services.buffer import compute_attendance_buffer, compute_margin_score
-from app.services.risk import compute_risk_score
 from app.services.risk_data import calculate_student_course_risk
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers to build consistent test data
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _seed_risk_config(db: Session) -> RiskConfigModel:
     config = RiskConfigModel(
-        w_margin=Decimal("50"), w_trend=Decimal("20"),
-        w_deadline=Decimal("20"), w_missed=Decimal("10"),
-        t_watch=Decimal("30"), t_risk=Decimal("55"),
-        t_critical=Decimal("80"), min_classes=8, version="v_test",
+        w_margin=Decimal("50"),
+        w_trend=Decimal("20"),
+        w_deadline=Decimal("20"),
+        w_missed=Decimal("10"),
+        t_watch=Decimal("30"),
+        t_risk=Decimal("55"),
+        t_critical=Decimal("80"),
+        min_classes=8,
+        version="v_test",
     )
     db.add(config)
     db.flush()
@@ -98,8 +99,11 @@ def _make_student_and_course(db: Session, suffix: str = ""):
 
 
 def _create_sessions_and_attendance(
-    db: Session, student_id: int, course_id: int,
-    n_sessions: int, n_present: int,
+    db: Session,
+    student_id: int,
+    course_id: int,
+    n_sessions: int,
+    n_present: int,
 ) -> list[ClassSessionModel]:
     """Create n_sessions class sessions; mark n_present as present."""
     sessions = []
@@ -131,8 +135,8 @@ def _create_sessions_and_attendance(
 # Integration tests
 # ──────────────────────────────────────────────────────────────────────────────
 
-class TestRiskCalculationIntegration:
 
+class TestRiskCalculationIntegration:
     def test_insufficient_data_when_few_sessions(self, db_session: Session):
         """
         With only 5 sessions held (< min_classes=8), risk engine must
@@ -161,7 +165,7 @@ class TestRiskCalculationIntegration:
 
         assert data["insufficient_data"] is False
         assert data["buffer"] == 5
-        assert data["remaining"] == 20   # 60 - 40 = 20
+        assert data["remaining"] == 20  # 60 - 40 = 20
         assert data["margin_points"] == pytest.approx(37.5, abs=0.1)
 
     def test_karan_negative_buffer_via_db(self, db_session: Session):
@@ -187,27 +191,36 @@ class TestRiskCalculationIntegration:
             db_session, student.user_id, course.id, 40, 20
         )
         # initial: attended=20, buffer = 20 - max(0,45-20) = 20-25 = -5 → margin=50
-        data_before = calculate_student_course_risk(db_session, student.user_id, course.id)
+        data_before = calculate_student_course_risk(
+            db_session, student.user_id, course.id
+        )
         assert data_before["buffer"] == -5
 
         # Now correct one absent → present (total attended becomes 30)
         absent_sessions = [
-            s for s in sessions
-            if db_session.query(AttendanceRecordModel).filter_by(
-                session_id=s.id, student_id=student.user_id
-            ).first().status == "absent"
+            s
+            for s in sessions
+            if db_session.query(AttendanceRecordModel)
+            .filter_by(session_id=s.id, student_id=student.user_id)
+            .first()
+            .status
+            == "absent"
         ]
         # Change 10 absent records to present
         changed = 0
         for s in absent_sessions[:10]:
-            rec = db_session.query(AttendanceRecordModel).filter_by(
-                session_id=s.id, student_id=student.user_id
-            ).first()
+            rec = (
+                db_session.query(AttendanceRecordModel)
+                .filter_by(session_id=s.id, student_id=student.user_id)
+                .first()
+            )
             rec.status = "present"
             changed += 1
         db_session.flush()
 
-        data_after = calculate_student_course_risk(db_session, student.user_id, course.id)
+        data_after = calculate_student_course_risk(
+            db_session, student.user_id, course.id
+        )
         # attended=30, buffer=5 now
         assert data_after["buffer"] == 5
         assert data_after["buffer"] != data_before["buffer"]
@@ -266,7 +279,9 @@ class TestRiskAPIEndpoints:
         assert "score" in body
         assert "insufficient_data" in body
 
-    def test_insufficient_data_flag_in_api(self, client: TestClient, db_session: Session):
+    def test_insufficient_data_flag_in_api(
+        self, client: TestClient, db_session: Session
+    ):
         """API must set insufficient_data=true when held < min_classes."""
         _seed_risk_config(db_session)
         student, course = _make_student_and_course(db_session, "api3")
@@ -280,7 +295,9 @@ class TestRiskAPIEndpoints:
         assert body["insufficient_data"] is True
         assert body["score"] is None
 
-    def test_nonexistent_student_returns_404(self, client: TestClient, db_session: Session):
+    def test_nonexistent_student_returns_404(
+        self, client: TestClient, db_session: Session
+    ):
         resp = client.get("/api/v1/risk/students/99999/courses/1")
         assert resp.status_code == 404
 
@@ -290,18 +307,30 @@ class TestRiskAPIEndpoints:
         student, course = _make_student_and_course(db_session, "mark1")
 
         # Create session
-        resp = client.post("/api/v1/attendance/sessions", json={
-            "course_id": course.id,
-            "held_on": "2026-08-10",
-            "is_cancelled": False,
-        })
+        resp = client.post(
+            "/api/v1/attendance/sessions",
+            json={
+                "course_id": course.id,
+                "held_on": "2026-08-10",
+                "is_cancelled": False,
+            },
+        )
         assert resp.status_code == 201
         session_id = resp.json()["id"]
 
         # Mark attendance
-        resp2 = client.post(f"/api/v1/attendance/sessions/{session_id}/mark", json={
-            "session_id": session_id,
-            "records": [{"session_id": session_id, "student_id": student.user_id, "status": "present"}],
-        })
+        resp2 = client.post(
+            f"/api/v1/attendance/sessions/{session_id}/mark",
+            json={
+                "session_id": session_id,
+                "records": [
+                    {
+                        "session_id": session_id,
+                        "student_id": student.user_id,
+                        "status": "present",
+                    }
+                ],
+            },
+        )
         assert resp2.status_code == 201
         assert resp2.json()[0]["status"] == "present"
