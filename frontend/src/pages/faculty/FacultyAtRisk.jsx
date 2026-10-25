@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { courseApi, facultyApi } from '../../api/endpoints.js';
@@ -331,7 +331,7 @@ export default function FacultyAtRisk() {
             {/* Score Breakdown (Why?) */}
             <div style={{ marginBottom: 20 }}>
               <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 10 }}>
-                Score Breakdown ("Why?")
+                Score Breakdown (&quot;Why?&quot;)
               </h3>
               <ScoreExpander
                 formula="50% Margin + 20% Trend + 20% Deadlines + 10% Missed Submissions"
@@ -394,7 +394,7 @@ export default function FacultyAtRisk() {
               Send Attendance Alert to {selectedStudent?.name}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
-              This will dispatch a high-priority in-app notification directly to the student's notification bell and home banner.
+              This will dispatch a high-priority in-app notification directly to the student&apos;s notification bell and home banner.
             </p>
 
             <textarea

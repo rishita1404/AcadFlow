@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 export default function Dialog({ open, onClose, title, children, width = 520, footer }) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, AlertTriangle, AlertCircle, Info, CheckCircle2, RotateCw, Trash2, Check } from 'lucide-react';
 import { notificationApi } from '../api/endpoints.js';
@@ -170,7 +170,7 @@ export default function NotificationsPage() {
       {data?.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
           <div style={{ color: 'var(--ok-fg)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}><CheckCircle2 size={36} /></div>
-          <p style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: 0 }}>No notifications! You're all clear.</p>
+          <p style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: 0 }}>No notifications! You&apos;re all clear.</p>
         </div>
       )}
 

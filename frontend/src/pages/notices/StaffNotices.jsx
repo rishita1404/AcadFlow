@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
-import { Bell, Send, CheckCircle2, Clock, Trash2, Users, FileText, AlertTriangle, X, Eye, ArrowRight, RotateCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bell, Send, CheckCircle2, Clock, Trash2, AlertTriangle, X, Eye, RotateCw } from 'lucide-react';
 import { noticeApi } from '../../api/endpoints.js';
-import { useAuth } from '../../app/AuthContext.jsx';
 import Skeleton from '../../components/Skeleton.jsx';
 
 const CATEGORY_COLORS = {
@@ -17,8 +16,6 @@ const CATEGORY_COLORS = {
 
 export default function StaffNotices() {
   const qc = useQueryClient();
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('sent'); // 'sent' | 'drafts'
   const [selectedNoticeId, setSelectedNoticeId] = useState(null);
   const [receiptFilter, setReceiptFilter] = useState('all'); // 'all' | 'unseen' | 'seen' | 'done'
@@ -206,13 +203,13 @@ export default function StaffNotices() {
         {/* Notices Content */}
         {activeTab === 'drafts' ? (
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 48, textAlign: 'center', color: 'var(--text-muted)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
-            <p>No saved drafts. All published notices appear in the "Sent Notices" tab.</p>
+            <p>No saved drafts. All published notices appear in the &quot;Sent Notices&quot; tab.</p>
           </div>
         ) : notices.length === 0 ? (
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 48, textAlign: 'center', color: 'var(--text-muted)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
             <div style={{ color: 'var(--accent)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Bell size={36} /></div>
             <p style={{ fontWeight: 600, color: 'var(--ink-900)', fontFamily: 'var(--font-serif)', fontSize: 18 }}>No notices published yet.</p>
-            <p style={{ fontSize: 14 }}>Click "Compose Notice" above to broadcast your first announcement or form.</p>
+            <p style={{ fontSize: 14 }}>Click &quot;Compose Notice&quot; above to broadcast your first announcement or form.</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 16 }}>

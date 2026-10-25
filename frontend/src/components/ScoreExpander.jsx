@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export default function ScoreExpander({
-  score,
+  score: _score,
   lastComputedAt,
-  band,
+  band: _band,
   formulaDetails,
   inputs,
 }) {

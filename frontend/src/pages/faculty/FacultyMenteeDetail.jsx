@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { facultyApi } from '../../api/endpoints.js';
@@ -191,7 +191,7 @@ export default function FacultyMenteeDetail() {
 
           {notes.length === 0 ? (
             <div style={{ background: 'var(--bg)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-input)', padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              No mentor notes logged yet. Click "+ Add Mentor Note" to create the first record.
+              No mentor notes logged yet. Click &quot;+ Add Mentor Note&quot; to create the first record.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

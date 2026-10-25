@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Shield, Sparkles, History, UploadCloud, CheckCircle2, AlertTriangle, Download, ArrowRight } from 'lucide-react';
 import { attendanceApi, dashboardApi, courseApi } from '../api/endpoints.js';

@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 /** BufferGauge: shows how many classes a student can still miss */
 export default function BufferGauge({ buffer, small = false }) {

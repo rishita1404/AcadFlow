@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { dashboardApi, timetableApi, facultyApi } from '../../api/endpoints.js';
@@ -104,7 +104,7 @@ export default function FacultyHome() {
           {/* Today's schedule */}
           <div style={C.card}>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-900)', margin: '0 0 var(--space-4)' }}>
-              Today's Teaching Schedule — {todayDayName}
+              Today&apos;s Teaching Schedule — {todayDayName}
             </h3>
             {todaySessions.length === 0 ? (
               <div style={{ padding: 'var(--space-4)', background: 'var(--bg)', borderRadius: 12, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>

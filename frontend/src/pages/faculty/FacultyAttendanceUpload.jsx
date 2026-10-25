@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { courseApi, facultyApi } from '../../api/endpoints.js';
 import Stepper from '../../components/ui/Stepper.jsx';
@@ -13,7 +13,6 @@ const STEP_LABELS = [
 
 export default function FacultyAttendanceUpload() {
   const { id: courseIdParam } = useParams();
-  const navigate = useNavigate();
 
   const [selectedCourseId, setSelectedCourseId] = useState(courseIdParam || '');
   const [currentStep, setCurrentStep] = useState(1);
@@ -22,7 +21,7 @@ export default function FacultyAttendanceUpload() {
   // File & Preview state
   const [file, setFile] = useState(null);
   const [fileHash, setFileHash] = useState(null);
-  const [previewData, setPreviewData] = useState(null);
+  const [_previewData, setPreviewData] = useState(null);
   const [editedRows, setEditedRows] = useState([]);
   const [changeReason, setChangeReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -326,7 +325,7 @@ export default function FacultyAttendanceUpload() {
                   SHA-256 Hash: <code style={{ background: 'var(--bg)', padding: '2px 6px', borderRadius: 4 }}>{fileHash?.slice(0, 16)}...</code>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--ok-fg)', marginTop: 8, fontWeight: 600 }}>
-                  Ready to validate. Click "Run Pre-flight Preview" below.
+                  Ready to validate. Click &quot;Run Pre-flight Preview&quot; below.
                 </div>
               </div>
             ) : (

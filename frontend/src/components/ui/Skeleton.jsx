@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 function SkeletonBox({ width = '100%', height = 20, radius = 8, style }) {
   return (

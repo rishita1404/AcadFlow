@@ -1,6 +1,6 @@
-import React from 'react';
+
 import { Link } from 'react-router-dom';
-import { Cpu, ShieldCheck, CheckCircle2, Activity, Database, ExternalLink, FileText, BarChart } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Activity, Database, ExternalLink, FileText } from 'lucide-react';
 
 export default function AdminML() {
   return (

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext.jsx';
 import { useQuery } from '@tanstack/react-query';
 import { notificationApi } from '../api/endpoints.js';
 import {
   Home, CalendarDays, ClipboardList, LayoutGrid, AlertTriangle,
-  Megaphone, Bell, Settings, Users, BarChart2, BookOpen, Upload,
+  Megaphone, Bell, Settings, Users, BarChart2, BookOpen,
   HeartHandshake, ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react';
 
@@ -57,6 +57,7 @@ function getNavItems(role, duties = []) {
     case 'student': return STUDENT_NAV;
     case 'faculty':
     case 'trainer':
+    case 'mentor':
       return FACULTY_NAV.filter(item =>
         !item.dutyGate || duties.includes(item.dutyGate) || duties.includes('mentor') || duties.includes('course_coordinator')
       );
@@ -70,6 +71,7 @@ const ROLE_LABEL = {
   student: 'Student',
   faculty: 'Faculty',
   trainer: 'Faculty',
+  mentor: 'Faculty Mentor',
   coordinator: 'Coordinator',
   admin: 'Admin',
 };
@@ -89,6 +91,13 @@ export default function AppShell() {
     queryFn: () => notificationApi.unreadCount().then(r => r.data.unread_count).catch(() => 0),
     refetchInterval: 60_000,
   });
+
+  const getHomeRoute = () => {
+    if (activeRole === 'admin') return '/admin';
+    if (activeRole === 'coordinator') return '/coordinator/summary';
+    if (activeRole === 'faculty' || activeRole === 'trainer' || activeRole === 'mentor') return '/faculty/home';
+    return '/student/home';
+  };
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -110,26 +119,61 @@ export default function AppShell() {
         zIndex: 10,
       }}>
 
-        {/* Wordmark */}
+        {/* Wordmark / Brand Logo */}
         <div style={{
           height: 'var(--topbar-h)',
           display: 'flex',
           alignItems: 'center',
-          padding: '0 var(--space-6)',
+          padding: collapsed ? '0 var(--space-2)' : '0 var(--space-3)',
           borderBottom: '1px solid rgba(212,196,168,0.12)',
           overflow: 'hidden',
-          gap: 'var(--space-3)',
+          flexShrink: 0,
         }}>
-          <span style={{
-            fontFamily: 'var(--font-serif)',
-            fontWeight: 700,
-            fontSize: 20,
-            color: 'var(--sand)',
-            whiteSpace: 'nowrap',
-            letterSpacing: '-0.02em',
-          }}>
-            {collapsed ? 'A' : 'AcadFlow'}
-          </span>
+          <Link
+            to={getHomeRoute()}
+            title={collapsed ? 'AcadFlow Home' : undefined}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: collapsed ? '8px 0' : '8px 16px',
+              borderRadius: 'var(--radius-pill)',
+              textDecoration: 'none',
+              width: '100%',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            <div style={{
+              width: 20,
+              height: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <BookOpen size={20} strokeWidth={2.2} style={{ color: 'var(--sand)' }} />
+            </div>
+            {!collapsed && (
+              <span style={{
+                fontFamily: 'var(--font-serif)',
+                fontWeight: 700,
+                fontSize: 20,
+                color: 'var(--sand)',
+                whiteSpace: 'nowrap',
+                letterSpacing: '-0.02em',
+                lineHeight: 1,
+              }}>
+                AcadFlow
+              </span>
+            )}
+          </Link>
         </div>
 
         {/* Nav items */}
@@ -139,22 +183,24 @@ export default function AppShell() {
               key={to}
               to={to}
               end={exact}
+              title={collapsed ? label : undefined}
               style={({ isActive }) => ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
-                padding: '10px 20px',
-                margin: '1px var(--space-3)',
+                padding: collapsed ? '10px 0' : '10px 16px',
+                margin: collapsed ? '2px var(--space-2)' : '2px var(--space-3)',
                 borderRadius: 'var(--radius-pill)',
                 textDecoration: 'none',
                 fontSize: 14,
                 fontWeight: isActive ? 700 : 400,
                 fontFamily: 'var(--font-sans)',
-                color: isActive ? 'var(--on-dark)' : 'rgba(244,241,222,0.6)',
+                color: isActive ? 'var(--on-dark)' : 'rgba(244,241,222,0.65)',
                 background: isActive ? 'var(--accent)' : 'transparent',
                 position: 'relative',
                 overflow: 'hidden',
                 whiteSpace: 'nowrap',
+                justifyContent: collapsed ? 'center' : 'flex-start',
                 transition: 'background 0.15s, color 0.15s',
               })}
               onMouseEnter={e => {
@@ -162,29 +208,44 @@ export default function AppShell() {
                   e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
               }}
               onMouseLeave={e => {
-                // recompute on leave — NavLink will reapply active style
+                if (!e.currentTarget.className.includes('active')) {
+                  e.currentTarget.style.background = 'transparent';
+                }
               }}
             >
-              <Icon size={18} strokeWidth={isActive => isActive ? 2.5 : 1.75} style={{ flexShrink: 0 }} />
-              {!collapsed && (
-                <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  {label}
-                  {badge && unread > 0 && (
-                    <span style={{
-                      background: 'var(--crit-bg)', color: 'var(--crit-fg)',
-                      fontSize: 10, fontWeight: 700, lineHeight: 1,
-                      padding: '2px 6px', borderRadius: 'var(--radius-pill)',
-                    }}>
-                      {unread}
+              {({ isActive }) => (
+                <>
+                  <div style={{
+                    width: 20,
+                    height: 20,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <Icon size={19} strokeWidth={isActive ? 2.4 : 1.8} />
+                  </div>
+                  {!collapsed && (
+                    <span style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      {label}
+                      {badge && unread > 0 && (
+                        <span style={{
+                          background: 'var(--crit-bg)', color: 'var(--crit-fg)',
+                          fontSize: 10, fontWeight: 700, lineHeight: 1,
+                          padding: '2px 6px', borderRadius: 'var(--radius-pill)',
+                        }}>
+                          {unread}
+                        </span>
+                      )}
                     </span>
                   )}
-                </span>
-              )}
-              {collapsed && badge && unread > 0 && (
-                <span style={{
-                  position: 'absolute', top: 6, right: 6,
-                  width: 8, height: 8, borderRadius: '50%', background: 'var(--crit-fg)',
-                }} />
+                  {collapsed && badge && unread > 0 && (
+                    <span style={{
+                      position: 'absolute', top: 6, right: 6,
+                      width: 8, height: 8, borderRadius: '50%', background: 'var(--crit-fg)',
+                    }} />
+                  )}
+                </>
               )}
             </NavLink>
           ))}
@@ -234,8 +295,11 @@ export default function AppShell() {
         {/* User card + logout */}
         <div style={{
           borderTop: '1px solid rgba(212,196,168,0.12)',
-          padding: 'var(--space-4)',
-          display: 'flex', alignItems: 'center', gap: 10,
+          padding: collapsed ? 'var(--space-3)' : 'var(--space-4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between',
+          gap: 10,
         }}>
           {!collapsed && user && (
             <div style={{ flex: 1, overflow: 'hidden' }}>

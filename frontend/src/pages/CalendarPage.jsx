@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, ArrowLeft, ArrowRight, RotateCw, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Calendar as CalendarIcon, ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { attendanceApi, holidayApi } from '../api/endpoints.js';
 import { LoadingScreen, ErrorMsg } from './DashboardPage.jsx';
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { courseApi, facultyApi } from '../../api/endpoints.js';
@@ -55,6 +55,7 @@ export default function FacultyAssignments() {
       setTitle('');
       setDescription('');
       setDueDate('');
+      setWeight(10);
     },
   });
 
@@ -320,7 +321,7 @@ export default function FacultyAssignments() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Due Date & Time</label>
                   <input
@@ -337,6 +338,15 @@ export default function FacultyAssignments() {
                     type="number"
                     value={graceHours}
                     onChange={e => setGraceHours(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Weight (%)</label>
+                  <input
+                    type="number"
+                    value={weight}
+                    onChange={e => setWeight(Number(e.target.value))}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }}
                   />
                 </div>
@@ -387,7 +397,7 @@ export default function FacultyAssignments() {
               Excuse Assignment Submission
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 14 }}>
-              Excusing excludes this assignment from the student's missed-submission risk penalty. A permanent entry will be recorded in the audit log.
+              Excusing excludes this assignment from the student&apos;s missed-submission risk penalty. A permanent entry will be recorded in the audit log.
             </p>
 
             <form onSubmit={handleExcuseSubmit}>

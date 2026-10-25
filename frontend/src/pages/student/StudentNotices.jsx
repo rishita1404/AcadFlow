@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { noticeApi } from '../../api/endpoints.js';
 import { Skeleton, EmptyState } from '../../components/ui/Skeleton.jsx';
 import Dialog from '../../components/ui/Dialog.jsx';
 import Button from '../../components/ui/Button.jsx';
-import { X } from 'lucide-react';
 
 export default function StudentNotices() {
   const qc = useQueryClient();

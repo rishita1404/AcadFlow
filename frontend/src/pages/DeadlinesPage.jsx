@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Clock, AlertTriangle, AlertCircle, CheckCircle2, FileText, Check } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { deadlineApi } from '../api/endpoints.js';
 import { LoadingScreen, ErrorMsg } from './DashboardPage.jsx';
 
@@ -137,7 +137,7 @@ export default function DeadlinesPage() {
       {data?.length === 0 && (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
           <div style={{ color: 'var(--ok-fg)', marginBottom: 12, display: 'flex', justifyContent: 'center' }}><CheckCircle2 size={36} /></div>
-          <p style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: 0 }}>No deadlines in this window. You're all caught up!</p>
+          <p style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: 0 }}>No deadlines in this window. You&apos;re all caught up!</p>
         </div>
       )}
 
