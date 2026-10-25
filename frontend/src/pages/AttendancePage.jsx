@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Shield, Sparkles, History, UploadCloud, CheckCircle2, AlertTriangle, Download, ArrowRight } from 'lucide-react';
 import { attendanceApi, dashboardApi, courseApi } from '../api/endpoints.js';
 import { useAuth } from '../app/AuthContext.jsx';
+import { formatPct, invalidateAttendanceQueries } from '../utils/format.js';
 import { LoadingScreen, ErrorMsg } from './DashboardPage.jsx';
 
 export default function AttendancePage() {
@@ -61,8 +62,7 @@ export default function AttendancePage() {
       setUploadResult(res.data);
       setUploadError(null);
       setUploadFile(null);
-      qc.invalidateQueries(['dashboard']);
-      qc.invalidateQueries(['calendar']);
+      invalidateAttendanceQueries(qc);
     },
     onError: (err) => {
       setUploadError(err?.response?.data?.detail || 'Upload failed. Check file format.');
@@ -152,8 +152,8 @@ export default function AttendancePage() {
                       <span style={{ background: 'var(--bg)', color: 'var(--accent)', fontWeight: 600, fontSize: 12, padding: '2px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)' }}>
                         {course.code}
                       </span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: course.attendance_pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)', fontVariantNumeric: 'tabular-nums' }}>
-                        {course.attendance_pct != null ? `${course.attendance_pct}%` : 'N/A'}
+                      <span style={{ fontSize: 13, fontWeight: 700, color: course.attendance_pct != null && course.attendance_pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)', fontVariantNumeric: 'tabular-nums' }}>
+                        {formatPct(course.attendance_pct)}
                       </span>
                     </div>
 

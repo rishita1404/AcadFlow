@@ -50,6 +50,8 @@ from app.services.risk_data import (
     get_attendance_inputs,
     load_risk_config,
 )
+from app.services.attendance_stats import get_course_attendance_summary
+
 
 router = APIRouter()
 
@@ -379,7 +381,7 @@ def get_dashboard(
             )
 
         overall_pct = (
-            round((total_attended / total_held) * 100, 2) if total_held > 0 else None
+            round((total_attended / total_held) * 100, 1) if total_held > 0 else None
         )
 
         return StudentDashboardOut(
@@ -434,22 +436,11 @@ def get_dashboard(
             )
             enrolled_count = len(enrolled_students)
 
-            att_pct = None
-            avg_attended = 0
+            c_summary = get_course_attendance_summary(db, cid)
+            att_pct = c_summary["avg_attendance_pct"]
+            enrolled_count = c_summary["enrolled"]
+            avg_attended = round(held * (att_pct / 100.0)) if (held > 0 and att_pct is not None) else 0
             if held > 0 and enrolled_count > 0:
-                present_count = len(
-                    list(
-                        db.scalars(
-                            select(AttendanceRecordModel.id).where(
-                                AttendanceRecordModel.session_id.in_(held_sessions),
-                                AttendanceRecordModel.status.in_(["present", "late"]),
-                            )
-                        ).all()
-                    )
-                )
-                total_slots = held * enrolled_count
-                att_pct = round((present_count / total_slots) * 100, 1) if total_slots > 0 else None
-                avg_attended = round(present_count / enrolled_count) if enrolled_count > 0 else 0
                 total_held += held
                 total_attended += avg_attended
 
@@ -517,7 +508,7 @@ def get_dashboard(
             )
 
         overall_pct = (
-            round((total_attended / total_held) * 100, 2) if total_held > 0 else None
+            round((total_attended / total_held) * 100, 1) if total_held > 0 else None
         )
 
         return StudentDashboardOut(
@@ -1631,12 +1622,23 @@ def get_my_timetable(
     user, student = _get_user_and_student(current_user, db)
     user_id = user.id
 
-    # Find latest published version
-    version = db.scalar(
+    # Find latest published version(s) — prefer user's department version
+    # For faculty/coordinators, look in their department's published version first
+    dept_id = user.department_id
+
+    # Get all published versions (ordered by id desc to prefer latest)
+    all_published = db.scalars(
         select(TimetableVersionModel)
         .where(TimetableVersionModel.status == "published")
         .order_by(TimetableVersionModel.id.desc())
-    )
+    ).all()
+
+    # Prefer dept-specific version
+    version = None
+    if dept_id:
+        version = next((v for v in all_published if v.department_id == dept_id), None)
+    if not version and all_published:
+        version = all_published[0]
 
     slots: List[TimetableSlotModel] = []
     if version:
@@ -1646,26 +1648,40 @@ def get_my_timetable(
                     select(EnrolmentModel.course_id).where(EnrolmentModel.student_id == user_id)
                 ).all()
             )
-            slots = db.scalars(
+            slots = list(db.scalars(
                 select(TimetableSlotModel).where(
                     TimetableSlotModel.version_id == version.id,
                     TimetableSlotModel.course_id.in_(enrolled),
                 )
-            ).all()
+            ).all())
         else:
-            slots = db.scalars(
+            # Faculty/coordinator: get slots where this user is the teacher
+            slots = list(db.scalars(
                 select(TimetableSlotModel).where(
                     TimetableSlotModel.version_id == version.id,
                     TimetableSlotModel.teacher_id == user_id,
                 )
-            ).all()
+            ).all())
 
-    # If no slots found in DB yet, generate synthetic weekly timetable from courses
+            # If no slots for this specific user, show all slots in department version
+            # (for admin/coordinator review)
+            if not slots and version:
+                slots = list(db.scalars(
+                    select(TimetableSlotModel).where(
+                        TimetableSlotModel.version_id == version.id,
+                    )
+                ).all())
+
+    # If no slots found in DB at all, generate synthetic weekly timetable from courses
     if not slots:
-        courses = db.scalars(select(CourseModel).limit(6)).all()
+        dept_courses = db.scalars(
+            select(CourseModel).where(CourseModel.department_id == dept_id).limit(6)
+        ).all() if dept_id else []
+        courses = dept_courses or db.scalars(select(CourseModel).limit(6)).all()
         results: List[TimetableSlotOut] = []
         slot_id = 1
-        periods = ["09:00 - 10:00", "10:00 - 11:00", "11:15 - 12:15", "12:15 - 13:15", "14:00 - 15:00"]
+        periods = ["P1", "P2", "P3", "P4", "P5"]
+        period_times = {"P1": "09:00 - 10:00", "P2": "10:00 - 11:00", "P3": "11:15 - 12:15", "P4": "12:15 - 13:15", "P5": "14:00 - 15:00"}
         for d in range(5):  # Mon-Fri
             c1 = courses[d % len(courses)]
             c2 = courses[(d + 1) % len(courses)]
@@ -1675,7 +1691,7 @@ def get_my_timetable(
                     course_id=c1.id,
                     course_code=c1.code,
                     course_name=c1.name,
-                    teacher_name="Faculty Staff",
+                    teacher_name=user.name,
                     room_name="Room 101",
                     day=d,
                     day_name=DAY_LABELS[d],
@@ -1691,7 +1707,7 @@ def get_my_timetable(
                     course_id=c2.id,
                     course_code=c2.code,
                     course_name=c2.name,
-                    teacher_name="Faculty Staff",
+                    teacher_name=user.name,
                     room_name="Lab 201",
                     day=d,
                     day_name=DAY_LABELS[d],

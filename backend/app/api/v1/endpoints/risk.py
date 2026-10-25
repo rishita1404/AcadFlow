@@ -49,6 +49,11 @@ async def get_risk_index():
     response_model=RiskScoreOut,
     summary="Get risk score for one student in one course",
 )
+@router.get(
+    "/student/{student_id}/course/{course_id}",
+    response_model=RiskScoreOut,
+    include_in_schema=False,
+)
 def get_student_risk(
     student_id: int,
     course_id: int,

@@ -1,8 +1,8 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { timetableApi } from '../../api/endpoints.js';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import { useAuth } from '../../app/AuthContext.jsx';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERIODS = ['P1 (09:00 - 10:00)', 'P2 (10:00 - 11:00)', 'P3 (11:15 - 12:15)', 'P4 (12:15 - 13:15)', 'P5 (14:00 - 15:00)', 'P6 (15:00 - 16:00)'];
@@ -15,9 +15,14 @@ const KIND_COLORS = {
 };
 
 export default function FacultyTimetable() {
-  const { data: slots = [], isLoading } = useQuery({
-    queryKey: ['faculty-teaching-schedule'],
+  const { activeRole } = useAuth();
+  const isCoordinator = activeRole === 'coordinator' || activeRole === 'admin';
+
+  const { data: slots = [], isLoading, refetch } = useQuery({
+    queryKey: ['faculty-teaching-schedule', activeRole],
     queryFn: () => timetableApi.getMyTimetable().then(r => r.data || []),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const todayIndex = new Date().getDay(); // 0=Sun, 1=Mon ... 6=Sat
@@ -58,27 +63,62 @@ export default function FacultyTimetable() {
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>
-          <Link to="/faculty/home" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Home</Link>
-          {' '}/ Teaching Schedule
+          {isCoordinator ? (
+            <>
+              <Link to="/coordinator/summary" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Summary</Link>
+              {' '}/ <Link to="/coordinator/timetable" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Timetable Manager</Link>
+              {' '}/ Grid Editor
+            </>
+          ) : (
+            <>
+              <Link to="/faculty/home" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Home</Link>
+              {' '}/ Teaching Schedule
+            </>
+          )}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 700, color: 'var(--ink-900)', margin: 0 }}>
-              My Weekly Teaching Schedule
+              {isCoordinator ? 'Department Timetable Grid Editor' : 'My Weekly Teaching Schedule'}
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
-              Consolidated timetable across all assigned courses and lab sections · Real-time schedule sync.
+              {isCoordinator
+                ? 'Department-wide schedule grid across CSE AI sections (A-E) and faculty · Real-time clash detection.'
+                : 'Consolidated timetable across all assigned courses and lab sections · Real-time schedule sync.'}
             </p>
           </div>
-          {hasClashes && (
-            <div style={{
-              background: 'var(--crit-bg)', border: '1px solid var(--crit-fg)', color: 'var(--crit-fg)',
-              padding: '6px 14px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 700,
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              🚨 Schedule Clashes Detected
-            </div>
-          )}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {isCoordinator && (
+              <Link
+                to="/coordinator/timetable"
+                style={{
+                  background: 'var(--surface)', color: 'var(--ink-900)', border: '1px solid var(--border)',
+                  padding: '6px 14px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, textDecoration: 'none',
+                }}
+              >
+                ← Back to Manager
+              </Link>
+            )}
+            <button
+              onClick={() => refetch()}
+              style={{
+                background: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--border)',
+                padding: '6px 14px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              ↻ Refresh Schedule
+            </button>
+            {hasClashes && (
+              <div style={{
+                background: 'var(--crit-bg)', border: '1px solid var(--crit-fg)', color: 'var(--crit-fg)',
+                padding: '6px 14px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 700,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                🚨 Schedule Clashes Detected
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

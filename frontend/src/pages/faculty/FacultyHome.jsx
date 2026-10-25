@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { dashboardApi, timetableApi, facultyApi } from '../../api/endpoints.js';
 import { useAuth } from '../../app/AuthContext.jsx';
+import { formatPct } from '../../utils/format.js';
 import Button from '../../components/ui/Button.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
@@ -84,11 +85,11 @@ export default function FacultyHome() {
                   <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--ink-900)', margin: '0 0 var(--space-4)' }}>{c.name}</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
                     <div style={{ background: 'var(--bg)', padding: 'var(--space-3)', borderRadius: 10, textAlign: 'center' }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{c.enrolled_count ?? 60}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{c.enrolled_count ?? 0}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Enrolled</div>
                     </div>
                     <div style={{ background: 'var(--bg)', padding: 'var(--space-3)', borderRadius: 10, textAlign: 'center' }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{c.avg_attendance ?? 78}%</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{formatPct(c.avg_attendance)}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Avg Attendance</div>
                     </div>
                   </div>
@@ -136,9 +137,9 @@ export default function FacultyHome() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-2)', textAlign: 'center' }}>
                 {[
-                  { label: 'On track', count: mentees.filter(m => (m.overall_attendance_pct ?? 80) >= 75).length, bg: 'var(--ok-bg)', fg: 'var(--ok-fg)' },
-                  { label: 'Watch', count: mentees.filter(m => { const p = m.overall_attendance_pct ?? 80; return p >= 65 && p < 75; }).length, bg: 'var(--watch-bg)', fg: 'var(--watch-fg)' },
-                  { label: 'At risk', count: mentees.filter(m => (m.overall_attendance_pct ?? 80) < 65).length, bg: 'var(--risk-bg)', fg: 'var(--risk-fg)' },
+                  { label: 'On track', count: mentees.filter(m => m.overall_attendance_pct != null && m.overall_attendance_pct >= 75).length, bg: 'var(--ok-bg)', fg: 'var(--ok-fg)' },
+                  { label: 'Watch', count: mentees.filter(m => m.overall_attendance_pct != null && m.overall_attendance_pct >= 65 && m.overall_attendance_pct < 75).length, bg: 'var(--watch-bg)', fg: 'var(--watch-fg)' },
+                  { label: 'At risk', count: mentees.filter(m => m.overall_attendance_pct != null && m.overall_attendance_pct < 65).length, bg: 'var(--risk-bg)', fg: 'var(--risk-fg)' },
                 ].map(({ label, count, bg, fg }) => (
                   <div key={label} style={{ padding: 'var(--space-3)', background: bg, borderRadius: 10, textAlign: 'center' }}>
                     <div style={{ fontSize: 20, fontWeight: 800, color: fg, fontVariantNumeric: 'tabular-nums' }}>{count}</div>

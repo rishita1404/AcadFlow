@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { facultyApi } from '../../api/endpoints.js';
+import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
@@ -121,8 +122,8 @@ export default function FacultyMentees() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>
           {filteredMentees.map(m => {
             const worstBand = m.worst_risk_band || 'Safe';
-            const attPct = m.overall_attendance_pct != null ? m.overall_attendance_pct : 100;
-            const attColor = attPct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)';
+            const attPct = m.overall_attendance_pct;
+            const attColor = attPct != null && attPct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)';
             const borderStyle = BAND_BORDER[worstBand] || '4px solid var(--ok-bg)';
 
             return (
@@ -153,7 +154,7 @@ export default function FacultyMentees() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, background: 'var(--bg)', padding: 12, borderRadius: 'var(--radius-input)', marginBottom: 14 }}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 16, fontWeight: 800, color: attColor }}>
-                      {attPct}%
+                      {formatPct(attPct)}
                     </div>
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Avg Att</div>
                   </div>

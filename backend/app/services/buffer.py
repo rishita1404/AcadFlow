@@ -147,7 +147,7 @@ def compute_attendance_buffer(
     buffer = remaining - still_need
 
     # ── Attendance percentage ────────────────────────────────────────────────
-    attendance_pct = round((attended / held) * 100, 2) if held > 0 else None
+    attendance_pct = round((attended / held) * 100, 1) if held > 0 else None
 
     # ── Status message ───────────────────────────────────────────────────────
     if buffer < 0:

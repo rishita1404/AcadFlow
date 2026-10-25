@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { coordinatorApi, facultyApi } from '../../api/endpoints.js';
+import { formatPct } from '../../utils/format.js';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
 const C = {
@@ -39,16 +40,18 @@ export default function CoordinatorSummary() {
     );
   }
 
-  const courseList = Array.isArray(rawCourses) ? rawCourses : (rawCourses?.items || []);
+  const courseList = overview?.courses && overview.courses.length > 0
+    ? overview.courses
+    : (Array.isArray(rawCourses) ? rawCourses : (rawCourses?.items || []));
   const courses = overview?.department_id
     ? courseList.filter(c => !c.department_id || c.department_id === overview.department_id)
     : courseList;
 
-  const totalStudents = overview?.total_students || 100;
-  const atRiskCount = overview?.students_at_risk_count || 12;
-  const criticalCount = Math.max(1, Math.floor(atRiskCount * 0.3));
-  const watchCount = Math.floor(atRiskCount * 0.8);
-  const safeCount = Math.max(0, totalStudents - atRiskCount - watchCount);
+  const totalStudents = overview?.total_students ?? 0;
+  const atRiskCount = overview?.at_risk_count ?? (overview?.students_at_risk_count ?? 0);
+  const criticalCount = overview?.critical_count ?? 0;
+  const watchCount = overview?.watch_count ?? 0;
+  const safeCount = overview?.safe_count ?? Math.max(0, totalStudents - atRiskCount - criticalCount - watchCount);
 
   const selectSt = { padding: '7px 12px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--text)', fontFamily: 'var(--font-sans)' };
 
@@ -100,8 +103,12 @@ export default function CoordinatorSummary() {
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
         <KpiCard label="Total Enrolled Students" value={totalStudents} />
-        <KpiCard label="Average Attendance" value={`${overview?.average_attendance_pct ?? 78}%`} color={overview?.average_attendance_pct >= 75 ? 'var(--text)' : 'var(--crit-fg)'} />
-        <KpiCard label="Students At Risk" value={atRiskCount} color="var(--must-attend)" />
+        <KpiCard
+          label="Average Attendance"
+          value={formatPct(overview?.average_attendance_pct)}
+          color={overview?.average_attendance_pct != null && overview.average_attendance_pct >= 75 ? 'var(--text)' : 'var(--crit-fg)'}
+        />
+        <KpiCard label="Students At Risk" value={atRiskCount + criticalCount} color="var(--must-attend)" />
         <KpiCard label="Priority Intervention" value={criticalCount} color="var(--crit-fg)" />
       </div>
 
@@ -115,7 +122,9 @@ export default function CoordinatorSummary() {
             <div key={label} style={{ background: bg, border: `1px solid ${fg}44`, borderRadius: 'var(--radius-card)', padding: 'var(--space-4)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: fg, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
               <div style={{ fontSize: 28, fontWeight: 800, color: fg, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{count}</div>
-              <div style={{ fontSize: 11, color: fg, opacity: 0.8, marginTop: 2 }}>{Math.round((count / totalStudents) * 100)}% of cohort</div>
+              <div style={{ fontSize: 11, color: fg, opacity: 0.8, marginTop: 2 }}>
+                {totalStudents > 0 ? Math.round((count / totalStudents) * 100) : 0}% of cohort
+              </div>
             </div>
           ))}
         </div>
@@ -156,24 +165,28 @@ export default function CoordinatorSummary() {
           <tbody>
             {courses.length === 0 ? (
               <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>No courses recorded.</td></tr>
-            ) : courses.map(c => (
-              <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--accent)' }}>{c.code}</td>
-                <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text)' }}>{c.name}</td>
-                <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{c.enrolled_count || 45}</td>
-                <td style={{ padding: '12px 16px', fontWeight: 700, color: (c.avg_attendance || 78) >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)', fontVariantNumeric: 'tabular-nums' }}>
-                  {c.avg_attendance || 78}%
-                </td>
-                <td style={{ padding: '12px 16px' }}>
-                  <Link to={`/faculty/courses/${c.id}/sections`} style={{ color: 'var(--accent)', fontWeight: 700, textDecoration: 'none', fontSize: 12 }}>
-                    Compare Sections →
-                  </Link>
-                </td>
-              </tr>
-            ))}
+            ) : courses.map(c => {
+              const avg = c.avg_attendance ?? c.avg_attendance_pct;
+              const enrolled = c.enrolled_count ?? c.enrolled ?? 0;
+              return (
+                <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--accent)' }}>{c.code}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text)' }}>{c.name}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{enrolled}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 700, color: avg != null && avg >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)', fontVariantNumeric: 'tabular-nums' }}>
+                    {formatPct(avg)}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <Link to={`/faculty/courses/${c.id}/sections`} style={{ color: 'var(--accent)', fontWeight: 700, textDecoration: 'none', fontSize: 12 }}>
+                      Compare Sections →
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

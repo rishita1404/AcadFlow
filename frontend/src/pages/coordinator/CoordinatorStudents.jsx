@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { coordinatorApi } from '../../api/endpoints.js';
+import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
@@ -115,8 +116,8 @@ export default function CoordinatorStudents() {
                   <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>
                     {s.email}
                   </td>
-                  <td style={{ padding: '12px 16px', fontWeight: 700, color: (s.attendance_percentage || 80) >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
-                    {s.attendance_percentage ?? 80}%
+                  <td style={{ padding: '12px 16px', fontWeight: 700, color: s.attendance_percentage != null && s.attendance_percentage >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
+                    {formatPct(s.attendance_percentage)}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <StatusBadge status={s.risk_level || 'Safe'} />
@@ -189,13 +190,13 @@ export default function CoordinatorStudents() {
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Attendance</div>
                     <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ink-900)' }}>
-                      {studentDetail?.attendance_percentage}%
+                      {formatPct(studentDetail?.attendance_percentage)}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Buffer</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ok-fg)' }}>
-                      +{studentDetail?.buffer_classes || 5} classes
+                    <div style={{ fontSize: 20, fontWeight: 800, color: studentDetail?.buffer_classes != null && studentDetail.buffer_classes < 0 ? 'var(--crit-fg)' : 'var(--ok-fg)' }}>
+                      {studentDetail?.buffer_classes != null ? `${studentDetail.buffer_classes > 0 ? '+' : ''}${studentDetail.buffer_classes} classes` : 'No data'}
                     </div>
                   </div>
                   <div>
@@ -207,7 +208,7 @@ export default function CoordinatorStudents() {
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Enrolled Courses</div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink-900)' }}>
-                      {studentDetail?.enrolled_courses || 4} Courses
+                      {studentDetail?.enrolled_courses ?? 0} Courses
                     </div>
                   </div>
                 </div>

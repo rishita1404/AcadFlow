@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { facultyApi } from '../../api/endpoints.js';
+import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
@@ -101,7 +102,7 @@ export default function FacultyMenteeDetail() {
               {mentee?.name}
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
-              Roll No: {mentee?.roll_no} · Email: {mentee?.email} · Overall Attendance: <strong>{mentee?.overall_attendance_pct}%</strong>
+              Roll No: {mentee?.roll_no} · Email: {mentee?.email} · Overall Attendance: <strong>{formatPct(mentee?.overall_attendance_pct)}</strong>
             </p>
           </div>
           <button
@@ -145,8 +146,8 @@ export default function FacultyMenteeDetail() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, background: 'var(--bg)', padding: 12, borderRadius: 'var(--radius-input)', border: '1px solid var(--border)' }}>
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Attendance</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: c.attendance_pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
-                        {c.attendance_pct}%
+                      <div style={{ fontSize: 18, fontWeight: 800, color: c.attendance_pct != null && c.attendance_pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
+                        {formatPct(c.attendance_pct)}
                       </div>
                     </div>
                     <div>

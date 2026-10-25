@@ -186,11 +186,11 @@ class TestEdgeCases:
         assert "Not recoverable" in result["status_message"]
 
     def test_attendance_pct_calculation(self):
-        """attendance_pct = attended/held × 100, rounded to 2 dp."""
+        """attendance_pct = attended/held × 100, rounded to 1 dp."""
         result = compute_attendance_buffer(
             attended=7, held=9, total_classes=20, min_classes=8
         )
-        expected = round(7 / 9 * 100, 2)
+        expected = round(7 / 9 * 100, 1)
         assert result["attendance_pct"] == pytest.approx(expected, abs=0.01)
 
 

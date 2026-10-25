@@ -2,6 +2,7 @@
 import Card from './ui/Card.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import BufferGauge from './BufferGauge.jsx';
+import { formatPct } from '../utils/format.js';
 
 export default function CourseCard({ course, onClick }) {
   const pct = course.attendance_pct ?? course.attendance_percentage ?? null;
@@ -54,7 +55,7 @@ export default function CourseCard({ course, onClick }) {
             fontSize: 22, fontWeight: 800, color: pctColor,
             fontVariantNumeric: 'tabular-nums',
           }}>
-            {pct != null ? `${pct}%` : '—'}
+            {formatPct(pct)}
           </div>
         </div>
 

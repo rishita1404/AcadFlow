@@ -121,12 +121,12 @@ export const tasksApi = {
 // Timetable
 export const timetableApi = {
   getMyTimetable: () => apiClient.get('/me/timetable'),
-  getVersions: () => apiClient.get('/timetable/versions'),
+  getVersions: (department_id = null) => apiClient.get('/timetable/versions', { params: department_id ? { department_id } : {} }),
   getSlots: (version_id) => apiClient.get('/timetable/slots', { params: { version_id } }),
   getRooms: () => apiClient.get('/timetable/rooms'),
   getDraft: (department_id) => apiClient.get('/timetable/draft', { params: { department_id } }),
-  saveDraft: (payload) => apiClient.put('/timetable/draft', payload),
-  validateDraft: (payload) => apiClient.post('/timetable/draft/validate', payload),
+  saveDraft: ({ version_id, slots }) => apiClient.put('/timetable/draft', slots, { params: { version_id } }),
+  validateDraft: ({ version_id }) => apiClient.post('/timetable/draft/validate', null, { params: { version_id } }),
   publish: (payload) => apiClient.post('/timetable/publish', payload),
 };
 

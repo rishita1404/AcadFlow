@@ -315,30 +315,23 @@ def get_student_buffer(
     _assert_student_exists(db, student_id)
 
     config, _ = load_risk_config(db)
-    att = get_attendance_inputs(db, student_id, course_id)
-
-    buf = compute_attendance_buffer(
-        attended=att["attended"],
-        held=att["held"],
-        total_classes=att["total_classes"],
-        min_classes=config.min_classes,
-        holiday_count=att["holiday_count"],
-    )
+    from app.services.attendance_stats import get_student_course_attendance
+    att_stats = get_student_course_attendance(db, student_id, course_id, min_classes=config.min_classes)
 
     return AttendanceBufferOut(
         student_id=student_id,
         course_id=course_id,
-        total_classes=att["total_classes"],
-        held=att["held"],
-        attended=att["attended"],
-        required=buf["required"],
-        still_need=buf["still_need"],
-        remaining=buf["remaining"],
-        buffer=buf["buffer"],
-        attendance_pct=buf["attendance_pct"],
-        holiday_count=att["holiday_count"],
-        insufficient_data=buf["insufficient_data"],
-        status_message=buf["status_message"],
+        total_classes=att_stats["total_classes"],
+        held=att_stats["held"],
+        attended=att_stats["attended"],
+        required=att_stats["required"],
+        still_need=att_stats["still_need"],
+        remaining=att_stats["remaining"],
+        buffer=att_stats["buffer"],
+        attendance_pct=att_stats["attendance_pct"],
+        holiday_count=0,
+        insufficient_data=att_stats["insufficient_data"],
+        status_message=att_stats["status_message"],
     )
 
 

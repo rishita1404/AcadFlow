@@ -19,10 +19,12 @@ export default function CoordinatorTimetable() {
     queryFn: () => coordinatorApi.getOverview().then(r => r.data),
   });
 
-  // Fetch timetable versions
+  // Fetch timetable versions — scoped to the coordinator's department
+  const deptId = overview?.department_id || null;
   const { data: versions = [], isLoading } = useQuery({
-    queryKey: ['timetable-versions-list'],
-    queryFn: () => timetableApi.getVersions().then(r => r.data || []),
+    queryKey: ['timetable-versions-list', deptId],
+    queryFn: () => timetableApi.getVersions(deptId).then(r => r.data || []),
+    enabled: true,
   });
 
   const publishedVersion = versions.find(v => v.status === 'published') || versions[0];
@@ -46,15 +48,20 @@ export default function CoordinatorTimetable() {
   });
 
   const handleOpenPublish = (versionId = null) => {
-    setSelectedVersionId(versionId || publishedVersion?.id || 1);
+    setSelectedVersionId(versionId || publishedVersion?.id || null);
     setIsPublishModalOpen(true);
     setPublishErrorMsg(null);
   };
 
   const handlePublishSubmit = (e) => {
     e.preventDefault();
+    const vid = selectedVersionId || publishedVersion?.id;
+    if (!vid) {
+      setPublishErrorMsg('No timetable version found for your department. Please seed or create a timetable first.');
+      return;
+    }
     publishMutation.mutate({
-      version_id: selectedVersionId || publishedVersion?.id || 1,
+      version_id: vid,
       effective_from: effectiveDate,
     });
   };
@@ -185,7 +192,7 @@ export default function CoordinatorTimetable() {
             </p>
           </div>
           <Link
-            to="/faculty/timetable"
+            to="/coordinator/timetable/grid"
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20,
               background: 'var(--accent)', color: 'var(--on-dark)',

@@ -35,6 +35,12 @@ from app.models import (
 )
 from app.models.audit import AuditLogModel
 from app.models.course import CourseStaffModel
+from app.services.attendance_stats import (
+    get_department_attendance_summary,
+    get_student_course_attendance,
+    get_student_overall_attendance,
+)
+from app.services.buffer import DEFAULT_THRESHOLD
 
 router = APIRouter()
 
@@ -59,8 +65,13 @@ class CoordinatorOverviewOut(BaseModel):
     department_name: str
     total_students: int
     total_courses: int
-    average_attendance_pct: float
+    average_attendance_pct: Optional[float] = None
     students_at_risk_count: int
+    safe_count: Optional[int] = None
+    watch_count: Optional[int] = None
+    at_risk_count: Optional[int] = None
+    critical_count: Optional[int] = None
+    courses: Optional[List[Dict[str, Any]]] = None
 
 
 @router.get(
@@ -79,78 +90,35 @@ def get_department_overview(
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     dept_id = _resolve_dept_id(db, department_id, current_user)
-
-    dept = db.get(DepartmentModel, dept_id)
-    dept_name = "CSE AI"
-    if dept:
-        dept_name = "CSE AI" if ("Artificial Intelligence" in dept.name or dept.code in ("CSE-AI", "AIML")) else dept.name
-
-    total_students = (
-        db.scalar(
-            select(func.count(StudentModel.user_id))
-            .join(UserModel, StudentModel.user_id == UserModel.id)
-            .where(UserModel.department_id == dept_id)
-        )
-        or 0
-    )
-
-    total_courses = (
-        db.scalar(
-            select(func.count(CourseModel.id)).where(
-                CourseModel.department_id == dept_id
-            )
-        )
-        or 0
-    )
-
-    # Calculate real attendance percentage across students in this department
-    dept_student_ids = db.scalars(
-        select(StudentModel.user_id)
-        .join(UserModel, StudentModel.user_id == UserModel.id)
-        .where(UserModel.department_id == dept_id)
-    ).all()
-
-    avg_att = 82.4
-    at_risk_count = 0
-    if dept_student_ids:
-        total_records = (
-            db.scalar(
-                select(func.count(AttendanceRecordModel.id)).where(
-                    AttendanceRecordModel.student_id.in_(dept_student_ids)
-                )
-            )
-            or 0
-        )
-        present_records = (
-            db.scalar(
-                select(func.count(AttendanceRecordModel.id)).where(
-                    AttendanceRecordModel.student_id.in_(dept_student_ids),
-                    AttendanceRecordModel.status == "present",
-                )
-            )
-            or 0
-        )
-        if total_records > 0:
-            avg_att = round((present_records / total_records) * 100, 1)
-
-        at_risk_count = (
-            db.scalar(
-                select(func.count(RiskSnapshotModel.id)).where(
-                    RiskSnapshotModel.student_id.in_(dept_student_ids),
-                    RiskSnapshotModel.band.in_(["At-Risk", "Critical", "at_risk", "critical"]),
-                )
-            )
-            or 0
-        )
+    summary = get_department_attendance_summary(db, dept_id)
 
     return CoordinatorOverviewOut(
         department_id=dept_id,
-        department_name=dept_name,
-        total_students=total_students,
-        total_courses=total_courses,
-        average_attendance_pct=avg_att,
-        students_at_risk_count=at_risk_count,
+        department_name=summary["department_name"],
+        total_students=summary["total_students"],
+        total_courses=summary["total_courses"],
+        average_attendance_pct=summary["average_attendance_pct"],
+        students_at_risk_count=summary["students_at_risk_count"],
+        safe_count=summary["bands"]["safe"],
+        watch_count=summary["bands"]["watch"],
+        at_risk_count=summary["bands"]["at_risk"],
+        critical_count=summary["bands"]["critical"],
+        courses=summary["courses"],
     )
+
+
+@router.get(
+    "/courses",
+    summary="Department courses standing",
+)
+def get_department_courses(
+    department_id: Optional[int] = Query(None, description="Department ID"),
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    dept_id = _resolve_dept_id(db, department_id, current_user)
+    summary = get_department_attendance_summary(db, dept_id)
+    return summary["courses"]
 
 
 @router.get(
@@ -221,18 +189,6 @@ def list_department_students(
 
     student_ids = [st.user_id for st, _ in students]
 
-    # Pre-aggregate attendance stats for all department students in one query
-    att_stats = db.execute(
-        select(
-            AttendanceRecordModel.student_id,
-            func.count(AttendanceRecordModel.id).label("total"),
-            func.sum(case((AttendanceRecordModel.status == "present", 1), else_=0)).label("present"),
-        )
-        .where(AttendanceRecordModel.student_id.in_(student_ids))
-        .group_by(AttendanceRecordModel.student_id)
-    ).all()
-    att_map = {row.student_id: (row.total or 0, row.present or 0) for row in att_stats}
-
     # Pre-fetch latest risk snapshot for each student
     snaps = db.scalars(
         select(RiskSnapshotModel)
@@ -244,26 +200,37 @@ def list_department_students(
         if s.student_id not in snap_map:
             snap_map[s.student_id] = s
 
-    # Pre-fetch enrolled courses counts
-    enrol_stats = db.execute(
-        select(EnrolmentModel.student_id, func.count(EnrolmentModel.course_id))
+    # Pre-fetch enrolled courses counts and course ids
+    enrol_records = db.execute(
+        select(EnrolmentModel.student_id, EnrolmentModel.course_id)
         .where(EnrolmentModel.student_id.in_(student_ids))
-        .group_by(EnrolmentModel.student_id)
     ).all()
-    enrol_map = {row[0]: row[1] for row in enrol_stats}
+    student_courses_map: Dict[int, List[int]] = {}
+    for sid, cid in enrol_records:
+        student_courses_map.setdefault(sid, []).append(cid)
 
     results = []
     for st, u in students:
-        tot, pres = att_map.get(st.user_id, (0, 0))
-        att_pct = round((pres / tot) * 100, 1) if tot > 0 else 75.0
-        buffer = max(0, int(pres - (0.75 * tot))) if tot > 0 else 4
+        overall = get_student_overall_attendance(db, st.user_id)
+        att_pct = overall.get("overall_attendance_pct")
+
+        enrolled_cids = student_courses_map.get(st.user_id, [])
+        buffers = []
+        for cid in enrolled_cids:
+            c_att = get_student_course_attendance(db, st.user_id, cid)
+            if c_att.get("buffer") is not None:
+                buffers.append(int(c_att["buffer"]))
+        min_buffer = min(buffers) if buffers else None
 
         snap = snap_map.get(st.user_id)
         if snap:
             risk_level = snap.band.capitalize()
             risk_score = float(snap.score)
         else:
-            if att_pct >= 85:
+            if att_pct is None:
+                risk_level = "No data"
+                risk_score = None
+            elif att_pct >= 85:
                 risk_level = "Safe"
                 risk_score = 15.0
             elif att_pct >= 75:
@@ -284,11 +251,10 @@ def list_department_students(
             "email": u.email,
             "department_id": u.department_id,
             "attendance_percentage": att_pct,
-            "buffer_classes": buffer,
+            "buffer_classes": min_buffer,
             "risk_level": risk_level,
             "risk_score": risk_score,
-            "enrolled_courses": enrol_map.get(st.user_id, 6),
-            "password_hash": u.password_hash,
+            "enrolled_courses": len(enrolled_cids),
             "private_medical_notes": "Redacted by security policy",
         }
         results.append(sanitize_coordinator_view(raw_record))
@@ -334,26 +300,18 @@ def get_coordinator_student_detail(
     )
     db.commit()
 
-    # Calculate real attendance
-    tot = (
-        db.scalar(
-            select(func.count(AttendanceRecordModel.id)).where(
-                AttendanceRecordModel.student_id == student_id
-            )
-        )
-        or 0
-    )
-    pres = (
-        db.scalar(
-            select(func.count(AttendanceRecordModel.id)).where(
-                AttendanceRecordModel.student_id == student_id,
-                AttendanceRecordModel.status == "present",
-            )
-        )
-        or 0
-    )
-    att_pct = round((pres / tot) * 100, 1) if tot > 0 else 75.0
-    buffer = max(0, int(pres - (0.75 * tot))) if tot > 0 else 4
+    overall = get_student_overall_attendance(db, student_id)
+    att_pct = overall.get("overall_attendance_pct")
+
+    enrolled_cids = db.scalars(
+        select(EnrolmentModel.course_id).where(EnrolmentModel.student_id == student_id)
+    ).all()
+    buffers = []
+    for cid in enrolled_cids:
+        c_att = get_student_course_attendance(db, student_id, cid)
+        if c_att.get("buffer") is not None:
+            buffers.append(int(c_att["buffer"]))
+    min_buffer = min(buffers) if buffers else None
 
     snap = db.scalar(
         select(RiskSnapshotModel)
@@ -364,7 +322,10 @@ def get_coordinator_student_detail(
         risk_level = snap.band.capitalize()
         risk_score = float(snap.score)
     else:
-        if att_pct >= 85:
+        if att_pct is None:
+            risk_level = "No data"
+            risk_score = None
+        elif att_pct >= 85:
             risk_level = "Safe"
             risk_score = 15.0
         elif att_pct >= 75:
@@ -377,15 +338,6 @@ def get_coordinator_student_detail(
             risk_level = "Critical"
             risk_score = 88.0
 
-    enrolled = (
-        db.scalar(
-            select(func.count(EnrolmentModel.course_id)).where(
-                EnrolmentModel.student_id == student_id
-            )
-        )
-        or 6
-    )
-
     raw_record = {
         "student_id": st.user_id,
         "name": u.name,
@@ -394,11 +346,10 @@ def get_coordinator_student_detail(
         "email": u.email,
         "department_id": u.department_id,
         "attendance_percentage": att_pct,
-        "buffer_classes": buffer,
+        "buffer_classes": min_buffer,
         "risk_level": risk_level,
         "risk_score": risk_score,
-        "enrolled_courses": enrolled,
-        "password_hash": u.password_hash,
+        "enrolled_courses": len(enrolled_cids),
         "private_medical_notes": "Redacted by security policy",
     }
     return sanitize_coordinator_view(raw_record)

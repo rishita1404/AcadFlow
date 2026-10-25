@@ -262,7 +262,7 @@ export default function AppRouter() {
           <Route
             path="faculty/timetable"
             element={
-              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin', 'coordinator']}>
                 <FacultyTimetable />
               </RoleGuard>
             }
@@ -314,6 +314,14 @@ export default function AppRouter() {
             element={
               <RoleGuard allowedRoles={['coordinator', 'admin']}>
                 <CoordinatorTimetable />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="coordinator/timetable/grid"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <FacultyTimetable />
               </RoleGuard>
             }
           />

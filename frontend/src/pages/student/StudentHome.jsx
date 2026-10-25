@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { dashboardApi, tasksApi, timetableApi, noticeApi } from '../../api/endpoints.js';
 import { useAuth } from '../../app/AuthContext.jsx';
+import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import CourseCard from '../../components/CourseCard.jsx';
 import { Skeleton, ErrorState } from '../../components/ui/Skeleton.jsx';
@@ -92,7 +93,7 @@ export default function StudentHome() {
           <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
             Roll No: <strong style={{ color: 'var(--text)' }}>{dash?.roll_no || '—'}</strong>
             {' · '}{dash?.total_courses ?? courses.length} courses enrolled
-            {' · '}Overall: <strong style={{ color: 'var(--text)' }}>{dash?.overall_attendance_pct != null ? `${dash.overall_attendance_pct}%` : 'N/A'}</strong>
+            {' · '}Overall: <strong style={{ color: 'var(--text)' }}>{formatPct(dash?.overall_attendance_pct)}</strong>
           </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
