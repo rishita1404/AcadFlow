@@ -40,6 +40,8 @@ async def run_missed_submission_worker() -> None:
     )
     from app.services.notification_service import notify_missed_submission
 
+    await asyncio.sleep(45)
+
     while True:
         try:
             with SessionLocal() as db:

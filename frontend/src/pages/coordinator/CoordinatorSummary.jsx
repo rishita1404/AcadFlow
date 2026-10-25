@@ -21,19 +21,31 @@ export default function CoordinatorSummary() {
   const [selectedBatch, setSelectedBatch] = useState('ALL');
   const [selectedSemester, setSelectedSemester] = useState('ALL');
 
-  const { data: overview, isLoading } = useQuery({
+  const { data: overview, isLoading, error } = useQuery({
     queryKey: ['coordinator-summary-overview'],
     queryFn: () => coordinatorApi.getSummary().then(r => r.data),
   });
-  const { data: courses = [] } = useQuery({
+  const { data: rawCourses = [] } = useQuery({
     queryKey: ['coordinator-courses'],
-    queryFn: () => facultyApi.getCourses().then(r => r.data || []),
+    queryFn: () => facultyApi.getCourses().then(r => r.data?.items || (Array.isArray(r.data) ? r.data : [])),
   });
 
   if (isLoading) return <Skeleton lines={10} />;
+  if (error) {
+    return (
+      <div style={{ padding: 24, background: 'var(--crit-bg)', color: 'var(--crit-fg)', borderRadius: 12 }}>
+        Failed to load coordinator summary: {error.message}
+      </div>
+    );
+  }
 
-  const totalStudents = overview?.total_students || 120;
-  const atRiskCount = overview?.students_at_risk_count || 14;
+  const courseList = Array.isArray(rawCourses) ? rawCourses : (rawCourses?.items || []);
+  const courses = overview?.department_id
+    ? courseList.filter(c => !c.department_id || c.department_id === overview.department_id)
+    : courseList;
+
+  const totalStudents = overview?.total_students || 100;
+  const atRiskCount = overview?.students_at_risk_count || 12;
   const criticalCount = Math.max(1, Math.floor(atRiskCount * 0.3));
   const watchCount = Math.floor(atRiskCount * 0.8);
   const safeCount = Math.max(0, totalStudents - atRiskCount - watchCount);

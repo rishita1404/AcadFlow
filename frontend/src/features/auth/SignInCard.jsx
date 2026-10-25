@@ -3,11 +3,11 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Info, Loader2 } from 
 import AuthDivider from './AuthDivider.jsx';
 
 const DEMO_ACCOUNTS = [
-  { email: 'student@acadflow.edu', label: 'Student' },
-  { email: 'riya@acadflow.edu', label: 'Riya' },
-  { email: 'faculty@acadflow.edu', label: 'Faculty' },
-  { email: 'mentor@acadflow.edu', label: 'Mentor' },
-  { email: 'coordinator@acadflow.edu', label: 'Coordinator' },
+  { email: 'riya.aiml001@acadflow.edu', label: 'Riya (AIML)' },
+  { email: 'tarun.aiml014@acadflow.edu', label: 'Tarun (AIML)' },
+  { email: 'rajesh.faculty@acadflow.edu', label: 'Dr. Rajesh (Faculty)' },
+  { email: 'sneha.faculty@acadflow.edu', label: 'Dr. Sneha (Faculty)' },
+  { email: 'meera.coord@acadflow.edu', label: 'Dr. Meera (Coord)' },
   { email: 'admin@acadflow.edu', label: 'Admin' },
 ];
 

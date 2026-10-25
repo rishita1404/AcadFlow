@@ -9,7 +9,7 @@ const apiClient = axios.create({
 
 // ── Request interceptor: attach token from localStorage ─────────────────────
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('acadflow_token');
+  const token = localStorage.getItem('acadflow_token') || localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -23,6 +23,7 @@ apiClient.interceptors.response.use(
     if (error?.response?.status === 401) {
       // Clear stale auth and redirect to login
       localStorage.removeItem('acadflow_token');
+      localStorage.removeItem('token');
       localStorage.removeItem('acadflow_user');
       localStorage.removeItem('acadflow_permissions');
       localStorage.removeItem('acadflow_active_role');

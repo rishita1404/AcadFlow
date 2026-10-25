@@ -145,6 +145,11 @@ def recalculate_risk(
 
 
 @router.get(
+    "/courses/{course_id}",
+    response_model=List[RiskScoreOut],
+    summary="Filterable at-risk student list for a course (alias)",
+)
+@router.get(
     "/courses/{course_id}/at-risk",
     response_model=List[RiskScoreOut],
     summary="Filterable at-risk student list for a course (faculty)",

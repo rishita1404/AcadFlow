@@ -32,6 +32,9 @@ async def run_risk_recalculation_worker() -> None:
     from app.models import EnrolmentModel
     from app.services.risk_data import persist_risk_snapshot
 
+    # Delay initial calculation so server startup and first user requests are instantaneous
+    await asyncio.sleep(60)
+
     while True:
         try:
             with SessionLocal() as db:
@@ -45,6 +48,7 @@ async def run_risk_recalculation_worker() -> None:
                     try:
                         persist_risk_snapshot(db, student_id, course_id)
                         success += 1
+                        await asyncio.sleep(0.005)
                     except Exception as exc:
                         errors += 1
                         logger.debug(

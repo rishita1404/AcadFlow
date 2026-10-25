@@ -18,22 +18,46 @@ elif sync_database_url.startswith("postgresql://"):
         "postgresql://", "postgresql+psycopg://"
     )
 
+import socket
+
+def _is_pg_listening() -> bool:
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.05)
+        res = s.connect_ex(("127.0.0.1", 5432))
+        s.close()
+        return res == 0
+    except Exception:
+        return False
+
 is_connected = False
-try:
-    engine = create_engine(sync_database_url, echo=False)
-    with engine.connect():
-        is_connected = True
-        logger.info("Connected to PostgreSQL successfully.")
-except Exception as e:
-    is_connected = False
-    logger.warning("PostgreSQL connection failed (%s). Falling back to local persistent SQLite (acadflow.db).", e)
+if _is_pg_listening():
+    try:
+        engine = create_engine(sync_database_url, echo=False, connect_args={"connect_timeout": 1})
+        with engine.connect():
+            is_connected = True
+            logger.info("Connected to PostgreSQL successfully.")
+    except Exception as e:
+        is_connected = False
+        logger.warning("PostgreSQL connection failed (%s). Falling back to local persistent SQLite (acadflow.db).", e)
+else:
+    logger.info("PostgreSQL not active on port 5432. Using persistent local SQLite (acadflow.db).")
 
 if not is_connected:
+    from sqlalchemy import event
+
     db_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "acadflow.db"))
     engine = create_engine(
         f"sqlite:///{db_file}",
-        connect_args={"check_same_thread": False},
+        connect_args={"check_same_thread": False, "timeout": 30},
         echo=False,
     )
+
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
