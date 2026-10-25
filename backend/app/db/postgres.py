@@ -20,6 +20,7 @@ elif sync_database_url.startswith("postgresql://"):
 
 import socket
 
+
 def _is_pg_listening() -> bool:
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

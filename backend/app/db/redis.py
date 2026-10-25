@@ -1,5 +1,5 @@
-import socket
 import logging
+import socket
 
 from app.core.config import settings
 

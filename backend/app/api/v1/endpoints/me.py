@@ -29,7 +29,6 @@ from app.core.deps import get_db
 from app.core.errors import ConflictError, NotFoundError, UnauthorizedError
 from app.models import (
     AssignmentModel,
-    AttendanceRecordModel,
     ClassSessionModel,
     CourseModel,
     CourseStaffModel,
@@ -41,6 +40,7 @@ from app.models import (
     SubmissionModel,
     UserModel,
 )
+from app.services.attendance_stats import get_course_attendance_summary
 from app.services.buffer import compute_attendance_buffer
 from app.services.calendar_service import build_attendance_calendar
 from app.services.pressure_forecast import compute_monthly_pressure
@@ -50,8 +50,6 @@ from app.services.risk_data import (
     get_attendance_inputs,
     load_risk_config,
 )
-from app.services.attendance_stats import get_course_attendance_summary
-
 
 router = APIRouter()
 
@@ -1681,7 +1679,6 @@ def get_my_timetable(
         results: List[TimetableSlotOut] = []
         slot_id = 1
         periods = ["P1", "P2", "P3", "P4", "P5"]
-        period_times = {"P1": "09:00 - 10:00", "P2": "10:00 - 11:00", "P3": "11:15 - 12:15", "P4": "12:15 - 13:15", "P5": "14:00 - 15:00"}
         for d in range(5):  # Mon-Fri
             c1 = courses[d % len(courses)]
             c2 = courses[(d + 1) % len(courses)]
