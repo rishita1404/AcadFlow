@@ -48,5 +48,9 @@ class StudentOut(BaseModel):
     roll_no: str
     batch: str
     department_id: Optional[int] = None
+    attendance_pct: Optional[float] = None
+    buffer: Optional[int] = None
+    status_message: Optional[str] = None
+    insufficient_data: Optional[bool] = None
 
     model_config = ConfigDict(from_attributes=True)

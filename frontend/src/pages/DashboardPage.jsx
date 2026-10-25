@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, BookOpen, TrendingUp, AlertCircle } from 'lucide-react';
 import { dashboardApi } from '../api/endpoints.js';
+import { formatPct } from '../utils/format.js';
 
 const BAND_COLOR = {
   'Safe':     { bg: 'var(--ok-bg)', text: 'var(--ok-fg)', border: 'var(--border)' },
@@ -172,9 +173,9 @@ export default function DashboardPage() {
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
         <SummaryCard icon={<TrendingUp size={22} />} label="Overall Attendance"
-          value={overall != null ? `${overall}%` : 'N/A'}
+          value={formatPct(overall)}
           sub={overall != null && overall < 75 ? 'Below 75% threshold' : 'Across all courses'}
-          color={overall >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)'} />
+          color={overall != null && overall >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)'} />
         <SummaryCard icon={<BookOpen size={22} />} label="Courses"
           value={dash?.total_courses}
           sub="enrolled this semester" color="var(--accent)" />

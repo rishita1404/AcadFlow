@@ -12,6 +12,7 @@ from app.models import CourseModel, EnrolmentModel, StudentModel
 from app.schemas.common import PaginatedResponse
 from app.schemas.course import CourseCreate, CourseOut, CourseUpdate
 from app.schemas.enrollment import EnrolmentBatchCreate, EnrolmentOut
+from app.services.attendance_stats import get_course_attendance_summary
 
 router = APIRouter()
 
@@ -55,8 +56,16 @@ def list_courses(
     offset = (page - 1) * page_size
     items = db.scalars(query.offset(offset).limit(page_size)).all()
 
+    out_items = []
+    for item in items:
+        c_out = CourseOut.model_validate(item)
+        c_summary = get_course_attendance_summary(db, item.id)
+        c_out.enrolled_count = c_summary["enrolled"]
+        c_out.avg_attendance = c_summary["avg_attendance_pct"]
+        out_items.append(c_out)
+
     return PaginatedResponse(
-        items=[CourseOut.model_validate(item) for item in items],
+        items=out_items,
         total=total,
         page=page,
         page_size=page_size,
@@ -94,7 +103,11 @@ def get_course(
     course = db.get(CourseModel, course_id)
     if not course:
         raise NotFoundError(f"Course with id {course_id} not found")
-    return CourseOut.model_validate(course)
+    c_out = CourseOut.model_validate(course)
+    c_summary = get_course_attendance_summary(db, course_id)
+    c_out.enrolled_count = c_summary["enrolled"]
+    c_out.avg_attendance = c_summary["avg_attendance_pct"]
+    return c_out
 
 
 @router.patch("/{course_id}", response_model=CourseOut)

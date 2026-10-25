@@ -90,10 +90,10 @@ def notify_attendance_buffer(
     """
     today_str = date.today().isoformat()
 
-    if buffer is None:
-        return  # Insufficient data; skip
+    from app.services.buffer import DEFAULT_THRESHOLD
+    threshold_pct = DEFAULT_THRESHOLD * 100
 
-    if buffer <= 0 or (attendance_pct is not None and attendance_pct < 75.0):
+    if buffer <= 0 or (attendance_pct is not None and attendance_pct < threshold_pct):
         kind = "critical"
         if buffer is not None and buffer < 0:
             title = f"⛔ Attendance Unrecoverable — {course_code}"
@@ -114,7 +114,7 @@ def notify_attendance_buffer(
         title = f"⚠️ Attendance Buffer Low — {course_code}"
         msg = (
             f"You can only miss {buffer} more class(es) in {course_code} "
-            f"before falling below 75%. Current: {attendance_pct:.1f}%."
+            f"before falling below {threshold_pct:.0f}%. Current: {attendance_pct:.1f}%."
         )
         dedup_key = f"att_warning:{student_id}:{course_id}:{today_str}"
     else:

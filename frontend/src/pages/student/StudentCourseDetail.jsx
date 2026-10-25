@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { courseApi, attendanceApi, assignmentApi, riskApi } from '../../api/endpoints.js';
+import { useAuth } from '../../app/AuthContext.jsx';
+import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import BufferGauge from '../../components/BufferGauge.jsx';
 import ScoreExpander from '../../components/ScoreExpander.jsx';
@@ -11,25 +13,33 @@ export default function StudentCourseDetail() {
   const { id } = useParams();
   const courseId = Number(id);
   const [tab, setTab] = useState('overview');
+  const { user } = useAuth();
+  const studentId = user?.id || 1;
 
   const { data: course, isLoading: loadingCourse } = useQuery({
     queryKey: ['course-detail', courseId],
     queryFn: () => courseApi.get(courseId).then(r => r.data),
   });
 
-  const { data: _attendanceHistory = [] } = useQuery({
-    queryKey: ['course-attendance-history', courseId],
-    queryFn: () => attendanceApi.getHistory(1, courseId).then(r => r.data).catch(() => []),
+  const { data: bufferData } = useQuery({
+    queryKey: ['attendance-buffer', studentId, courseId],
+    queryFn: () => attendanceApi.getBuffer(studentId, courseId).then(r => r.data).catch(() => null),
   });
+
+  const { data: rawHistory = [] } = useQuery({
+    queryKey: ['course-attendance-history', studentId, courseId],
+    queryFn: () => attendanceApi.getHistory(studentId, courseId).then(r => r.data).catch(() => []),
+  });
+  const attendanceHistory = Array.isArray(rawHistory) ? rawHistory : (rawHistory?.items || []);
 
   const { data: assignments = [] } = useQuery({
     queryKey: ['course-assignments', courseId],
     queryFn: () => assignmentApi.list({ course_id: courseId }).then(r => r.data.items || r.data).catch(() => []),
   });
 
-  const { data: _riskData } = useQuery({
-    queryKey: ['course-student-risk', courseId],
-    queryFn: () => riskApi.getStudentRisk(1).then(r => r.data).catch(() => null),
+  const { data: riskData } = useQuery({
+    queryKey: ['course-student-risk', studentId, courseId],
+    queryFn: () => riskApi.getStudentRisk(studentId).then(r => r.data).catch(() => null),
   });
 
   if (loadingCourse) {
@@ -143,16 +153,26 @@ export default function StudentCourseDetail() {
         {tab === 'attendance' && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-              <BufferGauge bufferClasses={4} />
+              <BufferGauge bufferClasses={bufferData?.buffer ?? 0} />
               <div style={infoBoxStyle}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Attendance Rate</div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ok-fg)', marginTop: 4 }}>78.5%</div>
-                <div style={{ fontSize: 11, color: 'var(--ok-fg)', marginTop: 2 }}>✓ Above 75% required threshold</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: (bufferData?.attendance_pct ?? 0) >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)', marginTop: 4 }}>
+                  {formatPct(bufferData?.attendance_pct)}
+                </div>
+                <div style={{ fontSize: 11, color: (bufferData?.attendance_pct ?? 0) >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)', marginTop: 2 }}>
+                  {bufferData?.attendance_pct !== null && bufferData?.attendance_pct !== undefined
+                    ? ((bufferData?.attendance_pct >= 75) ? '✓ Above 75% required threshold' : '⚠ Below 75% required threshold')
+                    : 'Awaiting attendance records'}
+                </div>
               </div>
               <div style={infoBoxStyle}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Classes Held / Total</div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink-900)', marginTop: 4 }}>32 / 45</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>13 future classes remaining</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink-900)', marginTop: 4 }}>
+                  {bufferData?.held ?? 0} / {bufferData?.total_classes || course?.total_classes || 45}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {bufferData?.remaining ?? (course?.total_classes || 45)} future classes remaining
+                </div>
               </div>
             </div>
 
@@ -166,28 +186,32 @@ export default function StudentCourseDetail() {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { date: '2026-10-21', status: 'present', topic: 'Dynamic Programming - Part 2' },
-                  { date: '2026-10-19', status: 'present', topic: 'Greedy Algorithms Review' },
-                  { date: '2026-10-14', status: 'late', topic: 'Shortest Path Graphs' },
-                  { date: '2026-10-12', status: 'absent', topic: 'Minimum Spanning Trees' },
-                  { date: '2026-10-07', status: 'present', topic: 'Graph Traversals BFS/DFS' },
-                ].map((row, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>{row.date}</td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <span style={{
-                        padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
-                        background: row.status === 'present' ? 'var(--ok-bg)' : row.status === 'late' ? 'var(--watch-bg)' : 'var(--crit-bg)',
-                        color: row.status === 'present' ? 'var(--ok-fg)' : row.status === 'late' ? 'var(--watch-fg)' : 'var(--crit-fg)',
-                        textTransform: 'capitalize',
-                      }}>
-                        {row.status}
-                      </span>
+                {attendanceHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No attendance sessions recorded yet.
                     </td>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{row.topic}</td>
                   </tr>
-                ))}
+                ) : (
+                  attendanceHistory.map((row, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>
+                        {row.held_on || row.date || row.session_date || 'Session'}
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
+                          background: (row.status === 'present' || row.status === 'attended') ? 'var(--ok-bg)' : row.status === 'late' ? 'var(--watch-bg)' : 'var(--crit-bg)',
+                          color: (row.status === 'present' || row.status === 'attended') ? 'var(--ok-fg)' : row.status === 'late' ? 'var(--watch-fg)' : 'var(--crit-fg)',
+                          textTransform: 'capitalize',
+                        }}>
+                          {row.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{row.topic || row.notes || 'Class session'}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -258,33 +282,11 @@ export default function StudentCourseDetail() {
         {tab === 'risk' && (
           <div>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 12 }}>Early Warning Risk Breakdown</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
-              <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Margin (Max 50)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ok-fg)', marginTop: 4 }}>12.5 / 50</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Buffer = 4 classes</div>
-              </div>
-              <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Trend (Max 20)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ok-fg)', marginTop: 4 }}>2.0 / 20</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Stable attendance trend</div>
-              </div>
-              <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Deadlines (Max 20)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--watch-fg)', marginTop: 4 }}>8.0 / 20</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>1 unsubmitted assignment</div>
-              </div>
-              <div style={infoBoxStyle}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Missed (Max 10)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--ok-fg)', marginTop: 4 }}>0.0 / 10</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>No missed submissions</div>
-              </div>
-            </div>
             <ScoreExpander
-              score={22.5}
-              band="Safe"
-              formulaDetails={{ margin: 12.5, trend: 2.0, deadlines: 8.0, missed: 0.0 }}
-              inputs={{ attended: 26, held: 32, total_classes: 45, buffer: 4, remaining: 13 }}
+              score={riskData?.score ?? 0}
+              band={riskData?.band ?? 'Safe'}
+              formulaDetails={riskData?.factors ?? { margin: 0, trend: 0, deadlines: 0, missed: 0 }}
+              inputs={bufferData || { attended: 0, held: 0, total_classes: 45, buffer: 0, remaining: 45 }}
             />
           </div>
         )}

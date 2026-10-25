@@ -29,5 +29,7 @@ class CourseUpdate(BaseModel):
 
 class CourseOut(CourseBase):
     id: int
+    enrolled_count: Optional[int] = None
+    avg_attendance: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)

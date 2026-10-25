@@ -8,9 +8,13 @@ from app.api.deps import get_current_user_optional
 from app.core.deps import can_access, get_db
 from app.core.errors import ConflictError, NotFoundError
 from app.core.security import get_password_hash
-from app.models import StudentModel, UserModel
+from app.models import EnrolmentModel, StudentModel, UserModel
 from app.schemas.common import PaginatedResponse
 from app.schemas.user import StudentCreate, StudentOut
+from app.services.attendance_stats import (
+    get_student_course_attendance,
+    get_student_overall_attendance,
+)
 
 router = APIRouter()
 
@@ -21,6 +25,7 @@ def list_students(
     page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
     batch: Optional[str] = Query(None, description="Filter by student batch"),
     department_id: Optional[int] = Query(None, description="Filter by department ID"),
+    course_id: Optional[int] = Query(None, description="Filter by enrolled course ID"),
     sort: Optional[str] = Query(
         None, description="Sort field (e.g. roll_no or -roll_no)"
     ),
@@ -33,6 +38,10 @@ def list_students(
         UserModel, StudentModel.user_id == UserModel.id
     )
 
+    if course_id is not None:
+        query = query.join(
+            EnrolmentModel, StudentModel.user_id == EnrolmentModel.student_id
+        ).where(EnrolmentModel.course_id == course_id)
     if batch:
         query = query.where(StudentModel.batch == batch)
     if department_id is not None:
@@ -59,6 +68,19 @@ def list_students(
 
     items = []
     for student, user in results:
+        if course_id is not None:
+            stats = get_student_course_attendance(db, student.user_id, course_id)
+            att_pct = stats.get("attendance_pct")
+            buf = stats.get("buffer")
+            status_msg = stats.get("status_message")
+            insufficient = stats.get("insufficient_data")
+        else:
+            stats = get_student_overall_attendance(db, student.user_id)
+            att_pct = stats.get("overall_attendance_pct")
+            buf = None
+            status_msg = "Not enough data yet" if stats.get("insufficient_data") else ""
+            insufficient = stats.get("insufficient_data")
+
         items.append(
             StudentOut(
                 user_id=student.user_id,
@@ -68,6 +90,10 @@ def list_students(
                 roll_no=student.roll_no,
                 batch=student.batch,
                 department_id=user.department_id,
+                attendance_pct=att_pct,
+                buffer=buf,
+                status_message=status_msg,
+                insufficient_data=insufficient,
             )
         )
 

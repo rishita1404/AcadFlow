@@ -50,8 +50,8 @@ class MenteeCourseOut(BaseModel):
     attended: int
     held: int
     total_classes: int
-    attendance_pct: float
-    buffer: Optional[int]
+    attendance_pct: Optional[float] = None
+    buffer: Optional[int] = None
     risk_band: str
     risk_score: float
 
@@ -151,7 +151,9 @@ def list_mentees(
             elif band == "Watch" and worst_band == "Safe":
                 worst_band = "Watch"
 
-        overall_pct = round((total_att / total_held * 100), 1) if total_held > 0 else 100.0
+        from app.services.attendance_stats import get_student_overall_attendance
+        overall_stats = get_student_overall_attendance(db, sid)
+        overall_pct = overall_stats.get("overall_attendance_pct")
 
         cards.append(
             MenteeCardOut(
@@ -209,7 +211,9 @@ def get_mentee_detail(
         elif band == "Watch" and worst_band == "Safe":
             worst_band = "Watch"
 
-    overall_pct = round((total_att / total_held * 100), 1) if total_held > 0 else 100.0
+    from app.services.attendance_stats import get_student_overall_attendance
+    overall_stats = get_student_overall_attendance(db, student_id)
+    overall_pct = overall_stats.get("overall_attendance_pct")
 
     return MenteeCardOut(
         student_id=student_id,
@@ -245,10 +249,14 @@ def get_mentee_courses(
         course = db.get(CourseModel, cid)
         if not course:
             continue
+        from app.services.attendance_stats import get_student_course_attendance
+        att_stats = get_student_course_attendance(db, student_id, cid)
+        held = int(att_stats.get("held") or 0)
+        attended = int(att_stats.get("attended") or 0)
+        pct = att_stats.get("attendance_pct")
+        buf = att_stats.get("buffer")
+
         risk = calculate_student_course_risk(db, student_id, cid)
-        held = risk.get("held", 0)
-        attended = risk.get("attended", 0)
-        pct = round((attended / held * 100), 1) if held > 0 else 100.0
 
         results.append(
             MenteeCourseOut(
@@ -259,7 +267,7 @@ def get_mentee_courses(
                 held=held,
                 total_classes=course.total_classes or 45,
                 attendance_pct=pct,
-                buffer=risk.get("buffer"),
+                buffer=buf if buf is not None else risk.get("buffer"),
                 risk_band=risk.get("band", "Safe"),
                 risk_score=risk.get("score", 0.0),
             )

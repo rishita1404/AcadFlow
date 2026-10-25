@@ -205,10 +205,9 @@ def create_access_token(claims: dict) -> tuple[str, datetime]:
     """Create a signed access JWT. Returns (token_str, expiry_datetime)."""
     user_id = claims.get("sub") or claims.get("user_id", 0)
     role = claims.get("role", "student")
-    email = claims.get("email")
-    custom = {"email": email} if email else None
+    custom = {k: v for k, v in claims.items() if k not in ("sub", "user_id", "role")}
     token = token_service.create_access_token(
-        user_id=user_id, role=role, custom_claims=custom
+        user_id=user_id, role=role, custom_claims=custom or None
     )
     payload = jwt.decode(
         token,

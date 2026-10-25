@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { courseApi, studentApi, attendanceApi, assignmentApi } from '../../api/endpoints.js';
+import { formatPct, invalidateAttendanceQueries } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
@@ -49,7 +50,7 @@ export default function FacultyCourseDetail() {
     },
     onSuccess: () => {
       setShowAddSession(false);
-      qc.invalidateQueries({ queryKey: ['faculty-course-roster', courseId] });
+      invalidateAttendanceQueries(qc);
       alert('Class session added and attendance marked!');
     },
   });
@@ -175,20 +176,21 @@ export default function FacultyCourseDetail() {
               </thead>
               <tbody>
                 {filteredStudents.map(s => {
-                  const pct = s.attendance_pct ?? 78.5;
-                  const buf = s.buffer ?? 4;
+                  const pct = s.attendance_pct;
+                  const buf = s.buffer;
+                  const status = buf == null ? 'nodata' : (buf < 0 ? 'critical' : buf <= 2 ? 'watch' : 'safe');
                   return (
                     <tr key={s.user_id || s.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>{s.roll_no || '26AIML001'}</td>
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>{s.roll_no || `S-${s.user_id}`}</td>
                       <td style={{ padding: '12px 14px', color: 'var(--text)' }}>{s.name}</td>
-                      <td style={{ padding: '12px 14px', fontWeight: 700, color: pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
-                        {pct}%
+                      <td style={{ padding: '12px 14px', fontWeight: 700, color: pct != null && pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
+                        {formatPct(pct)}
                       </td>
-                      <td style={{ padding: '12px 14px', fontWeight: 600, color: buf < 0 ? 'var(--crit-fg)' : buf <= 2 ? 'var(--watch-fg)' : 'var(--ok-fg)' }}>
-                        {buf < 0 ? `${buf} (shortfall)` : `${buf} spare`}
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: buf == null ? 'var(--text-muted)' : (buf < 0 ? 'var(--crit-fg)' : buf <= 2 ? 'var(--watch-fg)' : 'var(--ok-fg)') }}>
+                        {buf == null ? 'No data' : (buf < 0 ? `${buf} (shortfall)` : `${buf} spare`)}
                       </td>
                       <td style={{ padding: '12px 14px' }}>
-                        <StatusBadge status={buf < 0 ? 'critical' : buf <= 2 ? 'watch' : 'safe'} />
+                        <StatusBadge status={status} />
                       </td>
                     </tr>
                   );

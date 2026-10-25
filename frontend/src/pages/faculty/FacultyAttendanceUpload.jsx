@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { courseApi, facultyApi } from '../../api/endpoints.js';
+import { invalidateAttendanceQueries } from '../../utils/format.js';
 import Stepper from '../../components/ui/Stepper.jsx';
 
 const STEP_LABELS = [
@@ -13,6 +14,7 @@ const STEP_LABELS = [
 
 export default function FacultyAttendanceUpload() {
   const { id: courseIdParam } = useParams();
+  const qc = useQueryClient();
 
   const [selectedCourseId, setSelectedCourseId] = useState(courseIdParam || '');
   const [currentStep, setCurrentStep] = useState(1);
@@ -154,6 +156,7 @@ export default function FacultyAttendanceUpload() {
     try {
       const res = await facultyApi.uploadAttendance(activeCourseId, file, changeReason);
       setUploadResult(res.data);
+      invalidateAttendanceQueries(qc);
       setCurrentStep(4);
     } catch (err) {
       const detail = err.response?.data?.detail;
