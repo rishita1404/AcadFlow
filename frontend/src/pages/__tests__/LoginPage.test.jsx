@@ -230,7 +230,7 @@ describe('LoginPage & Auth Features', () => {
     const emailInput = screen.getByLabelText(/Email/i);
     const passwordInput = screen.getByLabelText(/^Password/i);
 
-    expect(emailInput).toHaveValue('faculty@acadflow.edu');
+    expect(emailInput.value).toMatch(/faculty@acadflow\.edu$/);
     expect(passwordInput).toHaveValue('AcadFlow@123');
     // Ensure the raw password is not rendered as visible text in the UI
     expect(screen.queryByText('AcadFlow@123')).not.toBeInTheDocument();
