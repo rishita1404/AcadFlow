@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-db_path = Path("d:/AcadFlow/backend/acadflow.db")
+db_path = Path(__file__).resolve().parent.parent / "backend" / "acadflow.db"
 con = sqlite3.connect(db_path)
 cur = con.cursor()
 
@@ -9,7 +9,7 @@ print("=" * 60)
 print("ACADFLOW AI-ML DEPARTMENT VERIFICATION")
 print("=" * 60)
 
-cur.execute("SELECT id, code, name FROM departments WHERE code = 'AIML'")
+cur.execute("SELECT id, code, name FROM departments WHERE code IN ('CSE-AI', 'AIML') ORDER BY id DESC LIMIT 1")
 dept = cur.fetchone()
 print("Department:", dept)
 dept_id = dept[0]
