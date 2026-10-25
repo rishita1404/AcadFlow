@@ -5,7 +5,7 @@ import AuthDivider from './AuthDivider.jsx';
 const DEMO_ACCOUNTS = [
   { email: 'riya.aiml001@acadflow.edu', label: 'Riya (AIML)' },
   { email: 'tarun.aiml014@acadflow.edu', label: 'Tarun (AIML)' },
-  { email: 'rajesh.faculty@acadflow.edu', label: 'Dr. Rajesh (Faculty)' },
+  { email: 'rajesh.faculty@acadflow.edu', label: 'Faculty' },
   { email: 'sneha.faculty@acadflow.edu', label: 'Dr. Sneha (Faculty)' },
   { email: 'meera.coord@acadflow.edu', label: 'Dr. Meera (Coord)' },
   { email: 'admin@acadflow.edu', label: 'Admin' },

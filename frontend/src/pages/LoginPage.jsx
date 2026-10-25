@@ -44,7 +44,6 @@ export default function LoginPage() {
     const isStudentPath = targetPath.startsWith('/student');
     const isFacultyPath = targetPath.startsWith('/faculty');
     const isCoordPath = targetPath.startsWith('/coordinator');
-    const isAdminPath = targetPath.startsWith('/admin');
 
     if (role === 'student' && isStudentPath) return targetPath;
     if ((role === 'faculty' || role === 'trainer' || role === 'mentor') && (isFacultyPath || isStudentPath)) return targetPath;
