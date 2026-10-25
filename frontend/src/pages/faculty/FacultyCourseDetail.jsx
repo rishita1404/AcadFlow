@@ -179,7 +179,7 @@ export default function FacultyCourseDetail() {
                   const buf = s.buffer ?? 4;
                   return (
                     <tr key={s.user_id || s.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>{s.roll_no || '26CSE001'}</td>
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--ink-900)' }}>{s.roll_no || '26AIML001'}</td>
                       <td style={{ padding: '12px 14px', color: 'var(--text)' }}>{s.name}</td>
                       <td style={{ padding: '12px 14px', fontWeight: 700, color: pct >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
                         {pct}%

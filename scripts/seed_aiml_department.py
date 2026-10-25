@@ -143,12 +143,18 @@ def seed_aiml(session=None, engine=None) -> dict:
             _session, OrganizationModel, {"name": "AcadFlow Institute of Technology"}
         )
 
-        aiml_dept = _get_or_create(
-            _session,
-            DepartmentModel,
-            {"code": "AIML"},
-            {"name": "Artificial Intelligence & Machine Learning"},
-        )
+        aiml_dept = _session.scalar(select(DepartmentModel).where(DepartmentModel.code.in_(["CSE-AI", "AIML"])))
+        if aiml_dept is None:
+            aiml_dept = DepartmentModel(
+                code="CSE-AI",
+                name="Computer Science & Engineering (Artificial Intelligence)",
+            )
+            _session.add(aiml_dept)
+            _session.flush()
+        else:
+            aiml_dept.code = "CSE-AI"
+            aiml_dept.name = "Computer Science & Engineering (Artificial Intelligence)"
+            _session.flush()
         counts["departments"] += 1
 
         # ── 2. Semester ───────────────────────────────────────────────────────

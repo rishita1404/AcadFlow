@@ -95,6 +95,8 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
 COORDINATOR_APPROVED_FIELDS = {
     "student_id",
     "name",
+    "roll_no",
+    "batch",
     "email",
     "department_id",
     "attendance_percentage",

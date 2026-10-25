@@ -69,7 +69,7 @@ export default function StudentCourseDetail() {
               {course?.name}
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
-              Department: CSE · Total Classes: {course?.total_classes || 60} · Semester: Sem 5
+              Department: {course?.department_name || 'CSE AI'} · Total Classes: {course?.total_classes || 60} · Semester: Sem 5
             </p>
           </div>
           <Link
