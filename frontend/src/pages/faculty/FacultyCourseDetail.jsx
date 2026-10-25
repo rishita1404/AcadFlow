@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { courseApi, studentApi, attendanceApi, assignmentApi } from '../../api/endpoints.js';
@@ -159,7 +159,7 @@ export default function FacultyCourseDetail() {
                   border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 }}
               >
-                + Mark Today's Class Session
+                + Mark Today&apos;s Class Session
               </button>
             </div>
 

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { coordinatorApi, facultyApi } from '../../api/endpoints.js';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
-import StatusBadge from '../../components/StatusBadge.jsx';
 
 const C = {
   card: { background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' },
@@ -100,7 +99,7 @@ export default function CoordinatorSummary() {
           Department Cohort by Risk Band
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)' }}>
-          {BAND_BLOCKS.map(({ label, sublabel, count, bg, fg }) => (
+          {BAND_BLOCKS.map(({ label, count, bg, fg }) => (
             <div key={label} style={{ background: bg, border: `1px solid ${fg}44`, borderRadius: 'var(--radius-card)', padding: 'var(--space-4)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: fg, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
               <div style={{ fontSize: 28, fontWeight: 800, color: fg, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{count}</div>

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext.jsx';
 import Button from '../components/ui/Button.jsx';
@@ -6,15 +5,33 @@ import { ShieldOff } from 'lucide-react';
 
 export default function ForbiddenPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeRole, isLoggedIn } = useAuth();
 
-  const homeRoute = {
-    student: '/student/home',
-    faculty: '/faculty/home',
-    trainer: '/faculty/home',
-    coordinator: '/coordinator/summary',
-    admin: '/admin',
-  }[user?.role] ?? '/';
+  const currentRole = activeRole || user?.role;
+
+  const getHomeRoute = () => {
+    if (!isLoggedIn) return '/login';
+    switch (currentRole) {
+      case 'student':
+        return '/student/home';
+      case 'faculty':
+      case 'trainer':
+      case 'mentor':
+        return '/faculty/home';
+      case 'coordinator':
+        return '/coordinator/summary';
+      case 'admin':
+        return '/admin';
+      default:
+        return '/login';
+    }
+  };
+
+  const handleBackHome = (e) => {
+    e?.preventDefault?.();
+    const target = getHomeRoute();
+    navigate(target, { replace: true });
+  };
 
   return (
     <div style={{
@@ -33,9 +50,9 @@ export default function ForbiddenPage() {
         Outside your access
       </h1>
       <p style={{ color: 'var(--text-muted)', fontSize: 15, maxWidth: 380 }}>
-        You don't have permission to view this page. If you think this is a mistake, contact your administrator.
+        You don&apos;t have permission to view this page. If you think this is a mistake, contact your administrator.
       </p>
-      <Button variant="secondary" onClick={() => navigate(homeRoute)}>
+      <Button variant="secondary" onClick={handleBackHome}>
         Back to my home
       </Button>
     </div>

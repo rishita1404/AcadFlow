@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { courseApi, attendanceApi, assignmentApi, riskApi } from '../../api/endpoints.js';
@@ -17,7 +17,7 @@ export default function StudentCourseDetail() {
     queryFn: () => courseApi.get(courseId).then(r => r.data),
   });
 
-  const { data: attendanceHistory = [] } = useQuery({
+  const { data: _attendanceHistory = [] } = useQuery({
     queryKey: ['course-attendance-history', courseId],
     queryFn: () => attendanceApi.getHistory(1, courseId).then(r => r.data).catch(() => []),
   });
@@ -27,7 +27,7 @@ export default function StudentCourseDetail() {
     queryFn: () => assignmentApi.list({ course_id: courseId }).then(r => r.data.items || r.data).catch(() => []),
   });
 
-  const { data: riskData } = useQuery({
+  const { data: _riskData } = useQuery({
     queryKey: ['course-student-risk', courseId],
     queryFn: () => riskApi.getStudentRisk(1).then(r => r.data).catch(() => null),
   });

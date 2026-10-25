@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../api/endpoints.js';
@@ -164,7 +164,7 @@ export default function StudentRisk() {
           {/* Right: What-if simulator */}
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)', height: 'fit-content' }}>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: '0 0 var(--space-3)' }}>
-              "What-If" Absence Simulator
+              &quot;What-If&quot; Absence Simulator
             </h3>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 var(--space-6)' }}>
               See what happens to your buffer and attendance % if you miss N upcoming classes.

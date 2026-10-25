@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Send, Users, FileText, Clock, CheckCircle2, AlertTriangle, Link as LinkIcon, ArrowRight, ArrowLeft, Trash2, Plus } from 'lucide-react';
+import { Send, Users, Clock, AlertTriangle, Link as LinkIcon, ArrowRight, ArrowLeft, Trash2, Plus } from 'lucide-react';
 import { noticeApi, facultyApi } from '../../api/endpoints.js';
 import { useAuth } from '../../app/AuthContext.jsx';
-import Stepper from '../../components/ui/Stepper.jsx';
 
 const STEPS = [
   { num: 1, title: 'Audience' },
@@ -77,7 +76,8 @@ export default function ComposeNotice() {
       batch: audienceType === 'batch' ? batch : null,
       roll_numbers: rolls,
     });
-  }, [audienceType, selectedCourseId, batch, rollNumbersText]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audienceType, selectedCourseId, batch, rollNumbersText, user?.department_id]);
 
   // Date extraction
   const extractMutation = useMutation({

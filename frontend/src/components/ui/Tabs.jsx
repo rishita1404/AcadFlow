@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export default function Tabs({ tabs, defaultTab, style }) {
   const [active, setActive] = useState(defaultTab ?? tabs[0]?.key);

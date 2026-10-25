@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, AlertTriangle, Activity, Calendar as CalendarIcon, Clock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { deadlineApi } from '../api/endpoints.js';
 import { LoadingScreen, ErrorMsg } from './DashboardPage.jsx';
 

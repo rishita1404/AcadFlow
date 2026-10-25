@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 export default function Card({ children, style, padding = 'var(--space-6)', ...rest }) {
   return (

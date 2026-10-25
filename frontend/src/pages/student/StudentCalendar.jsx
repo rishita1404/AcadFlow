@@ -1,33 +1,21 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { attendanceApi, holidayApi, planApi, deadlineApi, courseApi } from '../../api/endpoints.js';
+import { attendanceApi, holidayApi, planApi, deadlineApi } from '../../api/endpoints.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
-const STATUS_COLORS = {
-  present: 'var(--ok-bg)',
-  late: 'var(--watch-bg)',
-  absent: 'var(--crit-bg)',
-  holiday: 'var(--bg)',
-  planned_absence: 'var(--risk-bg)',
-  scheduled: 'var(--surface)',
-};
 
 export default function StudentCalendar() {
   const qc = useQueryClient();
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(11); // November 2026
   const [mode, setMode] = useState('attendance'); // 'attendance' | 'pressure'
-  const [courseFilter, setCourseFilter] = useState('all');
+  const [_courseFilter, _setCourseFilter] = useState('all');
   const [planMode, setPlanMode] = useState(false);
   const [plannedDates, setPlannedDates] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
 
   // Queries
-  const { data: coursesData } = useQuery({
-    queryKey: ['courses-list'],
-    queryFn: () => courseApi.list().then(r => r.data.items || r.data),
-  });
 
   const { data: calData, isLoading: loadingCal } = useQuery({
     queryKey: ['calendar-view', year, month],
@@ -39,7 +27,7 @@ export default function StudentCalendar() {
     queryFn: () => deadlineApi.getPressureForecast(year, month).then(r => r.data).catch(() => null),
   });
 
-  const { data: holidays = [] } = useQuery({
+  const { data: _holidays = [] } = useQuery({
     queryKey: ['student-holidays'],
     queryFn: () => holidayApi.list().then(r => r.data).catch(() => []),
   });

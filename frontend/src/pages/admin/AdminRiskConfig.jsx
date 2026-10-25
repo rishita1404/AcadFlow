@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sliders, CheckCircle2, AlertTriangle, TrendingUp, Clock, CalendarX, ArrowRight, BarChart2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, ArrowRight, BarChart2 } from 'lucide-react';
 import { adminApi } from '../../api/endpoints.js';
 import Skeleton from '../../components/Skeleton.jsx';
 
@@ -227,7 +227,7 @@ export default function AdminRiskConfig() {
             2. Risk Band Thresholds & Minimum Held Classes
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20 }}>
-            Scores are normalized to 0–100. Students below min_classes receive "Not enough data yet".
+            Scores are normalized to 0–100. Students below min_classes receive &quot;Not enough data yet&quot;.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>

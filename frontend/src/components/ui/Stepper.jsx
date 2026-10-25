@@ -1,4 +1,4 @@
-import React from 'react';
+import { Fragment } from 'react';
 import { Check } from 'lucide-react';
 
 export default function Stepper({ steps, current }) {
@@ -14,7 +14,7 @@ export default function Stepper({ steps, current }) {
         const done = i < current;
         const active = i === current;
         return (
-          <React.Fragment key={step}>
+          <Fragment key={step}>
             {/* Step node */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: '0 0 auto' }}>
               <div style={{
@@ -48,7 +48,7 @@ export default function Stepper({ steps, current }) {
                 transition: 'background 0.2s',
               }} />
             )}
-          </React.Fragment>
+          </Fragment>
         );
       })}
     </div>

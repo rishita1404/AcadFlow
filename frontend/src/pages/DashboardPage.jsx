@@ -1,6 +1,6 @@
-import React from 'react';
+
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, BookOpen, CheckCircle2, TrendingUp, AlertCircle, RotateCw } from 'lucide-react';
+import { AlertTriangle, BookOpen, TrendingUp, AlertCircle } from 'lucide-react';
 import { dashboardApi } from '../api/endpoints.js';
 
 const BAND_COLOR = {

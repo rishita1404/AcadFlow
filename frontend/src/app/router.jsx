@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext.jsx';
 import AppShell from '../layouts/AppShell.jsx';
@@ -78,12 +78,13 @@ function RoleGuard({ allowedRoles, children }) {
 }
 
 function RoleRedirect() {
-  const { activeRole } = useAuth();
+  const { activeRole, isLoggedIn } = useAuth();
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
   if (activeRole === 'student') return <Navigate to="/student/home" replace />;
-  if (activeRole === 'faculty' || activeRole === 'trainer') return <Navigate to="/faculty/home" replace />;
+  if (activeRole === 'faculty' || activeRole === 'trainer' || activeRole === 'mentor') return <Navigate to="/faculty/home" replace />;
   if (activeRole === 'coordinator') return <Navigate to="/coordinator/summary" replace />;
   if (activeRole === 'admin') return <Navigate to="/admin" replace />;
-  return <Navigate to="/student/home" replace />;
+  return <Navigate to="/login" replace />;
 }
 
 export default function AppRouter() {
@@ -197,7 +198,7 @@ export default function AppRouter() {
           <Route
             path="faculty/home"
             element={
-              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyHome />
               </RoleGuard>
             }
@@ -205,7 +206,7 @@ export default function AppRouter() {
           <Route
             path="faculty/courses/:id"
             element={
-              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyCourseDetail />
               </RoleGuard>
             }
@@ -213,7 +214,7 @@ export default function AppRouter() {
           <Route
             path="faculty/courses/:id/attendance"
             element={
-              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyAttendanceUpload />
               </RoleGuard>
             }
@@ -221,7 +222,7 @@ export default function AppRouter() {
           <Route
             path="faculty/courses/:id/at-risk"
             element={
-              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyAtRisk />
               </RoleGuard>
             }
@@ -229,7 +230,7 @@ export default function AppRouter() {
           <Route
             path="faculty/courses/:id/assignments"
             element={
-              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyAssignments />
               </RoleGuard>
             }
@@ -237,7 +238,7 @@ export default function AppRouter() {
           <Route
             path="faculty/courses/:id/sections"
             element={
-              <RoleGuard allowedRoles={['faculty', 'coordinator', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'coordinator', 'admin']}>
                 <FacultySections />
               </RoleGuard>
             }
@@ -245,7 +246,7 @@ export default function AppRouter() {
           <Route
             path="faculty/mentees"
             element={
-              <RoleGuard allowedRoles={['faculty', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyMentees />
               </RoleGuard>
             }
@@ -253,7 +254,7 @@ export default function AppRouter() {
           <Route
             path="faculty/mentees/:id"
             element={
-              <RoleGuard allowedRoles={['faculty', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyMenteeDetail />
               </RoleGuard>
             }
@@ -261,7 +262,7 @@ export default function AppRouter() {
           <Route
             path="faculty/timetable"
             element={
-              <RoleGuard allowedRoles={['faculty', 'trainer', 'admin']}>
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyTimetable />
               </RoleGuard>
             }

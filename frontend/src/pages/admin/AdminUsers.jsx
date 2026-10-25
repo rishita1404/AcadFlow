@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Filter, CheckCircle2, User } from 'lucide-react';
+import { Search, Filter, CheckCircle2 } from 'lucide-react';
 import { adminApi } from '../../api/endpoints.js';
 import Skeleton from '../../components/Skeleton.jsx';
 

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { CheckCircle, Eye, AlertTriangle, HeartHandshake, Hourglass } from 'lucide-react';
 
 const BANDS = {
