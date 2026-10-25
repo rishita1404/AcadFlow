@@ -8,7 +8,7 @@ import StatusBadge from '../../components/StatusBadge.jsx';
 import CourseCard from '../../components/CourseCard.jsx';
 import { Skeleton, ErrorState } from '../../components/ui/Skeleton.jsx';
 import Button from '../../components/ui/Button.jsx';
-import { Calendar, AlertTriangle } from 'lucide-react';
+import { Calendar, AlertTriangle, BookOpen } from 'lucide-react';
 
 export default function StudentHome() {
   const { user } = useAuth();
@@ -97,6 +97,9 @@ export default function StudentHome() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+          <Button variant="secondary" size="sm" icon={<BookOpen size={14} />} onClick={() => navigate('/student/attendance')}>
+            Attendance
+          </Button>
           <Button variant="secondary" size="sm" icon={<Calendar size={14} />} onClick={() => navigate('/student/calendar')}>
             Leave Planner
           </Button>

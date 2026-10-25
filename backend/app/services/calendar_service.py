@@ -39,12 +39,18 @@ class CalendarDay:
     is_weekend: bool
     is_institution_holiday: bool
     is_student_planned_holiday: bool    # Student marked as planned absence
+    is_holiday: bool                    # Any holiday (institution or student planned)
+    holiday_label: Optional[str]        # Holiday name or planned absence reason
     has_class: bool                     # At least one enrolled course has session
     attendance_status: Optional[str]    # 'present' | 'absent' | 'late' | None
     attendance_pct_so_far: Optional[float]  # running % up to this day
-    sessions: List[Dict]                # [{course_code, session_id, status}]
+    sessions: List[Dict]                # [{course_code, course_name, session_id, status}]
+    courses: List[Dict]                 # Alias of sessions for frontend compatibility
     is_past: bool                       # True if the day has already happened
     is_today: bool
+    classes_held_today: int = 0
+    classes_attended_today: int = 0
+    attendance_ratio: Optional[str] = None
 
 
 @dataclass
@@ -71,6 +77,7 @@ def build_attendance_calendar(
     student_id: int,
     year: int,
     month: int,
+    course_id: Optional[int] = None,
 ) -> CalendarMonth:
     """
     Build the full attendance calendar for one student for a month.
@@ -110,6 +117,8 @@ def build_attendance_calendar(
         )
     if not enrolled_course_ids:
         enrolled_course_ids = list(db.scalars(select(CourseModel.id)).all())
+    if course_id is not None:
+        enrolled_course_ids = [course_id]
 
     from app.models.user import StudentModel
     is_staff = db.get(StudentModel, student_id) is None
@@ -154,6 +163,10 @@ def build_attendance_calendar(
         )
     ).all()
     inst_holiday_dates: set[date] = {h.holiday_date for h in inst_holidays}
+    inst_holiday_map: dict[date, str] = {
+        h.holiday_date: (getattr(h, "label", None) or getattr(h, "name", "Holiday"))
+        for h in inst_holidays
+    }
 
     # Student-planned holidays
     student_holidays = db.scalars(
@@ -164,6 +177,9 @@ def build_attendance_calendar(
         )
     ).all()
     student_holiday_dates: set[date] = {h.holiday_date for h in student_holidays}
+    student_holiday_map: dict[date, str] = {
+        h.holiday_date: (h.reason or "Planned absence") for h in student_holidays
+    }
 
     # Build per-day entries
     days_out: list[CalendarDay] = []
@@ -175,6 +191,10 @@ def build_attendance_calendar(
         is_weekend = current.weekday() >= 5
         is_past = current < today
         is_today_ = current == today
+        is_inst_hol = current in inst_holiday_dates
+        is_student_hol = current in student_holiday_dates
+        is_any_hol = is_inst_hol or is_student_hol
+        hol_label = inst_holiday_map.get(current) or student_holiday_map.get(current)
 
         session_entries_today = session_date_map.get(current, [])
         has_class = len(session_entries_today) > 0
@@ -183,14 +203,22 @@ def build_attendance_calendar(
         sessions_info: list[dict] = []
         day_statuses: list[str] = []
 
+        classes_held_today = len(session_entries_today)
+        classes_attended_today = 0
+
         for (sid, cid) in session_entries_today:
             if is_staff:
                 att_status = "conducted" if (is_past or is_today_) else "scheduled"
             elif is_past or is_today_:
-                att_status = att_record_map.get(sid, "absent")
+                raw_st = att_record_map.get(sid, "absent")
+                # Remove late: only present or absent
+                att_status = "present" if raw_st in ("present", "late") else "absent"
             else:
                 # Future — predict based on student holiday
-                att_status = "planned_absent" if current in student_holiday_dates else "expected_present"
+                att_status = "planned_absent" if is_student_hol else "expected_present"
+
+            if att_status == "present":
+                classes_attended_today += 1
 
             day_statuses.append(att_status)
             course = courses.get(cid)
@@ -198,29 +226,32 @@ def build_attendance_calendar(
                 "session_id": sid,
                 "course_id": cid,
                 "course_code": course.code if course else f"course_{cid}",
+                "course_name": course.name if course else f"Course {cid}",
                 "status": att_status,
             })
 
             # Only count past/today sessions in the running total
             if is_past or is_today_:
                 running_held += 1
-                if is_staff or att_status in ("present", "late"):
+                if is_staff or att_status == "present":
                     running_attended += 1
 
-        # Determine summary attendance status for the day
+        # Determine summary attendance status and ratio for the day
         overall_status: Optional[str] = None
+        ratio_str = f"{classes_attended_today}/{classes_held_today}" if classes_held_today > 0 and (is_past or is_today_) else None
+
         if sessions_info:
             if is_staff:
                 overall_status = "conducted" if (is_past or is_today_) else "scheduled"
             elif is_past or is_today_:
                 if all(s == "absent" for s in day_statuses):
                     overall_status = "absent"
-                elif all(s in ("present", "late") for s in day_statuses):
-                    overall_status = "present" if "late" not in day_statuses else "late"
+                elif all(s == "present" for s in day_statuses):
+                    overall_status = "present"
                 else:
                     overall_status = "partial"
             else:
-                overall_status = "planned_absent" if current in student_holiday_dates else "expected_present"
+                overall_status = "planned_absent" if is_student_hol else "expected_present"
 
         running_pct = (
             round((running_attended / running_held) * 100, 1)
@@ -233,14 +264,20 @@ def build_attendance_calendar(
                 date=current.isoformat(),
                 weekday=WEEKDAY_NAMES[current.weekday()],
                 is_weekend=is_weekend,
-                is_institution_holiday=current in inst_holiday_dates,
-                is_student_planned_holiday=current in student_holiday_dates,
+                is_institution_holiday=is_inst_hol,
+                is_student_planned_holiday=is_student_hol,
+                is_holiday=is_any_hol,
+                holiday_label=hol_label,
                 has_class=has_class,
                 attendance_status=overall_status,
                 attendance_pct_so_far=running_pct,
                 sessions=sessions_info,
+                courses=sessions_info,
                 is_past=is_past,
                 is_today=is_today_,
+                classes_held_today=classes_held_today,
+                classes_attended_today=classes_attended_today,
+                attendance_ratio=ratio_str,
             )
         )
 

@@ -43,10 +43,11 @@ export default function ComposeNotice() {
   const [errorMessage, setErrorMessage] = useState(null);
 
   // Fetch courses for audience picker
-  const { data: courses = [] } = useQuery({
+  const { data: rawCourses = [] } = useQuery({
     queryKey: ['faculty-courses-notices'],
-    queryFn: () => facultyApi.getCourses().then(r => r.data || []),
+    queryFn: () => facultyApi.getCourses().then(r => r.data?.items || (Array.isArray(r.data) ? r.data : [])).catch(() => []),
   });
+  const courses = Array.isArray(rawCourses) ? rawCourses : (rawCourses?.items || []);
 
   useEffect(() => {
     if (courses.length > 0 && !selectedCourseId) {
@@ -58,8 +59,12 @@ export default function ComposeNotice() {
   const previewAudienceMutation = useMutation({
     mutationFn: (payload) => noticeApi.previewAudience(payload),
     onSuccess: (res) => {
-      setAudienceCount(res.data.count || 0);
-      setSampleRecipients(res.data.recipients_sample || []);
+      setAudienceCount(res.data?.count || 0);
+      setSampleRecipients(res.data?.recipients_sample || []);
+    },
+    onError: () => {
+      setAudienceCount(0);
+      setSampleRecipients([]);
     },
   });
 
@@ -69,15 +74,17 @@ export default function ComposeNotice() {
     if (audienceType === 'roll_numbers') {
       rolls = rollNumbersText.split(/[\n, ]+/).map(r => r.trim()).filter(Boolean);
     }
+    const cid = audienceType === 'course' ? Number(selectedCourseId || courses[0]?.id || 0) : null;
+    if (audienceType === 'course' && !cid) return;
     previewAudienceMutation.mutate({
       audience_type: audienceType,
-      course_id: audienceType === 'course' ? Number(selectedCourseId) : null,
+      course_id: cid,
       department_id: user?.department_id || 1,
       batch: audienceType === 'batch' ? batch : null,
       roll_numbers: rolls,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audienceType, selectedCourseId, batch, rollNumbersText, user?.department_id]);
+  }, [audienceType, selectedCourseId, batch, rollNumbersText, user?.department_id, courses]);
 
   // Date extraction
   const extractMutation = useMutation({

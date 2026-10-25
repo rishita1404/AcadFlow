@@ -5,13 +5,13 @@ import { timetableApi } from '../../api/endpoints.js';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const PERIODS = [
-  '09:00 - 10:00',
-  '10:00 - 11:00',
-  '11:15 - 12:15',
-  '12:15 - 13:15',
-  '14:00 - 15:00',
-  '15:00 - 16:00',
+const PERIOD_DEFS = [
+  { key: 'P1', time: '09:00 - 10:00', label: 'P1 (09:00 - 10:00)' },
+  { key: 'P2', time: '10:00 - 11:00', label: 'P2 (10:00 - 11:00)' },
+  { key: 'P3', time: '11:15 - 12:15', label: 'P3 (11:15 - 12:15)' },
+  { key: 'P4', time: '12:15 - 13:15', label: 'P4 (12:15 - 13:15)' },
+  { key: 'P5', time: '14:00 - 15:00', label: 'P5 (14:00 - 15:00)' },
+  { key: 'P6', time: '15:00 - 16:00', label: 'P6 (15:00 - 16:00)' },
 ];
 
 const KIND_COLORS = {
@@ -109,16 +109,16 @@ export default function StudentTimetable() {
             </tr>
           </thead>
           <tbody>
-            {PERIODS.map((period) => (
-              <tr key={period} style={{ borderBottom: '1px solid var(--border)' }}>
+            {PERIOD_DEFS.map((periodDef) => (
+              <tr key={periodDef.key} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{
                   padding: '12px 14px', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)',
                   background: 'var(--bg)', whiteSpace: 'nowrap',
                 }}>
-                  {period}
+                  {periodDef.label}
                 </td>
                 {DAYS.map(day => {
-                  const slot = slotGrid[day]?.[period];
+                  const slot = slotGrid[day]?.[periodDef.key] || slotGrid[day]?.[periodDef.time] || slotGrid[day]?.[periodDef.label];
                   const isToday = day === currentWeekday;
                   const kindStyle = slot ? (KIND_COLORS[slot.kind] || KIND_COLORS.lecture) : null;
 

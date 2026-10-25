@@ -30,7 +30,7 @@ export default function StudentCourseDetail() {
     queryKey: ['course-attendance-history', studentId, courseId],
     queryFn: () => attendanceApi.getHistory(studentId, courseId).then(r => r.data).catch(() => []),
   });
-  const attendanceHistory = Array.isArray(rawHistory) ? rawHistory : (rawHistory?.items || []);
+  const attendanceHistory = Array.isArray(rawHistory) ? rawHistory : (rawHistory?.history || rawHistory?.items || []);
 
   const { data: assignments = [] } = useQuery({
     queryKey: ['course-assignments', courseId],
@@ -83,7 +83,7 @@ export default function StudentCourseDetail() {
             </p>
           </div>
           <Link
-            to="/student/calendar"
+            to={`/student/calendar?course_id=${id}&course_code=${course?.code || ""}&plan=1`}
             style={{
               padding: '8px 16px', background: 'var(--accent)', color: 'var(--on-dark)',
               border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, textDecoration: 'none',
@@ -201,11 +201,11 @@ export default function StudentCourseDetail() {
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{
                           padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
-                          background: (row.status === 'present' || row.status === 'attended') ? 'var(--ok-bg)' : row.status === 'late' ? 'var(--watch-bg)' : 'var(--crit-bg)',
-                          color: (row.status === 'present' || row.status === 'attended') ? 'var(--ok-fg)' : row.status === 'late' ? 'var(--watch-fg)' : 'var(--crit-fg)',
+                          background: (row.status === 'present' || row.status === 'attended') ? 'var(--ok-bg)' : 'var(--crit-bg)',
+                          color: (row.status === 'present' || row.status === 'attended') ? 'var(--ok-fg)' : 'var(--crit-fg)',
                           textTransform: 'capitalize',
                         }}>
-                          {row.status}
+                          {(row.status === 'present' || row.status === 'attended') ? 'Present' : 'Absent'}
                         </span>
                       </td>
                       <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{row.topic || row.notes || 'Class session'}</td>

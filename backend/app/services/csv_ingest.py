@@ -44,9 +44,42 @@ from app.models import (
 
 REQUIRED_COLUMNS = {"roll_no", "status"}
 
+COLUMN_ALIASES = {
+    "roll_no": "roll_no",
+    "roll no": "roll_no",
+    "roll_number": "roll_no",
+    "roll number": "roll_no",
+    "rollno": "roll_no",
+    "roll": "roll_no",
+    "status": "status",
+    "attendance": "status",
+    "present": "status",
+    "is_present": "status",
+    "status (present / absent)": "status",
+    "status(present/absent)": "status",
+    "student_name": "student_name",
+    "student name": "student_name",
+    "name": "student_name",
+    "date": "date",
+    "session_date": "date",
+    "remarks": "remarks",
+}
+
+def _canonical_column(col_name: str) -> str:
+    cleaned = col_name.strip().lower()
+    return COLUMN_ALIASES.get(cleaned, cleaned)
+
 STATUS_MAP = {
+    # Present / Checked / Ticked
     "present": "present", "p": "present",
+    "true": "present", "1": "present", "yes": "present", "y": "present",
+    "✓": "present", "✔": "present", "tick": "present", "checked": "present", "check": "present",
+    # Absent / Unchecked
     "absent": "absent", "a": "absent",
+    "false": "absent", "0": "absent", "no": "absent", "n": "absent",
+    "✕": "absent", "✗": "absent", "x": "absent", "cross": "absent",
+    "uncheck": "absent", "unchecked": "absent",
+    # Legacy late -> map to present
     "late": "late", "l": "late",
 }
 
@@ -102,9 +135,16 @@ def _parse_date(raw: str) -> Optional[date]:
     return None
 
 
-def _normalize_status(raw: str) -> Optional[str]:
-    """Normalize raw status string to one of: present / absent / late."""
-    return STATUS_MAP.get(raw.strip().lower())
+def _normalize_status(raw: any) -> Optional[str]:
+    """Normalize raw status string or boolean to one of: present / absent."""
+    if isinstance(raw, bool):
+        return "present" if raw else "absent"
+    if isinstance(raw, (int, float)):
+        return "present" if int(raw) == 1 else "absent"
+    if raw is None:
+        return "absent"
+    val = str(raw).strip().lower()
+    return STATUS_MAP.get(val)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -113,19 +153,22 @@ def _normalize_status(raw: str) -> Optional[str]:
 
 
 def _read_csv_rows(file_bytes: bytes) -> list[dict]:
-    """Parse CSV bytes into list of dicts (header row → keys)."""
-    # Strip UTF-8-BOM if present
+    """Parse CSV bytes into list of dicts with canonical column keys."""
     text = file_bytes.decode("utf-8-sig").strip()
     reader = csv.DictReader(io.StringIO(text))
     rows = []
     for row in reader:
-        # Normalize keys to lowercase and strip whitespace
-        rows.append({k.strip().lower(): v.strip() for k, v in row.items()})
+        row_dict = {}
+        for k, v in row.items():
+            if k is not None:
+                canon_k = _canonical_column(str(k))
+                row_dict[canon_k] = str(v).strip() if v is not None else ""
+        rows.append(row_dict)
     return rows
 
 
 def _read_xlsx_rows(file_bytes: bytes) -> list[dict]:
-    """Parse XLSX bytes into list of dicts."""
+    """Parse XLSX bytes into list of dicts with canonical column keys and header auto-detection."""
     try:
         import openpyxl
     except ImportError as exc:
@@ -138,18 +181,32 @@ def _read_xlsx_rows(file_bytes: bytes) -> list[dict]:
     ws = wb.active
 
     rows_iter = ws.iter_rows(values_only=True)
-    header_row = next(rows_iter, None)
+    header_row = None
+    for raw_r in rows_iter:
+        if not raw_r or all(c is None for c in raw_r):
+            continue
+        str_cells = [str(c).strip().lower() for c in raw_r if c is not None]
+        if any("roll" in s for s in str_cells) or any("status" in s for s in str_cells):
+            header_row = raw_r
+            break
+
     if not header_row:
         return []
 
-    headers = [str(h).strip().lower() if h is not None else "" for h in header_row]
+    headers = [_canonical_column(str(h)) if h is not None else "" for h in header_row]
     rows = []
     for raw_row in rows_iter:
         if all(cell is None for cell in raw_row):
             continue  # skip empty rows
         row_dict = {}
         for h, val in zip(headers, raw_row):
-            row_dict[h] = str(val).strip() if val is not None else ""
+            if h:
+                if isinstance(val, bool):
+                    row_dict[h] = "present" if val else "absent"
+                elif isinstance(val, (int, float)) and val in (0, 1):
+                    row_dict[h] = "present" if int(val) == 1 else "absent"
+                else:
+                    row_dict[h] = str(val).strip() if val is not None else ""
         rows.append(row_dict)
     return rows
 
@@ -446,3 +503,92 @@ def generate_attendance_template_csv(
         writer.writerow([roll_no, name, date_str, "present", ""])
 
     return output.getvalue().encode("utf-8-sig")  # UTF-8 BOM for Excel compatibility
+
+def generate_attendance_template_excel(
+    db: Session,
+    course_id: int,
+    session_date: Optional[date] = None,
+) -> bytes:
+    """
+    Generate a pre-populated Excel (.xlsx) template for attendance upload.
+    Includes enrolled students, pre-filled date, and a dropdown DataValidation
+    for Status (Present / Absent).
+    """
+    import openpyxl
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    from app.models import EnrolmentModel, UserModel
+
+    rows = db.execute(
+        select(StudentModel.roll_no, UserModel.name).join(
+            EnrolmentModel, EnrolmentModel.student_id == StudentModel.user_id
+        ).join(
+            UserModel, UserModel.id == StudentModel.user_id
+        ).where(
+            EnrolmentModel.course_id == course_id
+        ).order_by(StudentModel.roll_no)
+    ).all()
+
+    date_str = session_date.isoformat() if session_date else date.today().isoformat()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Attendance"
+    ws.views.sheetView[0].showGridLines = True
+
+    headers = ["roll_no", "student_name", "date", "status", "remarks"]
+    header_fill = PatternFill(start_color="1E3A5F", end_color="1E3A5F", fill_type="solid")
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_align = Alignment(horizontal="center", vertical="center")
+
+    ws.row_dimensions[1].height = 26
+    for col_idx, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_align
+
+    thin_border = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1"),
+    )
+
+    for r_idx, (r_no, name) in enumerate(rows, 2):
+        ws.row_dimensions[r_idx].height = 20
+        c1 = ws.cell(row=r_idx, column=1, value=r_no)
+        c1.alignment = Alignment(horizontal="center", vertical="center")
+        c1.border = thin_border
+
+        c2 = ws.cell(row=r_idx, column=2, value=name)
+        c2.alignment = Alignment(horizontal="left", vertical="center")
+        c2.border = thin_border
+
+        c3 = ws.cell(row=r_idx, column=3, value=date_str)
+        c3.alignment = Alignment(horizontal="center", vertical="center")
+        c3.border = thin_border
+
+        c4 = ws.cell(row=r_idx, column=4, value="Present")
+        c4.alignment = Alignment(horizontal="center", vertical="center")
+        c4.font = Font(name="Calibri", size=11, bold=True, color="15803D")
+        c4.border = thin_border
+
+        c5 = ws.cell(row=r_idx, column=5, value="")
+        c5.border = thin_border
+
+    max_row = max(len(rows) + 1, 100)
+    dv = DataValidation(type="list", formula1='"Present,Absent"', allow_blank=False)
+    ws.add_data_validation(dv)
+    dv.add(f"D2:D{max_row}")
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 16)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()

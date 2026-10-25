@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 """
 Attendance API endpoints — AcadFlow (Member 3: Raghav)
 
@@ -52,6 +54,7 @@ from app.schemas.risk import (
 )
 from app.services.csv_ingest import (
     generate_attendance_template_csv,
+    generate_attendance_template_excel,
     ingest_attendance_file,
 )
 from app.services.notification_service import notify_attendance_buffer
@@ -401,12 +404,17 @@ def get_student_attendance_history(
     response_description="Upload result with processed/skipped/error counts",
 )
 def upload_attendance_file(
-    course_id: int = Query(..., description="Course ID to upload attendance for"),
+    course_id: Optional[int] = Query(None, description="Course ID to upload attendance for"),
+    course_id_form: Optional[int] = Form(None, alias="course_id", description="Course ID as form field"),
     file: UploadFile = File(..., description="CSV or XLSX attendance sheet"),
     change_reason: Optional[str] = Form(None, description="Mandatory audit reason if altering existing attendance"),
     db: Session = Depends(get_db),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
+    target_course_id = course_id if course_id is not None else course_id_form
+    if not target_course_id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="course_id is required")
+    course_id = target_course_id
     """
     Faculty upload a CSV or Excel attendance sheet for a course.
 
@@ -541,5 +549,245 @@ def download_attendance_template(
     return Response(
         content=csv_bytes,
         media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Direct Attendance Marking (Option 1: Roster Checklist with Tick Circle)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class DirectMarkStudentItem(BaseModel):
+    student_id: int
+    status: str  # "present" or "absent"
+
+
+class DirectMarkRequest(BaseModel):
+    course_id: int
+    session_date: date
+    records: List[DirectMarkStudentItem]
+    change_reason: Optional[str] = None
+
+
+@router.get(
+    "/courses/{course_id}/date/{session_date}",
+    summary="Get attendance roster and existing statuses for a course on a date",
+)
+def get_course_date_attendance(
+    course_id: int,
+    session_date: date,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """
+    Returns enrolled students with their attendance status for a given session date.
+    If attendance was already recorded, returns existing statuses (present/absent).
+    If not yet recorded, defaults all to 'present' for easy one-click unchecking.
+    """
+    can_access(user=current_user, action="view_course", resource={"course_id": course_id})
+
+    course = db.get(CourseModel, course_id)
+    if not course:
+        raise NotFoundError(f"Course {course_id} not found.")
+
+    from app.models import EnrolmentModel, UserModel
+
+    # Find existing session on this date
+    session = db.scalar(
+        select(ClassSessionModel).where(
+            ClassSessionModel.course_id == course_id,
+            ClassSessionModel.held_on == session_date,
+        )
+    )
+
+    status_map: dict[int, str] = {}
+    if session:
+        records = db.scalars(
+            select(AttendanceRecordModel).where(
+                AttendanceRecordModel.session_id == session.id
+            )
+        ).all()
+        for r in records:
+            status_map[r.student_id] = "present" if r.status in ("present", "late") else "absent"
+
+    # Enrolled students
+    students = db.execute(
+        select(StudentModel.user_id, StudentModel.roll_no, UserModel.name).join(
+            EnrolmentModel, EnrolmentModel.student_id == StudentModel.user_id
+        ).join(
+            UserModel, UserModel.id == StudentModel.user_id
+        ).where(
+            EnrolmentModel.course_id == course_id
+        ).order_by(StudentModel.roll_no)
+    ).all()
+
+    is_recorded = session is not None and len(status_map) > 0
+
+    return {
+        "course_id": course_id,
+        "course_code": course.code,
+        "course_name": course.name,
+        "session_date": session_date.isoformat(),
+        "session_id": session.id if session else None,
+        "is_recorded": is_recorded,
+        "records": [
+            {
+                "student_id": s_id,
+                "roll_no": r_no,
+                "name": name,
+                "status": status_map.get(s_id, "present"),
+            }
+            for s_id, r_no, name in students
+        ],
+    }
+
+
+@router.post(
+    "/direct-mark",
+    summary="Directly mark attendance for a class session (Option 1 - no verification steps)",
+)
+def direct_mark_attendance(
+    payload: DirectMarkRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """
+    One-click direct attendance save. Creates or updates ClassSession and AttendanceRecord
+    rows, synchronizes risk engine snapshots, and dispatches buffer warnings.
+    """
+    can_access(user=current_user, action="mark", resource="attendance")
+    actor_id = int(current_user["sub"]) if current_user and "sub" in current_user else 1
+
+    course = db.get(CourseModel, payload.course_id)
+    if not course:
+        raise NotFoundError(f"Course {payload.course_id} not found.")
+
+    # Find or create session
+    session = db.scalar(
+        select(ClassSessionModel).where(
+            ClassSessionModel.course_id == payload.course_id,
+            ClassSessionModel.held_on == payload.session_date,
+        )
+    )
+    if not session:
+        session = ClassSessionModel(
+            course_id=payload.course_id,
+            held_on=payload.session_date,
+            is_cancelled=False,
+        )
+        db.add(session)
+        db.flush()
+
+    now_utc = datetime.now(timezone.utc)
+    present_count = 0
+    absent_count = 0
+
+    for item in payload.records:
+        norm_status = "present" if item.status.lower() in ("present", "p", "true", "1", "late", "l", "✓", "✔") else "absent"
+        if norm_status == "present":
+            present_count += 1
+        else:
+            absent_count += 1
+
+        existing_record = db.scalar(
+            select(AttendanceRecordModel).where(
+                AttendanceRecordModel.student_id == item.student_id,
+                AttendanceRecordModel.session_id == session.id,
+            )
+        )
+        if existing_record:
+            existing_record.status = norm_status
+            existing_record.marked_by = actor_id
+            existing_record.marked_at = now_utc
+        else:
+            new_rec = AttendanceRecordModel(
+                student_id=item.student_id,
+                session_id=session.id,
+                status=norm_status,
+                marked_by=actor_id,
+                marked_at=now_utc,
+            )
+            db.add(new_rec)
+
+    from app.models.audit import AuditLogModel
+    try:
+        db.add(AuditLogModel(
+            entity="attendance",
+            entity_id=f"course:{payload.course_id}",
+            action="direct_mark_attendance",
+            old_value=None,
+            new_value=f"{len(payload.records)} students: {present_count} present, {absent_count} absent",
+            actor_id=actor_id,
+            reason=payload.change_reason or f"Direct attendance marked for {payload.session_date}",
+            created_at=now_utc,
+        ))
+        db.commit()
+    except Exception:
+        db.commit()
+
+    # Recalculate risk snapshots synchronously for all enrolled students
+    from app.models import EnrolmentModel
+    enrolled_ids = list(
+        db.scalars(
+            select(EnrolmentModel.student_id).where(
+                EnrolmentModel.course_id == payload.course_id
+            )
+        ).all()
+    )
+    for sid in enrolled_ids:
+        try:
+            data = persist_risk_snapshot(db, sid, payload.course_id)
+            notify_attendance_buffer(
+                db=db,
+                student_id=sid,
+                course_id=payload.course_id,
+                course_code=course.code,
+                buffer=data.get("buffer"),
+                attendance_pct=data.get("attendance_pct"),
+            )
+        except Exception:
+            pass
+
+    return {
+        "success": True,
+        "course_id": payload.course_id,
+        "session_date": payload.session_date.isoformat(),
+        "session_id": session.id,
+        "records_saved": len(payload.records),
+        "present_count": present_count,
+        "absent_count": absent_count,
+        "message": f"Successfully saved attendance for {payload.session_date}: {present_count} present, {absent_count} absent.",
+    }
+
+
+@router.get(
+    "/upload/template/excel",
+    summary="Download attendance Excel (.xlsx) template with dropdown checkboxes (faculty)",
+    response_description="Pre-populated Excel with enrolled students and status dropdown",
+)
+def download_attendance_template_excel(
+    course_id: int = Query(..., description="Course ID"),
+    session_date: Optional[date] = Query(
+        None, description="Pre-fill date (YYYY-MM-DD). Defaults to today."
+    ),
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """Download an improved Excel template with validation dropdown and checkbox compatibility."""
+    can_access(user=current_user, action="view_course", resource={"course_id": course_id})
+
+    course = db.get(CourseModel, course_id)
+    if not course:
+        raise NotFoundError(f"Course {course_id} not found.")
+
+    excel_bytes = generate_attendance_template_excel(
+        db=db, course_id=course_id, session_date=session_date
+    )
+
+    filename = f"attendance_template_{course.code}_{(session_date or date.today()).isoformat()}.xlsx"
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
