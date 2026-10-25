@@ -36,25 +36,36 @@ export default function LoginPage() {
     }
   }, []);
 
+  const getPermissibleTarget = useCallback((role, targetPath) => {
+    const fallback = getRoleRedirect(role);
+    if (!targetPath || !targetPath.startsWith('/') || targetPath.startsWith('/login') || targetPath.startsWith('/403')) {
+      return fallback;
+    }
+    const isStudentPath = targetPath.startsWith('/student');
+    const isFacultyPath = targetPath.startsWith('/faculty');
+    const isCoordPath = targetPath.startsWith('/coordinator');
+    const isAdminPath = targetPath.startsWith('/admin');
+
+    if (role === 'student' && isStudentPath) return targetPath;
+    if ((role === 'faculty' || role === 'trainer' || role === 'mentor') && (isFacultyPath || isStudentPath)) return targetPath;
+    if (role === 'coordinator' && (isCoordPath || isFacultyPath)) return targetPath;
+    if (role === 'admin') return targetPath;
+    return fallback;
+  }, [getRoleRedirect]);
+
   // Redirect if already logged in
   useEffect(() => {
     if (isLoggedIn) {
-      if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/login')) {
-        navigate(nextUrl, { replace: true });
-      } else {
-        navigate(getRoleRedirect(user?.role), { replace: true });
-      }
+      const target = getPermissibleTarget(user?.role, nextUrl);
+      navigate(target, { replace: true });
     }
-  }, [isLoggedIn, nextUrl, navigate, user?.role, getRoleRedirect]);
+  }, [isLoggedIn, nextUrl, navigate, user?.role, getPermissibleTarget]);
 
   const handleLogin = async (email, password) => {
     const res = await login(email, password);
-    const targetRole = res?.role || res?.user?.role;
-    if (nextUrl && nextUrl.startsWith('/') && !nextUrl.startsWith('/login')) {
-      navigate(nextUrl, { replace: true });
-    } else {
-      navigate(getRoleRedirect(targetRole), { replace: true });
-    }
+    const targetRole = res?.role || res?.user?.role || user?.role;
+    const target = getPermissibleTarget(targetRole, nextUrl);
+    navigate(target, { replace: true });
   };
 
   return (

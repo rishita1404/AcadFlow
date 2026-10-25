@@ -5,6 +5,11 @@ __pycache__/
 *.so
 .Python
 env/
+venv/
+.venv/
+*.db
+*.db-shm
+*.db-wal
 build/
 develop-eggs/
 dist/

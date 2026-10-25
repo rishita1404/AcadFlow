@@ -36,6 +36,7 @@ export function AuthProvider({ children }) {
     const res = await authApi.login(email, password);
     const { access_token } = res.data;
     localStorage.setItem('acadflow_token', access_token);
+    localStorage.setItem('token', access_token);
     setToken(access_token);
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
@@ -80,6 +81,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem('acadflow_token');
+    localStorage.removeItem('token');
     localStorage.removeItem('acadflow_user');
     localStorage.removeItem('acadflow_permissions');
     localStorage.removeItem('acadflow_active_role');
