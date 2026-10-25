@@ -16,6 +16,7 @@ import StudentRisk from '../pages/student/StudentRisk.jsx';
 import StudentNotifications from '../pages/student/StudentNotifications.jsx';
 import StudentPreferences from '../pages/student/StudentPreferences.jsx';
 import StudentNotices from '../pages/student/StudentNotices.jsx';
+import StudentAttendance from '../pages/student/StudentAttendance.jsx';
 
 // Legacy / Shared Pages
 import AttendancePage from '../pages/AttendancePage.jsx';
@@ -106,7 +107,15 @@ export default function AppRouter() {
 
           {/* Student Routes */}
           <Route
-            path="student/home"
+            path="student/attendance"
+            element={
+              <RoleGuard allowedRoles={['student', 'admin']}>
+                <StudentAttendance />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="student/home" 
             element={
               <RoleGuard allowedRoles={['student', 'admin']}>
                 <StudentHome />
@@ -208,6 +217,14 @@ export default function AppRouter() {
             element={
               <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyCourseDetail />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="faculty/attendance"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
+                <FacultyAttendanceUpload />
               </RoleGuard>
             }
           />

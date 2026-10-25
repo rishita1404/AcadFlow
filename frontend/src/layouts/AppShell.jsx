@@ -11,6 +11,7 @@ import {
 
 const STUDENT_NAV = [
   { to: '/student/home', icon: Home, label: 'Home', exact: true },
+  { to: '/student/attendance', icon: BookOpen, label: 'Attendance' },
   { to: '/student/calendar', icon: CalendarDays, label: 'Calendar' },
   { to: '/student/tasks', icon: ClipboardList, label: 'Tasks' },
   { to: '/student/timetable', icon: LayoutGrid, label: 'Timetable' },

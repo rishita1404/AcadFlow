@@ -17,10 +17,11 @@ Implements PRD Section 9:
 """
 
 from datetime import date, datetime, timedelta, timezone
+from datetime import date as _dt_date
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -155,16 +156,30 @@ class DeadlineItemOut(BaseModel):
 
 
 class StudentHolidayIn(BaseModel):
-    holiday_date: date
+    holiday_date: Optional[_dt_date] = None
+    date: Optional[_dt_date] = None
     reason: Optional[str] = Field(None, max_length=200)
+    label: Optional[str] = Field(None, max_length=200)
+
+    @model_validator(mode="after")
+    def resolve_fields(self):
+        if self.holiday_date is None and self.date is not None:
+            self.holiday_date = self.date
+        if self.holiday_date is None:
+            raise ValueError("holiday_date or date is required")
+        if self.reason is None and self.label is not None:
+            self.reason = self.label
+        return self
 
 
 class StudentHolidayOut(BaseModel):
     id: int
-    holiday_date: date
+    holiday_date: _dt_date
     reason: Optional[str] = None
     is_future_plan: bool
     created_at: datetime
+    date: Optional[_dt_date] = None
+    label: Optional[str] = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1003,6 +1018,7 @@ def get_my_deadlines(
 def get_attendance_calendar(
     year: int,
     month: int,
+    course_id: Optional[int] = Query(None, description="Optional course ID to filter calendar by"),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -1029,7 +1045,7 @@ def get_attendance_calendar(
         )
 
     user, _ = _get_user_and_student(current_user, db)
-    calendar = build_attendance_calendar(db, user.id, year, month)
+    calendar = build_attendance_calendar(db, user.id, year, month, course_id=course_id)
 
     # Convert dataclasses to dicts for JSON serialization
     return {
@@ -1047,10 +1063,16 @@ def get_attendance_calendar(
                 "is_weekend": d.is_weekend,
                 "is_institution_holiday": d.is_institution_holiday,
                 "is_student_planned_holiday": d.is_student_planned_holiday,
+                "is_holiday": getattr(d, "is_holiday", d.is_institution_holiday or d.is_student_planned_holiday),
+                "holiday_label": getattr(d, "holiday_label", None),
                 "has_class": d.has_class,
                 "attendance_status": d.attendance_status,
                 "attendance_pct_so_far": d.attendance_pct_so_far,
+                "classes_held_today": getattr(d, "classes_held_today", len(d.sessions)),
+                "classes_attended_today": getattr(d, "classes_attended_today", sum(1 for s in d.sessions if s.get("status") == "present")),
+                "attendance_ratio": getattr(d, "attendance_ratio", None),
                 "sessions": d.sessions,
+                "courses": getattr(d, "courses", d.sessions),
                 "is_past": d.is_past,
                 "is_today": d.is_today,
             }
@@ -1088,7 +1110,9 @@ def list_my_holidays(
         StudentHolidayOut(
             id=h.id,
             holiday_date=h.holiday_date,
+            date=h.holiday_date,
             reason=h.reason,
+            label=h.reason,
             is_future_plan=h.is_future_plan,
             created_at=h.created_at,
         )
@@ -1154,7 +1178,9 @@ def mark_holiday(
     return StudentHolidayOut(
         id=holiday.id,
         holiday_date=holiday.holiday_date,
+        date=holiday.holiday_date,
         reason=holiday.reason,
+        label=holiday.reason,
         is_future_plan=holiday.is_future_plan,
         created_at=holiday.created_at,
     )
@@ -1299,6 +1325,7 @@ async def check_reminders(
 
 class PlanProjectRequest(BaseModel):
     planned_dates: List[str] = Field(default_factory=list, description="List of YYYY-MM-DD strings planned as absent")
+    course_id: Optional[int] = Field(None, description="Optional single course filter")
 
 
 class CourseProjectionOut(BaseModel):
@@ -1353,6 +1380,9 @@ def project_leave_plan(
     if not enrolled:
         # Fallback for teaching staff testing planner
         enrolled = [c.id for c in db.scalars(select(CourseModel).limit(3)).all()]
+
+    if payload.course_id:
+        enrolled = [cid for cid in enrolled if cid == payload.course_id] or [payload.course_id]
 
     planned_count = len(payload.planned_dates)
     results: List[CourseProjectionOut] = []
@@ -1646,12 +1676,30 @@ def get_my_timetable(
                     select(EnrolmentModel.course_id).where(EnrolmentModel.student_id == user_id)
                 ).all()
             )
-            slots = list(db.scalars(
-                select(TimetableSlotModel).where(
-                    TimetableSlotModel.version_id == version.id,
-                    TimetableSlotModel.course_id.in_(enrolled),
-                )
-            ).all())
+            st_sec = "A"
+            if student.roll_no:
+                digits = "".join(filter(str.isdigit, student.roll_no))
+                if digits:
+                    num = int(digits)
+                    if num <= 20:
+                        st_sec = "A"
+                    elif num <= 40:
+                        st_sec = "B"
+                    elif num <= 60:
+                        st_sec = "C"
+                    elif num <= 80:
+                        st_sec = "D"
+                    else:
+                        st_sec = "E"
+
+            base_q = select(TimetableSlotModel).where(
+                TimetableSlotModel.version_id == version.id,
+                TimetableSlotModel.course_id.in_(enrolled),
+            )
+            section_slots = list(
+                db.scalars(base_q.where(TimetableSlotModel.section == st_sec)).all()
+            )
+            slots = section_slots if section_slots else list(db.scalars(base_q).all())
         else:
             # Faculty/coordinator: get slots where this user is the teacher
             slots = list(db.scalars(

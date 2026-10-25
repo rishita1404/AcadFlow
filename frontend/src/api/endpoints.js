@@ -23,17 +23,27 @@ export const attendanceApi = {
     apiClient.get(`/attendance/students/${studentId}/courses/${courseId}/history`),
   getCalendar: (year, month) =>
     apiClient.get(`/me/calendar/${year}/${month}`),
-  uploadFile: (courseId, file) => {
+  uploadFile: (courseId, file, changeReason = null) => {
     const form = new FormData();
     form.append('file', file);
+    form.append('course_id', courseId);
+    if (changeReason) form.append('change_reason', changeReason);
     return apiClient.post(`/attendance/upload?course_id=${courseId}`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  downloadTemplate: (courseId) =>
-    apiClient.get(`/attendance/upload/template?course_id=${courseId}`, {
+  downloadTemplate: (courseId, sessionDate = null) =>
+    apiClient.get(`/attendance/upload/template?course_id=${courseId}${sessionDate ? `&session_date=${sessionDate}` : ''}`, {
       responseType: 'blob',
     }),
+  downloadExcelTemplate: (courseId, sessionDate = null) =>
+    apiClient.get(`/attendance/upload/template/excel?course_id=${courseId}${sessionDate ? `&session_date=${sessionDate}` : ''}`, {
+      responseType: 'blob',
+    }),
+  getDateAttendance: (courseId, sessionDate) =>
+    apiClient.get(`/attendance/courses/${courseId}/date/${sessionDate}`),
+  directMark: (payload) =>
+    apiClient.post('/attendance/direct-mark', payload),
   createSession: (payload) => apiClient.post('/attendance/sessions', payload),
   markSession: (sessionId, payload) =>
     apiClient.post(`/attendance/sessions/${sessionId}/mark`, payload),
@@ -82,6 +92,7 @@ export const notificationApi = {
 
 // ── Courses ───────────────────────────────────────────────────────────────────
 export const courseApi = {
+  getCourse: (id) => apiClient.get(/courses/),
   list: (params = {}) => apiClient.get('/courses', { params }),
   get: (id) => apiClient.get(`/courses/${id}`),
   enrol: (courseId, payload) =>
@@ -100,6 +111,7 @@ export const riskApi = {
 export const studentApi = {
   list: (params = {}) => apiClient.get('/students', { params }),
   get: (id) => apiClient.get(`/students/${id}`),
+  getDashboard: () => apiClient.get('/me/dashboard'),
 };
 
 // ── Health ────────────────────────────────────────────────────────────────────
@@ -109,8 +121,8 @@ export const healthApi = {
 
 // Leave Planner & Tasks
 export const planApi = {
-  projectLeavePlan: (planned_dates) =>
-    apiClient.post('/me/plan/project', { planned_dates }),
+  projectLeavePlan: (planned_dates, course_id = null) =>
+    apiClient.post('/me/plan/project', { planned_dates, ...(course_id ? { course_id } : {}) }),
 };
 
 export const tasksApi = {
