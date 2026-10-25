@@ -1,21 +1,62 @@
 # AcadFlow: Unified Academic Platform
 
-> An all-in-one academic platform with early-warning risk radar | Course: Full Stack AI Engineering (24CAI0304)
+> An all-in-one academic intelligence and workflow platform with early-warning risk radar, subject-level attendance planning, and streamlined faculty management.
+> **Course:** Full Stack AI Engineering (24CAI0304)
 
-AcadFlow solves the core problem of academic visibility: students finding out about attendance shortfalls or assignment bottlenecks when it is already too late. It provides a centralized hub where faculty manage announcements, deadlines, and attendance, students receive proactive reminders, and an early-warning signal flags academic risk as decision support.
+AcadFlow solves the core problem of academic visibility: students discovering attendance shortfalls or assignment bottlenecks when it is already too late. It provides a unified portal where faculty manage schedules, notices, and attendance in one click, students track real-time attendance buffers and plan leaves proactively, and an early-warning ML risk engine flags academic risk for timely intervention.
 
 ---
 
 ## 🏛️ Architecture Overview
 
-- **Frontend**: React (Vite), React Router, TanStack Query, Tailwind/CSS Grid & Flexbox, Recharts.
-- **Backend API**: Python, FastAPI, Pydantic v2, SQLAlchemy (asyncpg), Alembic.
-- **Data Stores**:
-  - **PostgreSQL**: Relational entities (Users, Courses, Enrollments, Grades, Attendance records).
-  - **MongoDB**: Audit logs, activity streams, unread notifications.
-  - **Redis**: Rate limiting, session caching, task queues.
-- **ML / MLOps**: Gradient Boosted Risk Classifier, ONNX int8 runtime, Prometheus metrics, MLflow tracking.
-- **Deployment & Orchestration**: Docker, Docker Compose, Kubernetes (kind/minikube), NGINX reverse proxy.
+- **Frontend Client**:
+  - React 18 (Vite), React Router 6, TanStack Query (React Query v5).
+  - Editorial design system (Fraunces serif & Inter sans-serif typography, light theme tokens).
+  - Recharts for attendance analytics and risk telemetry, Lucide React icons.
+- **Backend API**:
+  - Python 3.11+, FastAPI, Pydantic v2.
+  - SQLAlchemy 2.0 (typed `Mapped[]` style).
+  - OpenPyXL for dynamic spreadsheet template generation and data validation.
+- **Data & Persistence**:
+  - **PostgreSQL 16** with automatic zero-configuration fallback to local persistent **SQLite (`acadflow.db`)**.
+  - 3NF relational schema (Users, Courses, Enrolments, Class Sessions, Attendance Records, Risk Snapshots, Notices, Timetable).
+- **ML / Risk Engine**:
+  - Gradient Boosted Risk Classifier with real-time margin buffer calculations and automated notification dispatch.
+
+---
+
+## 🌟 Key Features & Capabilities
+
+### 1. Faculty Attendance Management
+- **Option 1: Direct Roster Checklist (Tick Circles)**
+  - View enrolled students for any selected session date.
+  - Interactive circular tick buttons: checked (**✓**) for **Present** (green), unchecked for **Absent** (soft red).
+  - Bulk actions: *Mark All Present*, *Mark All Absent*, and live student search.
+  - Real-time stat chips: `✓ 24 Present (96%)` & `✕ 1 Absent`.
+  - **Zero-verification 1-step save**: records attendance and updates risk scores immediately without dry-run preview steps.
+- **Option 2: Excel / CSV Spreadsheet Upload**
+  - Instant drag-and-drop file ingest.
+  - **Improved Template Generation**: downloads `.xlsx` templates pre-filled with enrolled students and session date, featuring native Excel **DataValidation dropdowns** (`Present`, `Absent`) and checkbox compatibility (`TRUE`/`FALSE`, `1`/`0`, `✓`/`✕`, `P`/`A`).
+
+### 2. Student Attendance & Subject Hub
+- **Subject-Wise Attendance (`/student/attendance`)**:
+  - Card-based breakdown of all enrolled subjects with attendance percentages, margin buffers (classes you can safely miss), and risk status badges.
+  - Direct 1-click navigation to per-subject calendar and leave planner.
+- **Strict Present / Absent Tracking**:
+  - Normalized all attendance strictly to **Present** and **Absent** (eliminated confusing legacy "Late" statuses).
+
+### 3. Interactive Calendar & Leave Planner (`/student/calendar`)
+- **Subject-Level Scoping**:
+  - Filter calendar days and leave projections for individual subjects or all subjects combined.
+- **Daily Attendance Ratios**:
+  - Calendar grid cells and day detail drawers display attendance as exact session ratios (e.g. `3/4 Present`, `1/1 Present`, `0/1 Absent`).
+- **Proactive Leave Planner**:
+  - Select upcoming dates to plan absences and view projected attendance impact before taking leave.
+  - Tracks public and institutional holidays.
+
+### 4. Notices & Timetable
+- **Notice Board (`/notices`)**: Department and course-wide announcements with rich role-based authoring and instant dispatch.
+- **Weekly Timetable (`/student/timetable`, `/faculty/timetable`)**: Class schedules with room allocations, batch tracking, and clash detection.
 
 ---
 
@@ -23,50 +64,112 @@ AcadFlow solves the core problem of academic visibility: students finding out ab
 
 ```
 acadflow/
-├── .github/                  # CI/CD workflows, issue/PR templates, CODEOWNERS
-├── backend/                  # FastAPI service, core, db, models, services, workers
-├── ml/                       # Features, training, drift detection, ONNX export, FastAPI serve
-├── frontend/                 # React + Vite client, role-based dashboards, components
-├── deploy/                   # Docker compose, NGINX, Kubernetes manifests, Monitoring
-├── scripts/                  # Seed scripts (500 students, 6 accounts), drift simulation, bootstrap
-├── load-tests/               # Locust performance & load testing suites
-├── postman/                  # Postman collection and environment definitions
-├── docs/                     # Architecture, ADRs, API matrices, ethics, evidence labs
-├── .env.example              # Centralized environment variable template
-├── Makefile                  # Automation entrypoints (up, down, test, seed, migrate)
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/endpoints/   # Modular API routes (attendance, courses, me, notices, timetable, risk)
+│   │   ├── core/               # Security, tokens, permissions, database configuration
+│   │   ├── models/             # SQLAlchemy 2.0 declarative database models
+│   │   ├── schemas/            # Pydantic v2 request/response schemas
+│   │   └── services/           # Business logic (calendar, risk data, csv/excel ingest, notifications)
+│   ├── tests/                  # Integration and unit test suites (186 pytest cases)
+│   └── acadflow.db             # Local persistent SQLite database
+├── frontend/
+│   ├── src/
+│   │   ├── api/                # Axios API client and endpoint service bindings
+│   │   ├── app/                # Router configuration and role guards
+│   │   ├── components/         # Reusable UI primitives, stat cards, drawers, forms
+│   │   ├── layouts/            # AppShell navigation layout and topbar
+│   │   ├── pages/              # Role-based pages (student, faculty, coordinator, admin)
+│   │   └── styles/             # Editorial CSS variables and design tokens
+│   └── package.json
+├── scripts/
+│   └── seed_semester5_data.py  # Realistic Semester 5 scenario seeder
+├── deploy/                     # Docker Compose and deployment configurations
 └── README.md
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ### 1. Prerequisites
-- Docker & Docker Compose
-- Python 3.11+
-- Node.js 20+
+- **Python:** 3.11+
+- **Node.js:** 18+ (Node 20 recommended)
+- **Git**
 
-### 2. Setup Environment
+### 2. Backend Setup
 ```bash
-cp .env.example .env
+cd backend
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
 ```
 
-### 3. Start Local Stack
+Start the FastAPI development server:
 ```bash
-make up
-# or
-docker compose -f deploy/docker-compose.yml up -d
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+*Note: AcadFlow connects to PostgreSQL if available, and seamlessly falls back to `acadflow.db` (SQLite) if PostgreSQL is not running locally.*
+
+- **Interactive API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc Documentation:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+### 3. Frontend Setup
+In a new terminal window:
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-### 4. Seed Initial Data
+Open your browser at **[http://localhost:3000](http://localhost:3000)** (or the port Vite outputs).
+
+---
+
+## 👥 Default Demo Accounts
+
+All demo accounts use the standard password: `AcadFlow@123`
+
+| Role | Email | Capabilities |
+| :--- | :--- | :--- |
+| **Student** | `student@acadflow.edu` | View subject attendance, calendar ratios, plan leaves, check timetable |
+| **Faculty** | `faculty@acadflow.edu` | Quick mark attendance checklist, Excel roster upload, course management |
+| **Coordinator** | `coordinator@acadflow.edu` | Department-wide at-risk directory, academic analytics, notices |
+| **Admin** | `admin@acadflow.edu` | System configuration, user provisioning, course allocations |
+
+---
+
+## 🧪 Testing & Code Quality
+
+### Backend Tests (pytest)
 ```bash
-make seed
+cd backend
+pytest tests/ -q
+# All 186 unit and integration tests passing
 ```
 
-Default seeded accounts (Password: `AcadFlow@123`):
-- **Student**: `student@acadflow.edu` (and Appendix A fixtures: `riya@acadflow.edu`, `aman@acadflow.edu`, `meera2@acadflow.edu`, `karan@acadflow.edu`, `dev@acadflow.edu`)
-- **Faculty (Instructor-only)**: `faculty@acadflow.edu`
-- **Faculty (Mentor AND Course Coordinator)**: `mentor@acadflow.edu`
-- **Trainer**: `trainer@acadflow.edu`
-- **Dean / Coordinator**: `coordinator@acadflow.edu`
-- **System Admin**: `admin@acadflow.edu`
+### Linter (ruff)
+```bash
+ruff check backend/
+```
+
+### Frontend Tests (vitest)
+```bash
+cd frontend
+npm test
+```
+
+### Production Build
+```bash
+cd frontend
+npm run build
+```
+
+---
+
+## 📄 License
+This project was developed for the **Full Stack AI Engineering (24CAI0304)** curriculum. All rights reserved.
