@@ -188,8 +188,9 @@ async def login(
     raw_ident = str(raw_email).lower().strip()
 
     # 1. Flexible user lookup: exact email, student roll_no, email prefix, or full name
-    from app.models.user import StudentModel
     from sqlalchemy import func
+
+    from app.models.user import StudentModel
 
     user = db.scalar(select(UserModel).where(func.lower(UserModel.email) == raw_ident))
     if not user:

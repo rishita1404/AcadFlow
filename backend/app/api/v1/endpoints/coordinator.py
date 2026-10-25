@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import case, func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
@@ -25,7 +25,6 @@ from app.core.authorization import (
 from app.core.deps import get_db
 from app.models import (
     AssignmentModel,
-    AttendanceRecordModel,
     CourseModel,
     DepartmentModel,
     EnrolmentModel,
@@ -40,7 +39,6 @@ from app.services.attendance_stats import (
     get_student_course_attendance,
     get_student_overall_attendance,
 )
-from app.services.buffer import DEFAULT_THRESHOLD
 
 router = APIRouter()
 

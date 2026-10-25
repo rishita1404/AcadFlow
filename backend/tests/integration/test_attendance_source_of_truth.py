@@ -37,7 +37,6 @@ from app.models import (
     UserModel,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -379,7 +378,7 @@ class TestCoordinatorUsesRealData:
         They must differ, proving the coordinator is not returning a single hardcoded value.
         """
         dept = db_session.query(DepartmentModel).first()
-        sem = db_session.query(SemesterModel).first()
+        db_session.query(SemesterModel).first()
 
         # New student
         u2 = UserModel(name="SOT Student2", email="sot_stu2@acadflow.edu",

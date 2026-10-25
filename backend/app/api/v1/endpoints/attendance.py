@@ -50,14 +50,12 @@ from app.schemas.risk import (
     ClassSessionCreate,
     ClassSessionOut,
 )
-from app.services.buffer import compute_attendance_buffer
 from app.services.csv_ingest import (
     generate_attendance_template_csv,
     ingest_attendance_file,
 )
 from app.services.notification_service import notify_attendance_buffer
 from app.services.risk_data import (
-    get_attendance_inputs,
     load_risk_config,
     persist_risk_snapshot,
 )

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 from typing import Dict, List, Optional
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
