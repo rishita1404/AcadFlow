@@ -1,4 +1,3 @@
-
 import { CheckCircle, Eye, AlertTriangle, HeartHandshake, Hourglass } from 'lucide-react';
 
 const BANDS = {
@@ -37,16 +36,32 @@ const BANDS = {
 // Normalise backend band values to the canonical set above
 function normaliseBand(band) {
   if (!band) return 'Insufficient data';
-  const b = String(band).trim();
-  if (b === 'Safe' || b === 'safe') return 'Safe';
-  if (b === 'Watch' || b === 'watch') return 'Watch';
-  if (b === 'At risk' || b === 'at-risk' || b === 'at_risk') return 'At risk';
-  if (b === 'Critical' || b === 'critical') return 'Critical';
-  return 'Insufficient data';
+  const b = String(band).trim().toLowerCase();
+  if (b === 'safe' || b === 'on track' || b === 'on_track' || b === 'green') return 'Safe';
+  if (b === 'watch' || b === 'keep an eye' || b === 'yellow') return 'Watch';
+  if (
+    b === 'at risk' ||
+    b === 'at-risk' ||
+    b === 'at_risk' ||
+    b === 'needs attention' ||
+    b === 'danger' ||
+    b === 'amber'
+  )
+    return 'At risk';
+  if (b === 'critical' || b === 'priority support' || b === 'red') return 'Critical';
+  if (
+    b === 'no data' ||
+    b === 'no_data' ||
+    b === 'insufficient data' ||
+    b === 'insufficient_data'
+  )
+    return 'Insufficient data';
+  return 'Safe';
 }
 
-export default function StatusBadge({ band, size = 'md' }) {
-  const key = normaliseBand(band);
+export default function StatusBadge({ band, status, value, level, size = 'md' }) {
+  const raw = band ?? status ?? value ?? level;
+  const key = normaliseBand(raw);
   const { label, Icon, bg, fg } = BANDS[key] || BANDS['Insufficient data'];
   const iconSize = size === 'sm' ? 12 : 14;
   const fontSize = size === 'sm' ? 11 : 13;
