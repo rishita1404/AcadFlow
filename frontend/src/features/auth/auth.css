@@ -456,6 +456,13 @@
   border-color: var(--accent);
 }
 
+.auth-demo-chip.is-active {
+  background-color: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
 /* Helper text */
 .auth-quiet-line {
   text-align: center;

@@ -3,11 +3,9 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Info, Loader2 } from 
 import AuthDivider from './AuthDivider.jsx';
 
 const DEMO_ACCOUNTS = [
-  { email: 'riya.aiml001@acadflow.edu', label: 'Riya (AIML)' },
-  { email: 'tarun.aiml014@acadflow.edu', label: 'Tarun (AIML)' },
-  { email: 'rajesh.faculty@acadflow.edu', label: 'Faculty' },
-  { email: 'sneha.faculty@acadflow.edu', label: 'Dr. Sneha (Faculty)' },
-  { email: 'meera.coord@acadflow.edu', label: 'Dr. Meera (Coord)' },
+  { email: 'student@acadflow.edu', label: 'Student' },
+  { email: 'faculty@acadflow.edu', label: 'Faculty' },
+  { email: 'coordinator@acadflow.edu', label: 'Coordinator' },
   { email: 'admin@acadflow.edu', label: 'Admin' },
 ];
 
@@ -292,8 +290,9 @@ export default function SignInCard({
                     key={demoEmail}
                     type="button"
                     onClick={() => fillDemoAccount(demoEmail)}
-                    className="auth-demo-chip"
+                    className={`auth-demo-chip ${email === demoEmail ? 'is-active' : ''}`}
                     aria-label={`Fill credentials for ${label}`}
+                    title={`Fill ${demoEmail}`}
                   >
                     {label}
                   </button>
