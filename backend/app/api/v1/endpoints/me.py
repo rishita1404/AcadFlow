@@ -103,6 +103,8 @@ class CourseCardOut(BaseModel):
     remaining: Optional[int] = None
     buffer: Optional[int] = None
     attendance_pct: Optional[float] = None
+    avg_attendance: Optional[float] = None
+    enrolled_count: Optional[int] = None
     insufficient_data: bool
     risk_band: str
     risk_score: Optional[float] = None
@@ -546,6 +548,8 @@ def get_dashboard(
                     remaining=max(0, total_classes - held),
                     buffer=None,
                     attendance_pct=att_pct,
+                    avg_attendance=att_pct,
+                    enrolled_count=enrolled_count,
                     insufficient_data=(held == 0),
                     risk_band=band,
                     risk_score=att_pct,
