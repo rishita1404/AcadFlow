@@ -184,7 +184,10 @@ export default function StudentHome() {
                   }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>
-                        {s.course_code}: {s.course_name}
+                        <span style={{ fontWeight: 800, color: 'var(--accent)', marginRight: 6 }}>
+                          {s.course_short_name || s.short_name || s.course_code}
+                        </span>
+                        {s.course_name} <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({s.course_code})</span>
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                         {s.room_name || 'Room 101'} · {s.teacher_name} · Section {s.section || 'A'}

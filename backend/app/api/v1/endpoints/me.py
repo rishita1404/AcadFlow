@@ -93,6 +93,7 @@ class CourseCardOut(BaseModel):
     course_id: int
     code: str
     name: str
+    short_name: Optional[str] = None
     total_classes: int
     held: int
     attended: int
@@ -108,6 +109,7 @@ class CourseCardOut(BaseModel):
     # Warning signals for this course
     has_warning: bool = False
     warning_level: str = "safe"  # safe | watch | danger | critical
+    enrolled_students: Optional[List[dict]] = None
 
 
 class StudentDashboardOut(BaseModel):
@@ -376,6 +378,7 @@ def get_dashboard(
                     course_id=cid,
                     code=course.code,
                     name=course.name,
+                    short_name=getattr(course, "short_name", None) or course.code,
                     total_classes=risk_data.get("total_classes", course.total_classes),
                     held=held,
                     attended=attended,
@@ -498,11 +501,26 @@ def get_dashboard(
 
             status_msg = f"{enrolled_count} students enrolled • {held} sessions held • {risk_students} at risk"
 
+            enrolment_recs = db.scalars(select(EnrolmentModel).where(EnrolmentModel.course_id == cid)).all()
+            enrolled_student_objs = []
+            for enr in enrolment_recs:
+                su = db.get(UserModel, enr.student_id)
+                sp = db.get(StudentModel, enr.student_id)
+                if su:
+                    enrolled_student_objs.append({
+                        "id": su.id,
+                        "name": su.name,
+                        "email": su.email,
+                        "roll_no": sp.roll_no if sp else "",
+                        "batch": sp.batch if sp else "",
+                    })
+
             course_cards.append(
                 CourseCardOut(
                     course_id=cid,
                     code=course.code,
                     name=course.name,
+                    short_name=getattr(course, "short_name", None) or course.code,
                     total_classes=total_classes,
                     held=held,
                     attended=avg_attended,
@@ -517,6 +535,7 @@ def get_dashboard(
                     status_message=status_msg,
                     has_warning=has_warning,
                     warning_level=warning_level,
+                    enrolled_students=enrolled_student_objs,
                 )
             )
 
@@ -1622,6 +1641,7 @@ class TimetableSlotOut(BaseModel):
     course_id: int
     course_code: str
     course_name: str
+    course_short_name: Optional[str] = None
     teacher_name: str
     room_name: Optional[str] = None
     day: int  # 0=Mon .. 5=Sat
@@ -1736,6 +1756,7 @@ def get_my_timetable(
                     course_id=c1.id,
                     course_code=c1.code,
                     course_name=c1.name,
+                    course_short_name=getattr(c1, "short_name", None) or c1.code,
                     teacher_name=user.name,
                     room_name="Room 101",
                     day=d,
@@ -1752,6 +1773,7 @@ def get_my_timetable(
                     course_id=c2.id,
                     course_code=c2.code,
                     course_name=c2.name,
+                    course_short_name=getattr(c2, "short_name", None) or c2.code,
                     teacher_name=user.name,
                     room_name="Lab 201",
                     day=d,
@@ -1775,6 +1797,7 @@ def get_my_timetable(
                 course_id=s.course_id,
                 course_code=c.code if c else "GEN",
                 course_name=c.name if c else "Course",
+                course_short_name=getattr(c, "short_name", None) or (c.code if c else "C"),
                 teacher_name=t.name if t else "Faculty",
                 room_name=r.name if r else "Room 101",
                 day=s.day,

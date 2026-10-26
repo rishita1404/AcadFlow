@@ -188,15 +188,15 @@ export default function FacultyTimetable() {
                                     }}
                                   >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <span style={{ fontSize: 12, fontWeight: 700, color: style.text }}>
-                                        {s.course_code || 'COURSE'}
+                                      <span style={{ fontSize: 13, fontWeight: 800, color: style.text }}>
+                                        {s.course_short_name || s.short_name || s.course_code || 'COURSE'}
                                       </span>
                                       <span style={{ fontSize: 10, color: style.text, textTransform: 'uppercase', fontWeight: 700 }}>
                                         {s.kind || 'lecture'}
                                       </span>
                                     </div>
-                                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-900)', marginTop: 2 }}>
-                                      {s.course_name}
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-900)', marginTop: 2 }} title={`${s.course_name} (${s.course_code})`}>
+                                      {s.course_name} <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>({s.course_code})</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
                                       <span>Sec: {s.section || 'A'}</span>

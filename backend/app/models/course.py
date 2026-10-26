@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Optional
 
 from sqlalchemy import (
     CheckConstraint,
@@ -40,6 +41,7 @@ class CourseModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(150))
+    short_name: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     semester_id: Mapped[int] = mapped_column(Integer, ForeignKey("semesters.id"))
     department_id: Mapped[int] = mapped_column(Integer, ForeignKey("departments.id"))
     total_classes: Mapped[int] = mapped_column(Integer)
@@ -60,4 +62,4 @@ class CourseStaffModel(Base):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), primary_key=True
     )
-    role: Mapped[str] = mapped_column(String(30), primary_key=True)
+    role: Mapped[str] = mapped_column(String(30), default="instructor")
