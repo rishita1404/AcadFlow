@@ -208,12 +208,14 @@ export default function AppRouter() {
             path="faculty/home"
             element={
               <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
-                <FacultyHome />
+                <FacultyHome defaultTab="overview" />
               </RoleGuard>
             }
           />
           <Route
-            path="faculty/courses/:id"
+            path="faculty/students" element={<RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}><FacultyHome defaultTab="assigned-students" /></RoleGuard>} />
+          <Route path="faculty/courses" element={<RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}><FacultyHome defaultTab="overview" /></RoleGuard>} />
+          <Route path="faculty/courses/:id"
             element={
               <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'admin']}>
                 <FacultyCourseDetail />
