@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -18,4 +18,7 @@ class AuditLogModel(Base):
     new_value: Mapped[Optional[str]] = mapped_column(Text)
     actor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     reason: Mapped[Optional[str]] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )

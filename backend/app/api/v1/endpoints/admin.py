@@ -227,22 +227,38 @@ def create_user(
         )
         db.add(student_profile)
 
-    # Audit log
+    # Commit user creation first to guarantee persistence
+    db.commit()
+    db.refresh(user)
+
+    # Audit log (non-blocking)
     try:
+        from datetime import datetime, timezone
+        actor_id = 1
+        if current_user and "sub" in current_user:
+            try:
+                actor_id = int(current_user["sub"])
+            except (ValueError, TypeError):
+                actor_id = 1
+        elif current_user and "id" in current_user:
+            try:
+                actor_id = int(current_user["id"])
+            except (ValueError, TypeError):
+                actor_id = 1
+
         db.add(AuditLogModel(
             entity="user",
             entity_id=str(user.id),
             action="create_user",
             old_value=None,
             new_value=f"Created {user.role}: {user.email}",
-            actor_id=int(current_user["sub"]) if current_user and "sub" in current_user else None,
+            actor_id=actor_id,
             reason="Admin created user",
+            created_at=datetime.now(timezone.utc),
         ))
+        db.commit()
     except Exception:
-        pass
-
-    db.commit()
-    db.refresh(user)
+        db.rollback()
 
     dept = db.get(DepartmentModel, user.department_id) if user.department_id else None
     return AdminUserOut(
@@ -284,12 +300,13 @@ def delete_user(
     db.execute(delete(RiskSnapshotModel).where(RiskSnapshotModel.student_id == user_id))
     db.execute(delete(SubmissionModel).where(SubmissionModel.student_id == user_id))
     db.execute(delete(StudentHolidayModel).where(StudentHolidayModel.student_id == user_id))
-    db.execute(delete(NotificationModel).where(NotificationModel.user_id == user_id))
+    db.execute(delete(NotificationModel).where(NotificationModel.recipient_id == user_id))
     db.execute(delete(EnrolmentModel).where(EnrolmentModel.student_id == user_id))
     db.execute(delete(CourseStaffModel).where(CourseStaffModel.user_id == user_id))
     db.execute(delete(MentorAssignmentModel).where((MentorAssignmentModel.mentor_id == user_id) | (MentorAssignmentModel.student_id == user_id)))
     db.execute(delete(DeanAssignmentModel).where(DeanAssignmentModel.user_id == user_id))
     db.execute(delete(StudentModel).where(StudentModel.user_id == user_id))
+    db.execute(delete(AuditLogModel).where(AuditLogModel.actor_id == user_id))
     db.delete(user)
     db.commit()
 

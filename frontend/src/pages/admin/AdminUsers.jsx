@@ -103,7 +103,17 @@ export default function AdminUsers() {
     },
     onError: (err) => {
       const detail = err.response?.data?.detail;
-      setUserFormError(typeof detail === 'string' ? detail : detail?.message || 'Failed to create user');
+      let msg = 'Failed to create user';
+      if (typeof detail === 'string') {
+        msg = detail;
+      } else if (Array.isArray(detail)) {
+        msg = detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+      } else if (detail?.message) {
+        msg = detail.message;
+      } else if (err.message) {
+        msg = err.message;
+      }
+      setUserFormError(msg);
     },
   });
 
