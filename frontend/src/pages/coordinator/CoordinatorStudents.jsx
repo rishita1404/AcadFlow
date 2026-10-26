@@ -120,7 +120,7 @@ export default function CoordinatorStudents() {
                     {formatPct(s.attendance_percentage)}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <StatusBadge status={s.risk_level || 'Safe'} />
+                    <StatusBadge band={s.risk_level || 'Safe'} />
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <button
@@ -202,7 +202,7 @@ export default function CoordinatorStudents() {
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Risk Band</div>
                     <div style={{ marginTop: 2 }}>
-                      <StatusBadge status={studentDetail?.risk_level || 'Safe'} />
+                      <StatusBadge band={studentDetail?.risk_level || 'Safe'} />
                     </div>
                   </div>
                   <div>
