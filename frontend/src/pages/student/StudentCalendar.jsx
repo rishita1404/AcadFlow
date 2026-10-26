@@ -546,9 +546,17 @@ export default function StudentCalendar() {
                     {activeCourse ? `Save Plan for ${activeCourse.code}` : 'Save Plan to Profile'}
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      try {
+                        await holidayApi.resetAll();
+                      } catch (e) {
+                        console.error('Failed to reset backend holidays', e);
+                      }
                       setPlannedDates([]);
                       computeProjection([]);
+                      qc.invalidateQueries({ queryKey: ['student-holidays'] });
+                      qc.invalidateQueries({ queryKey: ['student-calendar'] });
+                      qc.invalidateQueries({ queryKey: ['pressure-view'] });
                     }}
                     style={{
                       padding: '8px', background: 'var(--bg)', color: 'var(--text)',

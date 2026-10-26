@@ -110,6 +110,56 @@ def list_versions(
     return [TimetableVersionOut.model_validate(v) for v in versions]
 
 
+@router.get("/slots", response_model=List[SlotOut], summary="List timetable slots for a version")
+def get_version_slots(
+    version_id: Optional[int] = Query(None),
+    department_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    target_vid = version_id
+    dept_id = department_id or 1
+    if not target_vid:
+        latest = db.scalar(
+            select(TimetableVersionModel)
+            .where(TimetableVersionModel.department_id == dept_id)
+            .order_by(TimetableVersionModel.id.desc())
+        )
+        if latest:
+            target_vid = latest.id
+
+    if not target_vid:
+        return []
+
+    slots = db.scalars(
+        select(TimetableSlotModel).where(TimetableSlotModel.version_id == target_vid)
+    ).all()
+
+    out = []
+    days_map = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    for s in slots:
+        course = db.get(CourseModel, s.course_id)
+        teacher = db.get(UserModel, s.teacher_id)
+        room = db.get(RoomModel, s.room_id) if s.room_id else None
+        out.append(SlotOut(
+            id=s.id,
+            course_id=s.course_id,
+            course_code=course.code if course else "",
+            course_name=course.name if course else "",
+            course_short_name=course.short_name if course else None,
+            section=s.section,
+            teacher_id=s.teacher_id,
+            teacher_name=teacher.name if teacher else "Faculty",
+            room_id=s.room_id,
+            room_name=room.name if room else None,
+            day=s.day,
+            day_name=days_map[s.day] if 0 <= s.day < 7 else "Day",
+            period_label=s.period_label,
+            kind=s.kind,
+            is_clash=False,
+        ))
+    return out
+
+
 @router.get("/draft", summary="Get or initialize draft timetable for department")
 def get_draft(
     department_id: Optional[int] = Query(None),

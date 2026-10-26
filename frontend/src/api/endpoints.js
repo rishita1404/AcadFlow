@@ -55,6 +55,7 @@ export const holidayApi = {
   mark: (holiday_date, reason) =>
     apiClient.post('/me/holidays', { holiday_date, reason }),
   delete: (holiday_date) => apiClient.delete(`/me/holidays/${holiday_date}`),
+  resetAll: () => apiClient.delete('/me/holidays'),
 };
 
 // ── Deadlines ────────────────────────────────────────────────────────────────
@@ -92,7 +93,7 @@ export const notificationApi = {
 
 // ── Courses ───────────────────────────────────────────────────────────────────
 export const courseApi = {
-  getCourse: (id) => apiClient.get(/courses/),
+  getCourse: (id) => apiClient.get(`/courses/${id}`),
   list: (params = {}) => apiClient.get('/courses', { params }),
   get: (id) => apiClient.get(`/courses/${id}`),
   enrol: (courseId, payload) =>

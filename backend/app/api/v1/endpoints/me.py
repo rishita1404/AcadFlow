@@ -1221,6 +1221,24 @@ def mark_holiday(
     )
 
 
+@router.delete("/holidays", summary="Reset all planned holidays")
+def reset_all_holidays(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user, student = _get_user_and_student(current_user, db)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Planned absences are only applicable to student accounts.",
+        )
+    deleted_count = db.query(StudentHolidayModel).filter(
+        StudentHolidayModel.student_id == user.id
+    ).delete()
+    db.commit()
+    return {"message": "All planned leaves reset successfully", "deleted": deleted_count}
+
+
 @router.delete(
     "/holidays/{holiday_date}",
     status_code=status.HTTP_204_NO_CONTENT,

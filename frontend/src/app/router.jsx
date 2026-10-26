@@ -39,6 +39,7 @@ import CoordinatorDeadlines from '../pages/coordinator/CoordinatorDeadlines.jsx'
 import CoordinatorStudents from '../pages/coordinator/CoordinatorStudents.jsx';
 import CoordinatorTeachers from '../pages/coordinator/CoordinatorTeachers.jsx';
 import CoordinatorTimetable from '../pages/coordinator/CoordinatorTimetable.jsx';
+import CoordinatorTimetableEditor from '../pages/coordinator/CoordinatorTimetableEditor.jsx';
 
 // Admin Pages
 import AdminDashboard from '../pages/admin/AdminDashboard.jsx';
@@ -340,7 +341,7 @@ export default function AppRouter() {
             path="coordinator/timetable/grid"
             element={
               <RoleGuard allowedRoles={['coordinator', 'admin']}>
-                <FacultyTimetable />
+                <CoordinatorTimetableEditor />
               </RoleGuard>
             }
           />
