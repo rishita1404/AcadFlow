@@ -46,8 +46,30 @@ export default function AdminDashboard() {
             </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 6, margin: 0 }}>
-            System health telemetry, risk algorithm calibration, immutable audit trails, and global access governance.
+            System health telemetry, risk algorithm calibration, master data governance, and access control.
           </p>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Link
+            to="/admin/users?tab=users&action=add"
+            style={{
+              background: 'var(--accent)', color: 'var(--on-dark)', padding: '10px 18px',
+              borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 700, textDecoration: 'none',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            + Add User
+          </Link>
+          <Link
+            to="/admin/users?tab=courses"
+            style={{
+              background: 'var(--surface)', color: 'var(--ink-900)', padding: '10px 18px',
+              borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 700, textDecoration: 'none',
+              border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            Manage Courses
+          </Link>
         </div>
       </div>
 
@@ -85,25 +107,25 @@ export default function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ color: 'var(--accent)', marginBottom: 8 }}><Users size={20} /></div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_users || 150}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_users ?? 0}</div>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 4 }}>Total User Accounts</div>
         </div>
 
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ color: 'var(--accent)', marginBottom: 8 }}><GraduationCap size={20} /></div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_students || 120}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_students ?? 0}</div>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 4 }}>Students Enrolled</div>
         </div>
 
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ color: 'var(--accent)', marginBottom: 8 }}><UserCheck size={20} /></div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_faculty || 25}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_faculty ?? 0}</div>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 4 }}>Faculty & Trainers</div>
         </div>
 
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 20, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
           <div style={{ color: 'var(--accent)', marginBottom: 8 }}><BookOpen size={20} /></div>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_courses || 6}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>{stats?.total_courses ?? 0}</div>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginTop: 4 }}>Active Courses</div>
         </div>
       </div>
