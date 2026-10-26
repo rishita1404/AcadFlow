@@ -50,6 +50,7 @@ export default function AdminUsers() {
   const [newCourse, setNewCourse] = useState({
     code: '',
     name: '',
+    short_name: '',
     department_id: 1,
     semester_id: 1,
     total_classes: 40,
@@ -139,6 +140,7 @@ export default function AdminUsers() {
       setNewCourse({
         code: '',
         name: '',
+        short_name: '',
         department_id: 1,
         semester_id: 1,
         total_classes: 40,
@@ -498,6 +500,15 @@ export default function AdminUsers() {
                               <strong style={{ color: 'var(--ink-900)', fontFamily: 'monospace' }}>{u.roll_no}</strong>
                               {u.batch && <span style={{ fontSize: 11, marginLeft: 6 }}>({u.batch})</span>}
                             </div>
+                          ) : u.assigned_students && u.assigned_students.length > 0 ? (
+                            <div>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--bg)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)' }}>
+                                {u.assigned_students.length} student{u.assigned_students.length > 1 ? 's' : ''} assigned
+                              </span>
+                              <div style={{ fontSize: 11, color: 'var(--ink-900)', marginTop: 4, fontWeight: 500 }}>
+                                {u.assigned_students.map(s => s.name).join(', ')}
+                              </div>
+                            </div>
                           ) : (
                             <span style={{ fontSize: 12 }}>—</span>
                           )}
@@ -548,13 +559,14 @@ export default function AdminUsers() {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
               <thead style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
                 <tr>
+                  <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Short</th>
                   <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Code</th>
                   <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Course Title</th>
                   <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Department</th>
                   <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Semester</th>
-                  <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Faculty Instructor</th>
+                  <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Assigned Faculty</th>
                   <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Classes</th>
-                  <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Enrolled</th>
+                  <th style={{ padding: '12px 18px', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Enrolled Students</th>
                   <th style={{ padding: '12px 18px', width: 90, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, fontSize: 12 }}>Action</th>
                 </tr>
               </thead>
@@ -568,6 +580,11 @@ export default function AdminUsers() {
                 ) : (
                   courses.map(c => (
                     <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '14px 18px' }}>
+                        <span style={{ background: 'var(--accent)', color: 'var(--on-dark, #fff)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 800, fontSize: 11 }}>
+                          {c.short_name || 'C?'}
+                        </span>
+                      </td>
                       <td style={{ padding: '14px 18px', fontWeight: 800, color: 'var(--ink-900)', fontFamily: 'monospace' }}>
                         {c.code}
                       </td>
@@ -587,18 +604,25 @@ export default function AdminUsers() {
                         {c.total_classes}
                       </td>
                       <td style={{ padding: '14px 18px' }}>
-                        <span
-                          style={{
-                            background: 'var(--ok-bg)',
-                            color: 'var(--ok-fg)',
-                            padding: '3px 10px',
-                            borderRadius: 'var(--radius-pill)',
-                            fontWeight: 700,
-                            fontSize: 11,
-                          }}
-                        >
-                          👥 {c.enrolled_count}
-                        </span>
+                        <div>
+                          <span
+                            style={{
+                              background: 'var(--ok-bg)',
+                              color: 'var(--ok-fg)',
+                              padding: '2px 8px',
+                              borderRadius: 'var(--radius-pill)',
+                              fontWeight: 700,
+                              fontSize: 11,
+                            }}
+                          >
+                            👥 {c.enrolled_count}
+                          </span>
+                          {c.enrolled_students && c.enrolled_students.length > 0 && (
+                            <div style={{ fontSize: 11, color: 'var(--ink-900)', marginTop: 4, fontWeight: 500 }}>
+                              {c.enrolled_students.map(s => s.name).join(', ')}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '14px 18px', textAlign: 'center' }}>
                         <button
@@ -1123,15 +1147,36 @@ export default function AdminUsers() {
               }}
             >
               <div style={{ display: 'grid', gap: 14 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '110px 100px 1fr', gap: 12 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Code *</label>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Course Code *</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. CS504"
+                      placeholder="e.g. CS505"
                       value={newCourse.code}
                       onChange={e => setNewCourse({ ...newCourse, code: e.target.value.toUpperCase() })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--radius-input)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg)',
+                        color: 'var(--ink-900)',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Short Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. C5"
+                      value={newCourse.short_name}
+                      onChange={e => setNewCourse({ ...newCourse, short_name: e.target.value.toUpperCase() })}
                       style={{
                         width: '100%',
                         padding: '8px 12px',
@@ -1150,7 +1195,7 @@ export default function AdminUsers() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Compiler Design"
+                      placeholder="e.g. Course 5"
                       value={newCourse.name}
                       onChange={e => setNewCourse({ ...newCourse, name: e.target.value })}
                       style={{

@@ -1,4 +1,3 @@
-
 import Card from './ui/Card.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import BufferGauge from './BufferGauge.jsx';
@@ -19,16 +18,26 @@ export default function CourseCard({ course, onClick }) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
         <div>
-          <span style={{
-            display: 'inline-block',
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
-            color: 'var(--accent)', background: 'var(--bg)',
-            padding: '2px 10px', borderRadius: 'var(--radius-pill)',
-            border: '1px solid var(--border)',
-            marginBottom: 6,
-          }}>
-            {course.code}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            {course.short_name && (
+              <span style={{
+                fontSize: 11, fontWeight: 800,
+                background: 'var(--accent)', color: 'var(--on-dark, #fff)',
+                padding: '2px 8px', borderRadius: 'var(--radius-pill)',
+              }}>
+                {course.short_name}
+              </span>
+            )}
+            <span style={{
+              display: 'inline-block',
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+              color: 'var(--accent)', background: 'var(--bg)',
+              padding: '2px 10px', borderRadius: 'var(--radius-pill)',
+              border: '1px solid var(--border)',
+            }}>
+              {course.code}
+            </span>
+          </div>
           <h3 style={{
             fontFamily: 'var(--font-serif)', fontSize: 16,
             color: 'var(--ink-900)', lineHeight: 1.3, margin: 0,
@@ -59,25 +68,29 @@ export default function CourseCard({ course, onClick }) {
           </div>
         </div>
 
-        {/* Buffer */}
+        {/* Classes held */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 2 }}>
-            Buffer
+            Attended / Held
           </div>
-          <BufferGauge buffer={course.buffer} />
+          <div style={{
+            fontSize: 22, fontWeight: 800, color: 'var(--ink-900)',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {course.attended ?? 0}
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted)' }}>
+              /{course.held ?? 0}
+            </span>
+          </div>
         </div>
 
-        {/* Sessions */}
-        {(course.classes_held != null || course.total_sessions != null) && (
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 2 }}>
-              Sessions
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-              {course.classes_attended ?? course.attended ?? '?'} / {course.classes_held ?? course.total_sessions ?? '?'}
-            </div>
+        {/* Buffer Gauge */}
+        <div style={{ marginLeft: 'auto' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 4, textAlign: 'right' }}>
+            Buffer
           </div>
-        )}
+          <BufferGauge buffer={course.buffer} size={48} />
+        </div>
       </div>
     </Card>
   );

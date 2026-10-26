@@ -148,15 +148,15 @@ export default function StudentTimetable() {
                           onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: kindStyle.text }}>
-                              {slot.course_code}
+                            <span style={{ fontSize: 13, fontWeight: 800, color: kindStyle.text }}>
+                              {slot.course_short_name || slot.short_name || slot.course_code}
                             </span>
                             <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: kindStyle.text }}>
                               {slot.kind}
                             </span>
                           </div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-900)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {slot.course_name}
+                          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-900)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`${slot.course_name} (${slot.course_code})`}>
+                            {slot.course_name} <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>({slot.course_code})</span>
                           </div>
                           <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
                             📍 {slot.room_name || 'Room 101'}

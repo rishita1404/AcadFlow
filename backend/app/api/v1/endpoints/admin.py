@@ -51,6 +51,8 @@ class AdminUserOut(BaseModel):
     failed_logins: int = 0
     roll_no: Optional[str] = None
     batch: Optional[str] = None
+    assigned_courses: Optional[List[dict]] = None
+    assigned_students: Optional[List[dict]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -92,6 +94,7 @@ class AdminStatsOut(BaseModel):
 class AdminCourseCreate(BaseModel):
     code: str
     name: str
+    short_name: Optional[str] = None
     department_id: int
     semester_id: int
     total_classes: int = 40
@@ -158,9 +161,41 @@ def list_users(
         for d in db.scalars(select(DepartmentModel)).all()
     }
 
+    # Map faculty assigned courses and enrolled students
+    faculty_courses_map = {}
+    faculty_students_map = {}
+    staff_recs = db.scalars(select(CourseStaffModel)).all()
+    for sr in staff_recs:
+        c_obj = db.get(CourseModel, sr.course_id)
+        if not c_obj:
+            continue
+        if sr.user_id not in faculty_courses_map:
+            faculty_courses_map[sr.user_id] = []
+            faculty_students_map[sr.user_id] = {}
+        faculty_courses_map[sr.user_id].append({
+            "id": c_obj.id,
+            "code": c_obj.code,
+            "name": c_obj.name,
+            "short_name": getattr(c_obj, "short_name", None) or c_obj.code,
+        })
+        enrs = db.scalars(select(EnrolmentModel).where(EnrolmentModel.course_id == c_obj.id)).all()
+        for e in enrs:
+            su = db.get(UserModel, e.student_id)
+            sp = students_map.get(e.student_id)
+            if su:
+                faculty_students_map[sr.user_id][su.id] = {
+                    "id": su.id,
+                    "name": su.name,
+                    "email": su.email,
+                    "roll_no": sp.roll_no if sp else None,
+                    "batch": sp.batch if sp else None,
+                }
+
     results = []
     for u in users:
         stu = students_map.get(u.id)
+        u_courses = faculty_courses_map.get(u.id)
+        u_students = list(faculty_students_map.get(u.id, {}).values()) if u.id in faculty_students_map else None
         results.append(
             AdminUserOut(
                 id=u.id,
@@ -172,6 +207,8 @@ def list_users(
                 failed_logins=u.failed_logins,
                 roll_no=stu.roll_no if stu else None,
                 batch=stu.batch if stu else None,
+                assigned_courses=u_courses,
+                assigned_students=u_students,
             )
         )
     return results
@@ -357,12 +394,25 @@ def get_admin_courses(
         sem = db.get(SemesterModel, c.semester_id) if c.semester_id else None
         staff = db.scalars(select(CourseStaffModel).where(CourseStaffModel.course_id == c.id)).first()
         faculty = db.get(UserModel, staff.user_id) if staff else None
-        enrolled_count = db.scalar(select(func.count(EnrolmentModel.student_id)).where(EnrolmentModel.course_id == c.id)) or 0
+
+        enrolments = db.scalars(select(EnrolmentModel).where(EnrolmentModel.course_id == c.id)).all()
+        enrolled_students = []
+        for e in enrolments:
+            stu_u = db.get(UserModel, e.student_id)
+            stu_m = db.get(StudentModel, e.student_id)
+            if stu_u:
+                enrolled_students.append({
+                    "id": stu_u.id,
+                    "name": stu_u.name,
+                    "email": stu_u.email,
+                    "roll_no": stu_m.roll_no if stu_m else None,
+                })
 
         result.append({
             "id": c.id,
             "code": c.code,
             "name": c.name,
+            "short_name": getattr(c, "short_name", None) or c.code,
             "department_id": c.department_id,
             "department_name": dept.name if dept else "N/A",
             "department_code": dept.code if dept else "N/A",
@@ -372,7 +422,8 @@ def get_admin_courses(
             "faculty_id": faculty.id if faculty else None,
             "faculty_name": faculty.name if faculty else "Unassigned",
             "faculty_email": faculty.email if faculty else None,
-            "enrolled_count": enrolled_count,
+            "enrolled_count": len(enrolled_students),
+            "enrolled_students": enrolled_students,
         })
     return result
 
@@ -393,9 +444,15 @@ def create_admin_course(
             detail=f"Course with code '{payload.code}' already exists",
         )
 
+    short_name = (payload.short_name or "").strip()
+    if not short_name:
+        total_courses = db.scalar(select(func.count(CourseModel.id))) or 0
+        short_name = f"C{total_courses + 1}"
+
     course = CourseModel(
         code=payload.code,
         name=payload.name,
+        short_name=short_name,
         department_id=payload.department_id,
         semester_id=payload.semester_id,
         total_classes=payload.total_classes,
@@ -416,6 +473,7 @@ def create_admin_course(
         "id": course.id,
         "code": course.code,
         "name": course.name,
+        "short_name": course.short_name,
         "message": f"Course {course.code} created successfully",
     }
 

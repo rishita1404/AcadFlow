@@ -1,4 +1,5 @@
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { dashboardApi, timetableApi, facultyApi } from '../../api/endpoints.js';
@@ -38,6 +39,24 @@ export default function FacultyHome() {
   const todayDayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
   const todaySessions = timetable.filter(s => s.day_name === todayDayName || s.day === (new Date().getDay() - 1));
 
+  const allAssignedStudents = useMemo(() => {
+    const map = new Map();
+    courses.forEach(c => {
+      (c.enrolled_students || []).forEach(st => {
+        const courseTag = c.short_name ? `${c.short_name} (${c.code})` : c.code;
+        if (!map.has(st.id)) {
+          map.set(st.id, { ...st, courses: [courseTag] });
+        } else {
+          const existing = map.get(st.id);
+          if (!existing.courses.includes(courseTag)) {
+            existing.courses.push(courseTag);
+          }
+        }
+      });
+    });
+    return Array.from(map.values());
+  }, [courses]);
+
   return (
     <div style={{ maxWidth: 1440, margin: '0 auto' }}>
       {/* Header */}
@@ -75,15 +94,22 @@ export default function FacultyHome() {
               <div key={c.course_id} style={{ ...C.card, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--bg)', padding: '2px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)' }}>{c.code}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {c.short_name && (
+                        <span style={{ fontSize: 11, fontWeight: 800, background: 'var(--accent)', color: 'var(--on-dark, #fff)', padding: '2px 8px', borderRadius: 'var(--radius-pill)' }}>
+                          {c.short_name}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--bg)', padding: '2px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)' }}>{c.code}</span>
+                    </div>
                     {c.at_risk_count > 0 && (
                       <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--risk-bg)', color: 'var(--risk-fg)', padding: '2px 8px', borderRadius: 'var(--radius-pill)' }}>
                         {c.at_risk_count} at risk
                       </span>
                     )}
                   </div>
-                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--ink-900)', margin: '0 0 var(--space-4)' }}>{c.name}</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-900)', margin: '0 0 var(--space-3)' }}>{c.name}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
                     <div style={{ background: 'var(--bg)', padding: 'var(--space-3)', borderRadius: 10, textAlign: 'center' }}>
                       <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{c.enrolled_count ?? 0}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Enrolled</div>
@@ -93,6 +119,22 @@ export default function FacultyHome() {
                       <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Avg Attendance</div>
                     </div>
                   </div>
+                  <div style={{ background: 'var(--bg)', padding: '8px 10px', borderRadius: 8, marginBottom: 'var(--space-3)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                      Assigned Students ({c.enrolled_students?.length || 0})
+                    </div>
+                    {c.enrolled_students && c.enrolled_students.length > 0 ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {c.enrolled_students.map(st => (
+                          <span key={st.id} style={{ fontSize: 11, background: 'var(--surface)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontWeight: 600, color: 'var(--ink-900)' }}>
+                            {st.name} <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>({st.roll_no || st.email})</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No students enrolled yet</span>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--space-2)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
                   <Link to={`/faculty/courses/${c.course_id}`} style={{ flex: 1, textAlign: 'center', padding: '7px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600, color: 'var(--text)', textDecoration: 'none' }}>Manage</Link>
@@ -100,6 +142,44 @@ export default function FacultyHome() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Assigned Students Directory */}
+          <div style={{ ...C.card, marginBottom: 'var(--space-6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--ink-900)', margin: 0 }}>
+                  Assigned Students Directory ({allAssignedStudents.length})
+                </h3>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  All students currently assigned under your teaching courses
+                </span>
+              </div>
+            </div>
+            {allAssignedStudents.length === 0 ? (
+              <div style={{ padding: 'var(--space-4)', background: 'var(--bg)', borderRadius: 12, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                No students currently assigned to your courses.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 'var(--space-3)' }}>
+                {allAssignedStudents.map(st => (
+                  <div key={st.id} style={{ padding: '12px 14px', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink-900)' }}>{st.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginTop: 2, fontFamily: 'monospace' }}>
+                      {st.roll_no || 'No Roll #'} {st.batch ? `• ${st.batch}` : ''}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{st.email}</div>
+                    <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {st.courses.map(crs => (
+                        <span key={crs} style={{ fontSize: 10, background: 'var(--surface)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', fontWeight: 600, color: 'var(--accent)' }}>
+                          {crs}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Today's schedule */}
@@ -116,7 +196,12 @@ export default function FacultyHome() {
                 {todaySessions.map(s => (
                   <div key={s.id} style={{ padding: 'var(--space-3) var(--space-4)', background: 'var(--bg)', borderRadius: 12, border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <strong style={{ fontSize: 13, color: 'var(--text)' }}>{s.course_code}: {s.course_name}</strong>
+                      <strong style={{ fontSize: 13, color: 'var(--text)' }}>
+                        <span style={{ fontWeight: 800, color: 'var(--accent)', marginRight: 6 }}>
+                          {s.course_short_name || s.short_name || s.course_code}
+                        </span>
+                        {s.course_name} <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({s.course_code})</span>
+                      </strong>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{s.room_name || 'Room 101'} · Section {s.section || 'A'} · {s.kind}</div>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 'var(--radius-pill)', background: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--border)' }}>{s.period_label}</span>

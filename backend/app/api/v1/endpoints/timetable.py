@@ -50,6 +50,7 @@ class SlotOut(BaseModel):
     course_id: int
     course_code: str
     course_name: str
+    course_short_name: Optional[str] = None
     section: Optional[str]
     teacher_id: int
     teacher_name: str
@@ -435,6 +436,7 @@ def get_my_timetable(
                 course_id=s.course_id,
                 course_code=course.code if course else "",
                 course_name=course.name if course else "",
+                course_short_name=getattr(course, "short_name", None) or (course.code if course else "C"),
                 section=s.section,
                 teacher_id=s.teacher_id,
                 teacher_name=teacher.name if teacher else "",
