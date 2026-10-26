@@ -35,9 +35,11 @@ def list_courses(
     query = select(CourseModel)
 
     if department_id is not None:
-        if not hasattr(department_id, "default"): query = query.where(CourseModel.department_id == int(department_id))
+        if not hasattr(department_id, "default"):
+            query = query.where(CourseModel.department_id == int(department_id))
     if code is not None:
-        if not hasattr(code, "default"): query = query.where(CourseModel.code.ilike(f"%{code}%"))
+        if not hasattr(code, "default"):
+            query = query.where(CourseModel.code.ilike(f"%{code}%"))
 
     # Total count before pagination
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
