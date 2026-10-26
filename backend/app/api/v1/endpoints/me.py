@@ -30,6 +30,7 @@ from app.core.deps import get_db
 from app.core.errors import ConflictError, NotFoundError, UnauthorizedError
 from app.models import (
     AssignmentModel,
+    AttendanceRecordModel,
     ClassSessionModel,
     CourseModel,
     CourseStaffModel,
