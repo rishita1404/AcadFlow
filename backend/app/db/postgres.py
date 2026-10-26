@@ -1,5 +1,6 @@
 import logging
 import os
+import socket
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -7,6 +8,9 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
 logger = logging.getLogger("acadflow.db")
+
+# To minimize site startup latency, use local persistent SQLite by default unless USE_POSTGRES=true
+use_postgres_env = os.environ.get("USE_POSTGRES", "").lower() in ("true", "1", "yes")
 
 sync_database_url = settings.DATABASE_URL
 if sync_database_url.startswith("postgresql+asyncpg://"):
@@ -17,8 +21,6 @@ elif sync_database_url.startswith("postgresql://"):
     sync_database_url = sync_database_url.replace(
         "postgresql://", "postgresql+psycopg://"
     )
-
-import socket
 
 
 def _is_pg_listening() -> bool:
@@ -31,8 +33,9 @@ def _is_pg_listening() -> bool:
     except Exception:
         return False
 
+
 is_connected = False
-if _is_pg_listening():
+if use_postgres_env and _is_pg_listening():
     try:
         engine = create_engine(sync_database_url, echo=False, connect_args={"connect_timeout": 1})
         with engine.connect():
@@ -40,9 +43,9 @@ if _is_pg_listening():
             logger.info("Connected to PostgreSQL successfully.")
     except Exception as e:
         is_connected = False
-        logger.warning("PostgreSQL connection failed (%s). Falling back to local persistent SQLite (acadflow.db).", e)
+        logger.info("PostgreSQL unavailable (%s). Using local persistent SQLite (acadflow.db).", e)
 else:
-    logger.info("PostgreSQL not active on port 5432. Using persistent local SQLite (acadflow.db).")
+    logger.info("Using high-performance local persistent SQLite (acadflow.db).")
 
 if not is_connected:
     from sqlalchemy import event

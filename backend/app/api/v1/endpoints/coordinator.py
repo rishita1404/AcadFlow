@@ -44,18 +44,27 @@ router = APIRouter()
 
 
 def _resolve_dept_id(db: Session, department_id: Optional[int], current_user: Optional[dict]) -> int:
-    if department_id:
-        return int(department_id)
+    if department_id is not None and not hasattr(department_id, "default"):
+        try:
+            return int(department_id)
+        except (ValueError, TypeError):
+            pass
     if current_user:
         dept = current_user.get("department_id")
         if dept:
-            return int(dept)
+            try:
+                return int(dept)
+            except (ValueError, TypeError):
+                pass
         sub = current_user.get("sub")
         if sub:
-            u = db.get(UserModel, int(sub))
-            if u and u.department_id:
-                return u.department_id
-    return 4  # Default to AIML / CSE AI department (id=4)
+            try:
+                u = db.get(UserModel, int(sub))
+                if u and u.department_id:
+                    return u.department_id
+            except Exception:
+                pass
+    return 1  # Default to Dept 1 where current active courses reside
 
 
 class CoordinatorOverviewOut(BaseModel):

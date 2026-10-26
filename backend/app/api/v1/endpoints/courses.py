@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user_optional
 from app.core.deps import can_access, get_db
 from app.core.errors import ConflictError, NotFoundError
-from app.models import CourseModel, EnrolmentModel, StudentModel
+from app.models import CourseModel, EnrolmentModel, StudentModel, UserModel
 from app.schemas.common import PaginatedResponse
 from app.schemas.course import CourseCreate, CourseOut, CourseUpdate
 from app.schemas.enrollment import EnrolmentBatchCreate, EnrolmentOut
@@ -35,9 +35,9 @@ def list_courses(
     query = select(CourseModel)
 
     if department_id is not None:
-        query = query.where(CourseModel.department_id == department_id)
+        if not hasattr(department_id, "default"): query = query.where(CourseModel.department_id == int(department_id))
     if code is not None:
-        query = query.where(CourseModel.code.ilike(f"%{code}%"))
+        if not hasattr(code, "default"): query = query.where(CourseModel.code.ilike(f"%{code}%"))
 
     # Total count before pagination
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
@@ -107,6 +107,19 @@ def get_course(
     c_summary = get_course_attendance_summary(db, course_id)
     c_out.enrolled_count = c_summary["enrolled"]
     c_out.avg_attendance = c_summary["avg_attendance_pct"]
+    students_query = (
+        db.execute(
+            select(StudentModel.user_id, StudentModel.roll_no, UserModel.name, UserModel.email)
+            .join(EnrolmentModel, EnrolmentModel.student_id == StudentModel.user_id)
+            .join(UserModel, UserModel.id == StudentModel.user_id)
+            .where(EnrolmentModel.course_id == course_id)
+            .order_by(StudentModel.roll_no)
+        ).all()
+    )
+    c_out.students = [
+        {"student_id": sid, "id": sid, "roll_no": rno, "name": name, "email": email}
+        for sid, rno, name, email in students_query
+    ]
     return c_out
 
 

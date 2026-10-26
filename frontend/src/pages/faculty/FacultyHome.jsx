@@ -110,23 +110,38 @@ export default function FacultyHome({ defaultTab }) {
     [timetableList, todayDayName]
   );
 
-  // Flattened assigned students with course tagging
+  // Deduplicated assigned students across all courses
   const allAssignedStudents = useMemo(() => {
-    const list = [];
+    const studentMap = new Map();
     courses.forEach(c => {
       const courseShort = c.short_name || c.code;
       (c.enrolled_students || []).forEach(st => {
-        list.push({
-          ...st,
-          course_id: c.course_id,
-          course_code: c.code,
-          course_name: c.name,
-          course_short_name: c.short_name,
-          course_display: `${courseShort} — ${c.name}`,
-        });
+        if (!studentMap.has(st.id)) {
+          studentMap.set(st.id, {
+            ...st,
+            course_id: c.course_id,
+            course_code: c.code,
+            course_name: c.name,
+            course_short_name: c.short_name,
+            course_display: `${courseShort} — ${c.name}`,
+            coursesList: [{ id: c.course_id, code: c.code, short_name: c.short_name, name: c.name }],
+            totalAttended: st.attended || 0,
+            totalHeld: st.held || 0,
+          });
+        } else {
+          const existing = studentMap.get(st.id);
+          existing.coursesList.push({ id: c.course_id, code: c.code, short_name: c.short_name, name: c.name });
+          existing.totalAttended += (st.attended || 0);
+          existing.totalHeld += (st.held || 0);
+          const combinedPct = existing.totalHeld > 0 ? (existing.totalAttended / existing.totalHeld) * 100 : 100.0;
+          existing.attendance_pct = Math.round(combinedPct * 10) / 10;
+          existing.attended = existing.totalAttended;
+          existing.held = existing.totalHeld;
+          existing.band = existing.attendance_pct >= 75 ? 'Safe' : (existing.attendance_pct >= 65 ? 'Watch' : 'At risk');
+        }
       });
     });
-    return list;
+    return Array.from(studentMap.values());
   }, [courses]);
 
   // Unique total student count across all courses
@@ -915,27 +930,44 @@ export default function FacultyHome({ defaultTab }) {
 
                           {/* Course Short Name & Code */}
                           <td style={{ padding: '14px 16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              {st.course_short_name && (
+                            {st.coursesList && st.coursesList.length > 0 ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {st.coursesList.map(crs => (
+                                  <span key={crs.id} style={{
+                                    fontWeight: 800,
+                                    fontSize: 11,
+                                    padding: '2px 7px',
+                                    borderRadius: 'var(--radius-pill)',
+                                    background: 'var(--accent)',
+                                    color: 'var(--on-dark, #fff)',
+                                  }} title={crs.name}>
+                                    {crs.short_name || crs.code}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {st.course_short_name && (
+                                  <span style={{
+                                    fontWeight: 800,
+                                    fontSize: 11,
+                                    padding: '2px 7px',
+                                    borderRadius: 'var(--radius-pill)',
+                                    background: 'var(--accent)',
+                                    color: 'var(--on-dark, #fff)',
+                                  }}>
+                                    {st.course_short_name}
+                                  </span>
+                                )}
                                 <span style={{
-                                  fontWeight: 800,
+                                  fontWeight: 600,
                                   fontSize: 11,
-                                  padding: '2px 7px',
-                                  borderRadius: 'var(--radius-pill)',
-                                  background: 'var(--accent)',
-                                  color: 'var(--on-dark, #fff)',
+                                  color: 'var(--text-muted)',
                                 }}>
-                                  {st.course_short_name}
+                                  {st.course_code}
                                 </span>
-                              )}
-                              <span style={{
-                                fontWeight: 600,
-                                fontSize: 11,
-                                color: 'var(--text-muted)',
-                              }}>
-                                {st.course_code}
-                              </span>
-                            </div>
+                              </div>
+                            )}
                           </td>
 
                           {/* Classes Held / Attended */}

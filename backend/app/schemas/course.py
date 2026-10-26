@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,5 +35,6 @@ class CourseOut(CourseBase):
     id: int
     enrolled_count: Optional[int] = None
     avg_attendance: Optional[float] = None
+    students: Optional[List[Dict[str, Any]]] = None
 
     model_config = ConfigDict(from_attributes=True)

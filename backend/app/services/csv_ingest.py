@@ -579,10 +579,28 @@ def generate_attendance_template_excel(
         c5 = ws.cell(row=r_idx, column=5, value="")
         c5.border = thin_border
 
+    from openpyxl.formatting.rule import CellIsRule
+
+    # High-visibility red styling for Absent status in template
+    red_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+    red_font = Font(name="Calibri", size=11, bold=True, color="DC2626")
+    green_fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
+    green_font = Font(name="Calibri", size=11, bold=True, color="15803D")
+
     max_row = max(len(rows) + 1, 100)
     dv = DataValidation(type="list", formula1='"Present,Absent"', allow_blank=False)
     ws.add_data_validation(dv)
     dv.add(f"D2:D{max_row}")
+
+    # Add dynamic conditional formatting so whenever Absent is selected, cell turns bright red
+    ws.conditional_formatting.add(
+        f"D2:D{max_row}",
+        CellIsRule(operator="equal", formula=['"Absent"'], stopIfTrue=True, fill=red_fill, font=red_font)
+    )
+    ws.conditional_formatting.add(
+        f"D2:D{max_row}",
+        CellIsRule(operator="equal", formula=['"Present"'], stopIfTrue=True, fill=green_fill, font=green_font)
+    )
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or "")) for cell in col)

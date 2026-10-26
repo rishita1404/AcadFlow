@@ -695,9 +695,9 @@ export default function FacultyAttendanceUpload() {
                               width: 32,
                               height: 32,
                               borderRadius: '50%',
-                              border: isPresent ? '2px solid var(--ok-fg)' : '2px solid var(--border)',
-                              background: isPresent ? 'var(--ok-fg)' : 'var(--surface)',
-                              color: isPresent ? '#ffffff' : 'var(--text-muted)',
+                              border: isPresent ? '2px solid var(--ok-fg)' : '2px solid var(--risk-fg, #dc2626)',
+                              background: isPresent ? 'var(--ok-fg)' : 'var(--risk-bg, #fee2e2)',
+                              color: isPresent ? '#ffffff' : 'var(--risk-fg, #dc2626)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -709,7 +709,7 @@ export default function FacultyAttendanceUpload() {
                               padding: 0,
                             }}
                           >
-                            {isPresent ? '✓' : ''}
+                            {isPresent ? '✓' : '✕'}
                           </button>
                         </td>
 
