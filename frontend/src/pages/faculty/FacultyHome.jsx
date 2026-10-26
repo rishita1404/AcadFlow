@@ -380,13 +380,13 @@ export default function FacultyHome({ defaultTab }) {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
                       <div style={{ background: 'var(--bg)', padding: 'var(--space-3)', borderRadius: 10, textAlign: 'center' }}>
                         <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-                          {c.enrolled_count ?? 0}
+                          {c.enrolled_count ?? c.enrolled_students?.length ?? 0}
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Assigned Students</div>
                       </div>
                       <div style={{ background: 'var(--bg)', padding: 'var(--space-3)', borderRadius: 10, textAlign: 'center' }}>
                         <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>
-                          {formatPct(c.avg_attendance)}
+                          {formatPct(c.avg_attendance ?? c.attendance_pct)}
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Avg Attendance</div>
                       </div>
