@@ -507,12 +507,28 @@ def get_dashboard(
                 su = db.get(UserModel, enr.student_id)
                 sp = db.get(StudentModel, enr.student_id)
                 if su:
+                    st_att = (
+                        db.scalar(
+                            select(func.count(AttendanceRecordModel.id)).where(
+                                AttendanceRecordModel.student_id == su.id,
+                                AttendanceRecordModel.session_id.in_(held_sessions),
+                                AttendanceRecordModel.status == "present",
+                            )
+                        )
+                        or 0
+                    ) if held > 0 else 0
+                    st_pct = round((st_att / held) * 100.0, 1) if held > 0 else 100.0
+                    st_band = "Safe" if st_pct >= 75.0 else ("Watch" if st_pct >= 65.0 else "At risk")
                     enrolled_student_objs.append({
                         "id": su.id,
                         "name": su.name,
                         "email": su.email,
                         "roll_no": sp.roll_no if sp else "",
                         "batch": sp.batch if sp else "",
+                        "attended": st_att,
+                        "held": held,
+                        "attendance_pct": st_pct,
+                        "band": st_band,
                     })
 
             course_cards.append(

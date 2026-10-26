@@ -23,7 +23,7 @@ const STUDENT_NAV = [
 
 const FACULTY_NAV = [
   { to: '/faculty/home', icon: Home, label: 'Home', exact: true },
-  { to: '/faculty/courses', icon: BookOpen, label: 'My Courses' },
+  { to: '/faculty/students', icon: Users, label: 'Assigned Students' },
   { to: '/faculty/mentees', icon: HeartHandshake, label: 'Mentees', dutyGate: 'mentor' },
   { to: '/faculty/sections', icon: Users, label: 'Sections', dutyGate: 'course_coordinator' },
   { to: '/faculty/timetable', icon: LayoutGrid, label: 'My Timetable' },
