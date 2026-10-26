@@ -19,7 +19,7 @@ export default function FacultyHome() {
   const isMentor = duties.includes('mentor');
   const isCoordinator = duties.includes('course_coordinator');
 
-  const { data: dash, isLoading } = useQuery({
+  const { data: dash, isLoading, error } = useQuery({
     queryKey: ['faculty-teaching-dashboard'],
     queryFn: () => dashboardApi.getDashboard().then(r => r.data),
   });
@@ -33,11 +33,13 @@ export default function FacultyHome() {
     enabled: isMentor,
   });
 
-  if (isLoading) return <Skeleton lines={8} />;
-
-  const courses = dash?.courses || [];
-  const todayDayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
-  const todaySessions = timetable.filter(s => s.day_name === todayDayName || s.day === (new Date().getDay() - 1));
+  const courses = useMemo(() => dash?.courses || [], [dash]);
+  const timetableList = useMemo(() => Array.isArray(timetable) ? timetable : [], [timetable]);
+  const todayDayName = useMemo(() => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()], []);
+  const todaySessions = useMemo(
+    () => timetableList.filter(s => s.day_name === todayDayName || s.day === (new Date().getDay() - 1)),
+    [timetableList, todayDayName]
+  );
 
   const allAssignedStudents = useMemo(() => {
     const map = new Map();
@@ -56,6 +58,18 @@ export default function FacultyHome() {
     });
     return Array.from(map.values());
   }, [courses]);
+
+  if (isLoading) return <Skeleton lines={8} />;
+
+  if (error) {
+    return (
+      <div style={{ maxWidth: 1440, margin: '0 auto', padding: 32, textAlign: 'center', background: 'var(--surface)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border)' }}>
+        <h2 style={{ fontFamily: 'var(--font-serif)', color: 'var(--ink-900)' }}>Unable to load teaching dashboard</h2>
+        <p style={{ color: 'var(--text-muted)' }}>{error?.response?.data?.detail || error.message}</p>
+        <Button variant="secondary" onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 1440, margin: '0 auto' }}>
