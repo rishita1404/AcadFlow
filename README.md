@@ -169,7 +169,8 @@ cd frontend
 npm run build
 ```
 
+
 ---
 
 ## 📄 License
-This project was developed for the **Full Stack AI Engineering (24CAI0304)** curriculum. All rights reserved.
+This project was developed for the **Full Stack AI Engineering (24CAI0304)** curriculum. All rights reserved...
