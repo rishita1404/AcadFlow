@@ -1,22 +1,60 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { coordinatorApi } from '../../api/endpoints.js';
 import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
 export default function CoordinatorStudents() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL-synced filter parameters
+  const queryParam = searchParams.get('q') || '';
+  const bandParam = searchParams.get('band') || 'all';
+  const sortParam = searchParams.get('sort') || 'roll_no';
+  const orderParam = searchParams.get('order') || 'asc';
+
+  const [searchInput, setSearchInput] = useState(queryParam);
   const [selectedStudentId, setSelectedStudentId] = useState(null);
 
-  // Fetch student directory
-  const { data: students = [], isLoading } = useQuery({
-    queryKey: ['coordinator-students-list'],
-    queryFn: () => coordinatorApi.getStudents().then(r => r.data || []),
+  // Debounce search query input (300ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        if (searchInput.trim()) {
+          next.set('q', searchInput.trim());
+        } else {
+          next.delete('q');
+        }
+        return next;
+      }, { replace: true });
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchInput, setSearchParams]);
+
+  // Sync internal state when external URL params change
+  useEffect(() => {
+    setSearchInput(queryParam);
+  }, [queryParam]);
+
+  // Fetch directory with server-side filtering, sorting and limit for virtualization
+  const { data: students = [], isLoading, isPlaceholderData } = useQuery({
+    queryKey: ['coordinator-students-list', queryParam, bandParam, sortParam, orderParam],
+    queryFn: () =>
+      coordinatorApi.getStudents({
+        limit: 5000,
+        q: queryParam || undefined,
+        band: bandParam !== 'all' ? bandParam : undefined,
+        sort: sortParam,
+        order: orderParam,
+      }).then(r => r.data || []),
+    placeholderData: keepPreviousData,
   });
 
-  // Fetch individual student profile (this automatically writes to AuditLogModel on the backend)
+  // Fetch individual student profile with audit logging
   const { data: studentDetail, isLoading: detailLoading, error: detailError } = useQuery({
     queryKey: ['coordinator-student-profile', selectedStudentId],
     queryFn: () => coordinatorApi.getStudentDetail(selectedStudentId).then(r => r.data),
@@ -24,13 +62,53 @@ export default function CoordinatorStudents() {
     retry: false,
   });
 
-  const filtered = students.filter(s => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return s.name?.toLowerCase().includes(q) || s.roll_no?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q);
+  const parentRef = useRef(null);
+
+  const filtered = useMemo(() => {
+    return students.filter(s => {
+      if (bandParam !== 'all') {
+        const b = (s.risk_level || '').toLowerCase().replace('-', ' ').replace('_', ' ');
+        const target = bandParam.toLowerCase().replace('-', ' ').replace('_', ' ');
+        if (b !== target) return false;
+      }
+      return true;
+    });
+  }, [students, bandParam]);
+
+  // TanStack Virtualizer setup for smooth scrolling over 3,000+ items
+  const rowVirtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 48,
+    overscan: 12,
   });
 
-  if (isLoading) {
+  const handleBandFilterChange = (newBand) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (newBand === 'all') {
+        next.delete('band');
+      } else {
+        next.set('band', newBand);
+      }
+      return next;
+    });
+  };
+
+  const handleSortChange = (field) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (sortParam === field) {
+        next.set('order', orderParam === 'asc' ? 'desc' : 'asc');
+      } else {
+        next.set('sort', field);
+        next.set('order', 'asc');
+      }
+      return next;
+    });
+  };
+
+  if (isLoading && !isPlaceholderData) {
     return (
       <div style={{ maxWidth: 1440, margin: '0 auto' }}>
         <Skeleton height={100} style={{ marginBottom: 20 }} />
@@ -52,92 +130,147 @@ export default function CoordinatorStudents() {
           Department Students Directory
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
-          Sanitized individual student records · Sensitive submissions and passwords strictly redacted · Access is audited.
+          Virtualized high-performance table (@tanstack/react-virtual) · Server-side pagination & URL-synced search · Access is audited.
         </p>
       </div>
 
-      {/* Search Bar */}
+      {/* Search & Filter Toolbar */}
       <div style={{
         background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: '14px 20px', border: '1px solid var(--border)',
-        marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14, boxShadow: 'var(--shadow-card)',
+        marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', boxShadow: 'var(--shadow-card)',
       }}>
         <input
           type="text"
           placeholder="Search by student name, roll number, or email..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{ padding: '8px 14px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, flex: 1 }}
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          style={{ padding: '8px 14px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, flex: 1, minWidth: 260 }}
         />
+
+        {/* Risk Band Quick-Filter */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {['all', 'safe', 'watch', 'at-risk', 'critical'].map(b => (
+            <button
+              key={b}
+              onClick={() => handleBandFilterChange(b)}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-pill)',
+                border: bandParam === b ? '1px solid var(--accent)' : '1px solid var(--border)',
+                background: bandParam === b ? 'var(--accent)' : 'var(--bg)',
+                color: bandParam === b ? 'var(--on-dark, #fff)' : 'var(--text)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                textTransform: 'capitalize',
+              }}
+            >
+              {b === 'all' ? 'All Bands' : b.replace('-', ' ')}
+            </button>
+          ))}
+        </div>
+
         <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          Showing {filtered.length} of {students.length} students
+          {filtered.length} matching students
         </span>
       </div>
 
-      {/* Students Table */}
+      {/* Virtualized Students Table */}
       <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
-          <thead style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-            <tr>
-              <th style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 600 }}>Roll No</th>
-              <th style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 600 }}>Name</th>
-              <th style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 600 }}>Batch</th>
-              <th style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 600 }}>Email</th>
-              <th style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 600 }}>Attendance %</th>
-              <th style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 600 }}>Risk Status</th>
-              <th style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: 600 }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan="7" style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No students found.
-                </td>
-              </tr>
-            ) : (
-              filtered.map(s => (
-                <tr
-                  key={s.student_id}
-                  onClick={() => setSelectedStudentId(s.student_id)}
-                  style={{
-                    borderBottom: '1px solid var(--border)', cursor: 'pointer',
-                    background: selectedStudentId === s.student_id ? 'var(--bg)' : 'transparent',
-                  }}
-                >
-                  <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--ink-900)' }}>
-                    {s.roll_no || `S-${s.student_id}`}
-                  </td>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text)' }}>
-                    {s.name}
-                  </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>
-                    {s.batch || '2023-2027'}
-                  </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>
-                    {s.email}
-                  </td>
-                  <td style={{ padding: '12px 16px', fontWeight: 700, color: s.attendance_percentage != null && s.attendance_percentage >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
-                    {formatPct(s.attendance_percentage)}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <StatusBadge band={s.risk_level || 'Safe'} />
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setSelectedStudentId(s.student_id); }}
-                      style={{
-                        background: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--border)',
-                        padding: '4px 12px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                      }}
-                    >
-                      View Profile →
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        {/* Table Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1.2fr 2.5fr 1.3fr 1.5fr 1.2fr', padding: '12px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 13 }}>
+          <div onClick={() => handleSortChange('roll_no')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+            Roll No {sortParam === 'roll_no' && (orderParam === 'asc' ? '↑' : '↓')}
+          </div>
+          <div onClick={() => handleSortChange('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+            Name {sortParam === 'name' && (orderParam === 'asc' ? '↑' : '↓')}
+          </div>
+          <div>Batch</div>
+          <div>Email</div>
+          <div>Attendance %</div>
+          <div>Risk Status</div>
+          <div>Action</div>
+        </div>
+
+        {/* Virtualized Viewport Container */}
+        <div
+          ref={parentRef}
+          style={{
+            height: '520px',
+            overflowY: 'auto',
+            position: 'relative',
+          }}
+        >
+          {filtered.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+              No students found matching current filters.
+            </div>
+          ) : (
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                const s = filtered[virtualRow.index];
+                return (
+                  <div
+                    key={s.student_id}
+                    onClick={() => setSelectedStudentId(s.student_id)}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                      display: 'grid',
+                      gridTemplateColumns: '1.2fr 2fr 1.2fr 2.5fr 1.3fr 1.5fr 1.2fr',
+                      alignItems: 'center',
+                      padding: '0 16px',
+                      borderBottom: '1px solid var(--border)',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      background: selectedStudentId === s.student_id ? 'var(--bg)' : 'transparent',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, color: 'var(--ink-900)' }}>
+                      {s.roll_no || `S-${s.student_id}`}
+                    </div>
+                    <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {s.name}
+                    </div>
+                    <div style={{ color: 'var(--text-muted)' }}>
+                      {s.batch || '2023-2027'}
+                    </div>
+                    <div style={{ color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s.email}
+                    </div>
+                    <div style={{ fontWeight: 700, color: s.attendance_percentage != null && s.attendance_percentage >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
+                      {formatPct(s.attendance_percentage)}
+                    </div>
+                    <div>
+                      <StatusBadge band={s.risk_level || 'Safe'} size="sm" />
+                    </div>
+                    <div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSelectedStudentId(s.student_id); }}
+                        style={{
+                          background: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--border)',
+                          padding: '3px 10px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        Profile →
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Audited Profile Drawer */}

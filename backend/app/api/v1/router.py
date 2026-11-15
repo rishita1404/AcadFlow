@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     auth,
     coordinator,
     courses,
+    events,
     health,
     me,
     mentor,
@@ -47,3 +48,4 @@ api_router.include_router(admin_users.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(timetable.router, prefix="/timetable", tags=["Timetable"])
 api_router.include_router(notices.router, prefix="/notices", tags=["Notices"])
 api_router.include_router(metrics.router, tags=["Metrics"])
+api_router.include_router(events.router, tags=["Realtime Events"])

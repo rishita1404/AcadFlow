@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../api/endpoints.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import CourseAttendanceTrend from '../../components/charts/CourseAttendanceTrend.jsx';
 import { Calendar, CalendarDays, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function StudentAttendance() {
@@ -226,6 +227,9 @@ export default function StudentAttendance() {
                     </>
                   )}
                 </div>
+
+                {/* Recharts Attendance Trend Line */}
+                <CourseAttendanceTrend course={course} />
               </div>
 
               {/* Action Buttons */}

@@ -232,10 +232,154 @@ def get_course_attendance_summary(db: Session, course_id: int) -> Dict[str, Opti
     }
 
 
+def batch_get_students_attendance(
+    db: Session,
+    student_ids: List[int],
+    min_classes: Optional[int] = None,
+) -> Dict[int, Dict[str, Any]]:
+    """
+    Batch compute authoritative attendance and buffer statistics for multiple students.
+    Uses bulk queries to prevent N+1 query patterns while strictly preserving
+    the exact same formulas as get_student_course_attendance and get_student_overall_attendance.
+    """
+    if not student_ids:
+        return {}
+
+    min_required_sessions = _get_min_classes(db, min_classes)
+
+    # 1. Fetch enrolments for these students
+    enrolments = db.scalars(
+        select(EnrolmentModel).where(EnrolmentModel.student_id.in_(student_ids))
+    ).all()
+
+    student_enrolments: Dict[int, List[EnrolmentModel]] = {sid: [] for sid in student_ids}
+    course_ids = set()
+    for e in enrolments:
+        student_enrolments.setdefault(e.student_id, []).append(e)
+        course_ids.add(e.course_id)
+
+    # 2. Fetch courses total_classes
+    courses = db.scalars(select(CourseModel).where(CourseModel.id.in_(course_ids))).all() if course_ids else []
+    course_total_classes = {c.id: (c.total_classes if c.total_classes else 45) for c in courses}
+
+    # 3. Fetch non-cancelled sessions for these courses
+    sessions = db.scalars(
+        select(ClassSessionModel).where(
+            ClassSessionModel.course_id.in_(course_ids),
+            ClassSessionModel.is_cancelled == False,  # noqa: E712
+        )
+    ).all() if course_ids else []
+
+    course_sessions: Dict[int, List[ClassSessionModel]] = {}
+    session_ids = set()
+    for s in sessions:
+        course_sessions.setdefault(s.course_id, []).append(s)
+        session_ids.add(s.id)
+
+    # 4. Fetch attendance records for these students and sessions
+    records = db.scalars(
+        select(AttendanceRecordModel).where(
+            AttendanceRecordModel.student_id.in_(student_ids),
+            AttendanceRecordModel.session_id.in_(session_ids),
+            AttendanceRecordModel.status.in_(["present", "late"]),
+        )
+    ).all() if session_ids else []
+
+    student_attended_sessions: Dict[int, set] = {sid: set() for sid in student_ids}
+    for r in records:
+        student_attended_sessions.setdefault(r.student_id, set()).add(r.session_id)
+
+    results: Dict[int, Dict[str, Any]] = {}
+
+    for sid in student_ids:
+        enrol_list = student_enrolments.get(sid, [])
+        if not enrol_list:
+            results[sid] = {
+                "overall_attendance_pct": None,
+                "total_held": 0,
+                "total_attended": 0,
+                "min_buffer": None,
+                "enrolled_course_ids": [],
+                "course_stats": {},
+            }
+            continue
+
+        total_held = 0
+        total_attended = 0
+        any_course_has_data = False
+        buffers: List[int] = []
+        course_stats: Dict[int, Dict[str, Any]] = {}
+        enrolled_cids: List[int] = []
+
+        attended_session_set = student_attended_sessions.get(sid, set())
+
+        for enrolment in enrol_list:
+            cid = enrolment.course_id
+            enrolled_cids.append(cid)
+            tot_cls = course_total_classes.get(cid, 45)
+            enrolled_on = enrolment.enrolled_on
+
+            all_sessions = course_sessions.get(cid, [])
+            if enrolled_on:
+                held_sessions = [s for s in all_sessions if s.held_on >= enrolled_on]
+            else:
+                held_sessions = all_sessions
+
+            held = len(held_sessions)
+            held_sids = {s.id for s in held_sessions}
+            attended = len(attended_session_set.intersection(held_sids))
+
+            total_held += held
+            total_attended += attended
+
+            required = math.ceil(DEFAULT_THRESHOLD * tot_cls)
+            remaining = max(0, tot_cls - held)
+
+            if held < min_required_sessions or held == 0:
+                course_stats[cid] = {
+                    "held": held,
+                    "attended": attended,
+                    "attendance_pct": None,
+                    "buffer": None,
+                    "insufficient_data": True,
+                }
+            else:
+                any_course_has_data = True
+                still_need = max(0, required - attended)
+                buf = remaining - still_need
+                pct = round((attended / held) * 100, 1)
+                buffers.append(buf)
+                course_stats[cid] = {
+                    "held": held,
+                    "attended": attended,
+                    "attendance_pct": pct,
+                    "buffer": buf,
+                    "insufficient_data": False,
+                }
+
+        if total_held == 0 or not any_course_has_data:
+            overall_pct = None
+        else:
+            overall_pct = round((total_attended / total_held) * 100, 1)
+
+        min_buffer = min(buffers) if buffers else None
+
+        results[sid] = {
+            "overall_attendance_pct": overall_pct,
+            "total_held": total_held,
+            "total_attended": total_attended,
+            "min_buffer": min_buffer,
+            "enrolled_course_ids": enrolled_cids,
+            "course_stats": course_stats,
+        }
+
+    return results
+
+
 def get_department_attendance_summary(db: Session, department_id: int) -> Dict:
     """
     Aggregates department-wide attendance, risk breakdown, and course standings.
-    Reads exclusively from real database records.
+    Reads exclusively from real database records using batch processing.
     """
     dept = db.get(DepartmentModel, department_id)
     dept_name = "CSE AI"
@@ -260,17 +404,39 @@ def get_department_attendance_summary(db: Session, department_id: int) -> Dict:
     ).all()
     total_courses = len(courses)
 
-    # Calculate per-course standings
+    # Calculate per-course standings and batch student stats
+    batch_stats = batch_get_students_attendance(db, student_rows)
+
+    # Pre-fetch latest risk snapshot for each student
+    snaps = db.scalars(
+        select(RiskSnapshotModel)
+        .where(RiskSnapshotModel.student_id.in_(student_rows))
+        .order_by(RiskSnapshotModel.student_id, RiskSnapshotModel.computed_at.desc())
+    ).all() if student_rows else []
+    snap_map: Dict[int, RiskSnapshotModel] = {}
+    for s in snaps:
+        if s.student_id not in snap_map:
+            snap_map[s.student_id] = s
+
     course_standings = []
     for c in courses:
-        c_summary = get_course_attendance_summary(db, c.id)
+        c_pcts = []
+        c_enrolled = 0
+        for sid in student_rows:
+            st_data = batch_stats.get(sid, {})
+            c_data = st_data.get("course_stats", {}).get(c.id)
+            if c_data is not None:
+                c_enrolled += 1
+                if c_data["attendance_pct"] is not None:
+                    c_pcts.append(c_data["attendance_pct"])
+        avg_pct = round(sum(c_pcts) / len(c_pcts), 1) if c_pcts else None
         course_standings.append({
             "id": c.id,
             "code": c.code,
             "name": c.name,
-            "enrolled_count": c_summary["enrolled"],
-            "students_with_data": c_summary["students_with_data"],
-            "avg_attendance": c_summary["avg_attendance_pct"],
+            "enrolled_count": c_enrolled,
+            "students_with_data": len(c_pcts),
+            "avg_attendance": avg_pct,
         })
 
     # Calculate per-student overall attendance and bands
@@ -281,17 +447,13 @@ def get_department_attendance_summary(db: Session, department_id: int) -> Dict:
     critical_count = 0
 
     for sid in student_rows:
-        overall = get_student_overall_attendance(db, sid)
+        overall = batch_stats.get(sid, {})
         pct = overall.get("overall_attendance_pct")
         if pct is not None:
             student_pcts.append(float(pct))
 
         # Check latest risk snapshot band
-        snap = db.scalar(
-            select(RiskSnapshotModel)
-            .where(RiskSnapshotModel.student_id == sid)
-            .order_by(RiskSnapshotModel.computed_at.desc())
-        )
+        snap = snap_map.get(sid)
         band = snap.band.lower() if snap else ""
         if "critical" in band:
             critical_count += 1

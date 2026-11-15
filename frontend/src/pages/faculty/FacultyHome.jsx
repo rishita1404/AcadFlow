@@ -7,6 +7,7 @@ import { formatPct } from '../../utils/format.js';
 import Button from '../../components/ui/Button.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
+import FacultyClassHealthChart from '../../components/charts/FacultyClassHealthChart.jsx';
 import {
   Users, BookOpen, Search, Calendar,
   Megaphone,
@@ -350,6 +351,9 @@ export default function FacultyHome({ defaultTab }) {
                 View Assigned Students →
               </Button>
             </div>
+
+            {/* Recharts Class Health Chart */}
+            <FacultyClassHealthChart courses={courses} />
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
               {courses.map(c => (

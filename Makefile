@@ -23,6 +23,9 @@ dev:
 seed:
 	python scripts/seed_data.py
 
+seed-large:
+	python scripts/seed_large_dataset.py
+
 test:
 	pytest backend/tests ml/tests
 

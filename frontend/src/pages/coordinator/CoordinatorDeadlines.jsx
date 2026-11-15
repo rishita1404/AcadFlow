@@ -1,14 +1,51 @@
-
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { coordinatorApi } from '../../api/endpoints.js';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
+
+const DEFAULT_WEEKS = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+const DEFAULT_GRID = [
+  { course_code: 'CS101', course_name: 'Intro to Programming', weeks: { 'Week 1': 0, 'Week 2': 1, 'Week 3': 2, 'Week 4': 0 } },
+  { course_code: 'CS201', course_name: 'Data Structures & Algorithms', weeks: { 'Week 1': 1, 'Week 2': 0, 'Week 3': 3, 'Week 4': 1 } },
+  { course_code: 'CS301', course_name: 'Database Management Systems', weeks: { 'Week 1': 0, 'Week 2': 2, 'Week 3': 1, 'Week 4': 2 } },
+];
 
 export default function CoordinatorDeadlines() {
   const { data: loadData, isLoading } = useQuery({
     queryKey: ['coordinator-deadline-load'],
     queryFn: () => coordinatorApi.getDeadlineLoad().then(r => r.data),
   });
+
+  const weeks = loadData?.weeks || DEFAULT_WEEKS;
+  const grid = loadData?.grid || DEFAULT_GRID;
+
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Aggregate total deadlines per week across courses
+  const chartData = useMemo(() => {
+    return weeks.map(w => {
+      let total = 0;
+      grid.forEach(row => {
+        total += (row.weeks[w] || 0);
+      });
+      return {
+        week: w,
+        deadlines: total,
+      };
+    });
+  }, [weeks, grid]);
 
   if (isLoading) {
     return (
@@ -19,13 +56,6 @@ export default function CoordinatorDeadlines() {
       </div>
     );
   }
-
-  const weeks = loadData?.weeks || ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-  const grid = loadData?.grid || [
-    { course_code: 'CS101', course_name: 'Intro to Programming', weeks: { 'Week 1': 0, 'Week 2': 1, 'Week 3': 2, 'Week 4': 0 } },
-    { course_code: 'CS201', course_name: 'Data Structures & Algorithms', weeks: { 'Week 1': 1, 'Week 2': 0, 'Week 3': 3, 'Week 4': 1 } },
-    { course_code: 'CS301', course_name: 'Database Management Systems', weeks: { 'Week 1': 0, 'Week 2': 2, 'Week 3': 1, 'Week 4': 2 } },
-  ];
 
   // Helper for heatmap background color based on deadline count
   function getHeatColor(count) {
@@ -48,6 +78,58 @@ export default function CoordinatorDeadlines() {
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
           Week-by-week assignment deadline concentration across courses · Prevent systemic submission bottlenecks and student burnout.
+        </p>
+      </div>
+
+      {/* Recharts Deadline Volume Profile */}
+      <div
+        style={{
+          background: 'var(--surface)',
+          borderRadius: 'var(--radius-card)',
+          padding: '20px 24px',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-card)',
+          marginBottom: 20,
+        }}
+        aria-label="Weekly Total Deadlines Chart"
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--ink-900)', margin: 0 }}>
+            Weekly Assignment Deadline Aggregation
+          </h2>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            Total scheduled submissions per week
+          </span>
+        </div>
+
+        <div style={{ width: '100%', height: 160 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.5} />
+              <XAxis dataKey="week" stroke="var(--text-muted)" fontSize={12} tickLine={false} />
+              <YAxis stroke="var(--text-muted)" fontSize={12} tickLine={false} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-input)',
+                  fontSize: 12,
+                  color: 'var(--text)',
+                }}
+                formatter={(val) => [`${val} deadlines`, 'Submissions Due']}
+              />
+              <Bar
+                dataKey="deadlines"
+                fill="var(--accent)"
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={!prefersReducedMotion}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, margin: 0 }}>
+          Summary: Peak deadline pressure occurs in {chartData.reduce((max, cur) => cur.deadlines > max.deadlines ? cur : max, chartData[0] || {}).week || 'Week 3'}.
         </p>
       </div>
 

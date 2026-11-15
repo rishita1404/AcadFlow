@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { coordinatorApi, facultyApi } from '../../api/endpoints.js';
 import { formatPct } from '../../utils/format.js';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import CoordinatorRiskDonutAndTrend from '../../components/charts/CoordinatorRiskDonutAndTrend.jsx';
 
 const C = {
   card: { background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' },
@@ -130,6 +131,12 @@ export default function CoordinatorSummary() {
             </div>
           ))}
         </div>
+
+        {/* Recharts Donut & 6-Week Risk Trend */}
+        <CoordinatorRiskDonutAndTrend
+          bands={{ safe: safeCount, watch: watchCount, at_risk: atRiskCount, critical: criticalCount }}
+          totalStudents={totalStudents}
+        />
       </div>
 
       {/* Tools grid */}

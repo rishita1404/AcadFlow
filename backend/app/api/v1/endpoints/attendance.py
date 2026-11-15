@@ -100,6 +100,39 @@ def _trigger_risk_and_notify(
             buffer=data.get("buffer"),
             attendance_pct=data.get("attendance_pct"),
         )
+
+        from app.models.course import CourseModel
+        from app.services.cache import invalidate_department_cache
+        from app.services.event_bus import event_bus
+
+        course = db.get(CourseModel, course_id)
+        dept_id = course.department_id if course and course.department_id else 1
+        invalidate_department_cache(dept_id)
+
+        # Broadcast real-time SSE events
+        event_bus.broadcast(
+            "attendance_updated",
+            {
+                "student_id": student_id,
+                "course_id": course_id,
+                "course_code": course_code,
+                "attendance_pct": data.get("attendance_pct"),
+                "buffer": data.get("buffer"),
+            },
+            department_id=dept_id,
+            target_student_id=student_id,
+        )
+        event_bus.broadcast(
+            "risk_changed",
+            {
+                "student_id": student_id,
+                "course_id": course_id,
+                "band": data.get("band"),
+                "score": data.get("score"),
+            },
+            department_id=dept_id,
+            target_student_id=student_id,
+        )
     except Exception:
         pass  # Non-critical — log in production
 

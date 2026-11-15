@@ -10,9 +10,9 @@ Implements coordinator department scope and field redaction:
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
@@ -35,10 +35,12 @@ from app.models import (
 from app.models.audit import AuditLogModel
 from app.models.course import CourseStaffModel
 from app.services.attendance_stats import (
+    batch_get_students_attendance,
     get_department_attendance_summary,
     get_student_course_attendance,
     get_student_overall_attendance,
 )
+from app.services.cache import get_cached_json, set_cached_json
 
 router = APIRouter()
 
@@ -97,9 +99,14 @@ def get_department_overview(
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     dept_id = _resolve_dept_id(db, department_id, current_user)
+    cache_key = f"coordinator:summary:{dept_id}"
+    cached = get_cached_json(cache_key)
+    if cached and isinstance(cached, dict):
+        return CoordinatorOverviewOut(**cached)
+
     summary = get_department_attendance_summary(db, dept_id)
 
-    return CoordinatorOverviewOut(
+    out = CoordinatorOverviewOut(
         department_id=dept_id,
         department_name=summary["department_name"],
         total_students=summary["total_students"],
@@ -112,6 +119,8 @@ def get_department_overview(
         critical_count=summary["bands"]["critical"],
         courses=summary["courses"],
     )
+    set_cached_json(cache_key, out.model_dump(), ttl=60)
+    return out
 
 
 @router.get(
@@ -167,10 +176,17 @@ def get_deadline_load(
 @router.get(
     "/students",
     response_model=List[Dict[str, Any]],
-    summary="List students with sanitized fields",
+    summary="List students with sanitized fields, pagination and filters",
 )
 def list_department_students(
+    response: Response,
     department_id: Optional[int] = Query(None, description="Department ID"),
+    limit: int = Query(100, ge=1, le=5000, description="Items per page"),
+    offset: int = Query(0, ge=0, description="Offset"),
+    sort: str = Query("roll_no", description="Sort field: roll_no, name, attendance"),
+    order: str = Query("asc", description="Sort order: asc or desc"),
+    q: Optional[str] = Query(None, description="Search query string"),
+    band: Optional[str] = Query(None, description="Risk band filter: safe, watch, at_risk, critical"),
     db: Session = Depends(get_db),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
@@ -183,13 +199,48 @@ def list_department_students(
             resource={"department_id": dept_id},
         )
 
-    students = db.execute(
+    # Base query for department students
+    query = (
         select(StudentModel, UserModel)
         .join(UserModel, StudentModel.user_id == UserModel.id)
         .where(UserModel.department_id == dept_id)
-        .order_by(StudentModel.roll_no.asc())
-        .limit(100)
-    ).all()
+    )
+
+    if q:
+        search_pattern = f"%{q.strip()}%"
+        query = query.where(
+            or_(
+                UserModel.name.ilike(search_pattern),
+                StudentModel.roll_no.ilike(search_pattern),
+                UserModel.email.ilike(search_pattern),
+            )
+        )
+
+    # Total matching count
+    count_query = (
+        select(func.count(StudentModel.user_id))
+        .join(UserModel, StudentModel.user_id == UserModel.id)
+        .where(UserModel.department_id == dept_id)
+    )
+    if q:
+        count_query = count_query.where(
+            or_(
+                UserModel.name.ilike(search_pattern),
+                StudentModel.roll_no.ilike(search_pattern),
+                UserModel.email.ilike(search_pattern),
+            )
+        )
+    total_count = db.scalar(count_query) or 0
+    response.headers["X-Total-Count"] = str(total_count)
+
+    # Sorting
+    if sort == "name":
+        order_col = UserModel.name.desc() if order.lower() == "desc" else UserModel.name.asc()
+    else:
+        order_col = StudentModel.roll_no.desc() if order.lower() == "desc" else StudentModel.roll_no.asc()
+
+    query = query.order_by(order_col).offset(offset).limit(limit)
+    students = db.execute(query).all()
 
     if not students:
         return []
@@ -207,27 +258,15 @@ def list_department_students(
         if s.student_id not in snap_map:
             snap_map[s.student_id] = s
 
-    # Pre-fetch enrolled courses counts and course ids
-    enrol_records = db.execute(
-        select(EnrolmentModel.student_id, EnrolmentModel.course_id)
-        .where(EnrolmentModel.student_id.in_(student_ids))
-    ).all()
-    student_courses_map: Dict[int, List[int]] = {}
-    for sid, cid in enrol_records:
-        student_courses_map.setdefault(sid, []).append(cid)
+    # Batch compute attendance and buffers for all matching page students in 3 fast queries
+    batch_stats = batch_get_students_attendance(db, student_ids)
 
     results = []
     for st, u in students:
-        overall = get_student_overall_attendance(db, st.user_id)
-        att_pct = overall.get("overall_attendance_pct")
-
-        enrolled_cids = student_courses_map.get(st.user_id, [])
-        buffers = []
-        for cid in enrolled_cids:
-            c_att = get_student_course_attendance(db, st.user_id, cid)
-            if c_att.get("buffer") is not None:
-                buffers.append(int(c_att["buffer"]))
-        min_buffer = min(buffers) if buffers else None
+        st_data = batch_stats.get(st.user_id, {})
+        att_pct = st_data.get("overall_attendance_pct")
+        min_buffer = st_data.get("min_buffer")
+        enrolled_cids = st_data.get("enrolled_course_ids", [])
 
         snap = snap_map.get(st.user_id)
         if snap:
@@ -265,6 +304,10 @@ def list_department_students(
             "private_medical_notes": "Redacted by security policy",
         }
         results.append(sanitize_coordinator_view(raw_record))
+
+    if band:
+        norm_band = band.lower().replace("_", " ").replace("-", " ")
+        results = [r for r in results if r.get("risk_level", "").lower().replace("-", " ") == norm_band]
 
     return results
 

@@ -1,0 +1,30 @@
+{
+  "name": "AcadFlow Local",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000",
+      "enabled": true
+    },
+    {
+      "key": "studentToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InN0dWRlbnQiLCJ0eXBlIjoiYWNjZXNzIiwianRpIjoiNjhkOGU0Y2MtYzIzMS00OWI2LTkzOGEtZTU4ZmIxYjhhYzhhIiwiaXNzIjoiYWNhZGZsb3ciLCJhdWQiOiJhY2FkZmxvdy13ZWIiLCJpYXQiOjE3OTMwODIyMjksImV4cCI6MTc5MzA4NTgyOSwiZW1haWwiOiJzdHVkZW50QGFjYWRmbG93LmVkdSIsImRlcGFydG1lbnRfaWQiOjF9.HbpEhsA0m7jma3wKelygZY_SJbfIqXdgYdd_9wPBLtg",
+      "enabled": true
+    },
+    {
+      "key": "facultyToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZSI6ImZhY3VsdHkiLCJ0eXBlIjoiYWNjZXNzIiwianRpIjoiOTI0Y2JmNjMtNWJjZC00OTI2LWEyN2MtMjU1ZWQ1YzRhMTUwIiwiaXNzIjoiYWNhZGZsb3ciLCJhdWQiOiJhY2FkZmxvdy13ZWIiLCJpYXQiOjE3OTMwODIyMjksImV4cCI6MTc5MzA4NTgyOSwiZW1haWwiOiJmYWN1bHR5QGFjYWRmbG93LmVkdSIsImRlcGFydG1lbnRfaWQiOjR9.Nmp9K6g37V37A4f63zwWd6Kq7AwnE8hRUPc3Ngf9S-4",
+      "enabled": true
+    },
+    {
+      "key": "coordinatorToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Iiwicm9sZSI6ImNvb3JkaW5hdG9yIiwidHlwZSI6ImFjY2VzcyIsImp0aSI6Ijg1OThiYzU3LThjMjAtNGQ2Yy05YmI3LWM0NjFmYTA3NTAzYiIsImlzcyI6ImFjYWRmbG93IiwiYXVkIjoiYWNhZGZsb3ctd2ViIiwiaWF0IjoxNzkzMDgyMjI5LCJleHAiOjE3OTMwODU4MjksImVtYWlsIjoiY29vcmRpbmF0b3JAYWNhZGZsb3cuZWR1IiwiZGVwYXJ0bWVudF9pZCI6NH0.yJQWfYwkViIesxnCdkJyeLYivuZM61wm_gv5PyOOD8w",
+      "enabled": true
+    },
+    {
+      "key": "adminToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2Iiwicm9sZSI6ImFkbWluIiwidHlwZSI6ImFjY2VzcyIsImp0aSI6IjUzZDVlYWZiLTQ5N2YtNGVlOC05NWY5LTBlMTczYjg5YzA0OSIsImlzcyI6ImFjYWRmbG93IiwiYXVkIjoiYWNhZGZsb3ctd2ViIiwiaWF0IjoxNzkzMDgyMjI5LCJleHAiOjE3OTMwODU4MjksImVtYWlsIjoiYWRtaW5AYWNhZGZsb3cuZWR1IiwiZGVwYXJ0bWVudF9pZCI6NH0.mIKxKjb8i185tbp93AnRtCUuviQ3R4BJPd7muTS47f0",
+      "enabled": true
+    }
+  ]
+}
