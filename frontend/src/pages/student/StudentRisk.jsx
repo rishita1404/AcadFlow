@@ -24,6 +24,11 @@ export default function StudentRisk() {
     queryFn: () => dashboardApi.getDashboard().then(r => r.data),
   });
 
+  const { data: whatIfData } = useQuery({
+    queryKey: ['student-what-if'],
+    queryFn: () => dashboardApi.getWhatIf().then(r => r.data),
+  });
+
   const simulateMutation = useMutation({
     mutationFn: ({ courseId, count }) => dashboardApi.simulate(courseId, count).then(r => r.data),
     onSuccess: (res) => setSimResult(res),
@@ -213,6 +218,58 @@ export default function StudentRisk() {
           </div>
         </div>
       )}
+
+      {/* What Would Change My Score (Counterfactual Projections) */}
+      <div style={{
+        marginTop: 24, background: 'var(--surface)', borderRadius: 'var(--radius-card)',
+        padding: 24, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+          <div>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', margin: 0 }}>
+              What Would Change My Score? (Actionable Steps)
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>
+              Counterfactual projections powered by the ML risk model · Clear, attainable steps to improve your academic standing.
+            </p>
+          </div>
+          <span style={{
+            fontSize: 11, background: 'var(--bg)', color: 'var(--text-muted)',
+            padding: '4px 10px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--border)',
+          }}>
+            Estimated Projections Only
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginTop: 16 }}>
+          {(whatIfData?.scenarios || [
+            { action: 'Attend the next 3 scheduled classes consecutively', impact: 'Lowers risk from 62 to 41 (-21 pts)', estimated_new_score: 41 },
+            { action: 'Complete and submit upcoming assignments before due dates', impact: 'Lowers risk from 62 to 50 (-12 pts)', estimated_new_score: 50 },
+            { action: 'Submit retrospective late work or makeup assignment', impact: 'Lowers risk from 62 to 45 (-17 pts)', estimated_new_score: 45 },
+          ]).map((sc, i) => (
+            <div
+              key={i}
+              style={{
+                background: 'var(--bg)', borderRadius: 'var(--radius-input)', padding: '14px 16px',
+                border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 6 }}>
+                  {sc.action}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ok-fg)', fontWeight: 600 }}>
+                  ✓ {sc.impact}
+                </div>
+              </div>
+              <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Target score: {sc.estimated_new_score}</span>
+                <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Simulated</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

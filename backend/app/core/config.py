@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://localhost:27017")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     ML_SERVICE_URL: str = os.getenv("ML_SERVICE_URL", "http://localhost:8001")
+    ML_MODE: str = os.getenv("ML_MODE", "shadow").lower()  # off | shadow | assist
 
     # Security settings (Member 2)
     LOCKOUT_THRESHOLD: int = int(os.getenv("LOCKOUT_THRESHOLD", "5"))

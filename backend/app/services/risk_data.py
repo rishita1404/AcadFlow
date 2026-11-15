@@ -392,4 +392,25 @@ def persist_risk_snapshot(
         db.add(snapshot)
         db.commit()
 
+        # Shadow-mode logging
+        try:
+            from app.services.shadow_logger import record_shadow_evaluation_sync
+            feat_snapshot = {
+                "attendance_margin": round(float(data["margin_points"] / 50.0), 4) if data["margin_points"] is not None else 0.5,
+                "attendance_trend_4w": 0.0,
+                "deadline_pressure": float(data.get("deadline_points", 0.0)),
+                "missed_submissions_count": float(data.get("missed_points", 0.0)),
+                "current_attendance_pct": float(data.get("attendance_pct") or 75.0),
+                "past_quiz_avg": 70.0,
+            }
+            record_shadow_evaluation_sync(
+                db,
+                student_id=student_id,
+                rule_score=float(data["score"]),
+                rule_band=data["band"],
+                feature_dict=feat_snapshot,
+            )
+        except Exception:
+            pass
+
     return data

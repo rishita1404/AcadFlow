@@ -10,7 +10,7 @@ from app.models.notice import (
     NoticeRecipientModel,
 )
 from app.models.notification import NotificationModel
-from app.models.risk import RiskConfigModel, RiskSnapshotModel
+from app.models.risk import RiskConfigModel, RiskShadowLogModel, RiskSnapshotModel
 from app.models.student_holiday import StudentHolidayModel
 from app.models.submission import SubmissionModel
 from app.models.timetable import (

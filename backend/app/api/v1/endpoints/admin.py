@@ -704,3 +704,14 @@ def update_admin_risk_config(
     db.commit()
     db.refresh(new_row)
     return RiskConfigOut.model_validate(new_row)
+
+
+@router.get("/ml-shadow-comparison", summary="Compare ML model performance against rule-based engine")
+def get_ml_shadow_comparison(
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    verify_access(current_user, Action.ADMIN_MANAGE)
+
+    from app.services.shadow_logger import get_model_vs_rules_telemetry
+    return get_model_vs_rules_telemetry(db)

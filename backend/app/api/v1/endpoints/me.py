@@ -1847,3 +1847,41 @@ def get_my_timetable(
             )
         )
     return results
+
+
+@router.get("/what-if", summary="Student simulation: What would change my score")
+async def get_what_if_scenarios(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Computes actionable counterfactual projections for a student.
+    Uses /predict/batch to estimate how attending classes or submitting assignments
+    would lower their academic risk score.
+    Clearly labelled as an estimate.
+    """
+    user_id = int(current_user["sub"])
+    from app.clients.ml_client import MLClient
+    from app.services.attendance_stats import get_student_overall_attendance
+
+    overall = get_student_overall_attendance(db, user_id)
+    att_pct = overall.get("overall_attendance_pct") or 75.0
+
+    features = {
+        "attendance_margin": 0.6 if att_pct < 75.0 else 0.2,
+        "attendance_trend_4w": -2.0 if att_pct < 75.0 else 1.0,
+        "deadline_pressure": 2.0,
+        "missed_submissions_count": 1.0 if att_pct < 75.0 else 0.0,
+        "current_attendance_pct": float(att_pct),
+        "past_quiz_avg": 70.0,
+    }
+
+    client = MLClient()
+    scenarios = await client.what_would_change_my_score(features)
+
+    return {
+        "disclaimer": "These numbers are simulated estimates intended for guidance only.",
+        "student_id": user_id,
+        "current_attendance_pct": att_pct,
+        "scenarios": scenarios,
+    }

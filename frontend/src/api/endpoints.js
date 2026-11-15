@@ -13,6 +13,7 @@ export const dashboardApi = {
   getWarnings: () => apiClient.get('/me/warnings'),
   simulate: (course_id, miss_count) =>
     apiClient.post('/me/simulate', { course_id, miss_count }),
+  getWhatIf: () => apiClient.get('/me/what-if'),
 };
 
 // ── Attendance ───────────────────────────────────────────────────────────────
@@ -233,4 +234,5 @@ export const adminApi = {
   getAuditLogs: (params = {}) => apiClient.get('/admin/audit-logs', { params }),
   getRiskConfig: () => apiClient.get('/admin/risk-config'),
   updateRiskConfig: (payload) => apiClient.put('/admin/risk-config', payload),
+  getMLShadowComparison: () => apiClient.get('/admin/ml-shadow-comparison'),
 };
