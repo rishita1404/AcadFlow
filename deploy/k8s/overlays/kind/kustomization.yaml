@@ -1,4 +1,36 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
 resources:
   - ../../base
+
+# Patches for kind local development
+patches:
+  # In local kind, set single replicas for fast bootstrap and reduced memory
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: acadflow-backend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: acadflow-frontend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: acadflow-ml-serve
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1

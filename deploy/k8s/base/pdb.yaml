@@ -1,0 +1,43 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: acadflow-backend-pdb
+  namespace: acadflow
+  labels:
+    app: acadflow-backend
+    app.kubernetes.io/part-of: acadflow
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: acadflow-backend
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: acadflow-ml-serve-pdb
+  namespace: acadflow
+  labels:
+    app: acadflow-ml-serve
+    app.kubernetes.io/part-of: acadflow
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: acadflow-ml-serve
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: acadflow-frontend-pdb
+  namespace: acadflow
+  labels:
+    app: acadflow-frontend
+    app.kubernetes.io/part-of: acadflow
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: acadflow-frontend

@@ -1,0 +1,17 @@
+# backend/.dockerignore
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+*.db
+*.db-shm
+*.db-wal
+alembic/versions/*.pyc
+tests/
+*.egg-info/
+.env
+.env.*
+!.env.example
+dist/
+build/

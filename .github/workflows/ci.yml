@@ -8,6 +8,7 @@ on:
 
 jobs:
   lint-and-test-backend:
+    name: Backend Lint & Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,18 +16,37 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: |
           pip install --upgrade pip
           pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: Run Ruff Linter
         run: ruff check backend/
       - name: Run Pytest
-        run: pytest backend/tests
+        run: pytest backend/tests -v
         env:
           PYTHONPATH: backend
 
+  lint-and-test-ml:
+    name: ML Service Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ML dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r ml/requirements.txt pytest httpx skl2onnx scipy
+      - name: Run ML Unit & Serving Tests
+        run: pytest ml/tests -v
+        env:
+          PYTHONPATH: ml
+
   lint-and-build-frontend:
+    name: Frontend Lint, Test & Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,11 +58,15 @@ jobs:
         run: |
           cd frontend
           npm ci || npm install
-      - name: Lint Frontend
+      - name: Run ESLint
         run: |
           cd frontend
           npm run lint
-      - name: Build Frontend
+      - name: Run Vitest Unit Tests
+        run: |
+          cd frontend
+          npx vitest run
+      - name: Production Vite Build
         run: |
           cd frontend
           npm run build

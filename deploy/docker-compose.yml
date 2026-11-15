@@ -5,6 +5,7 @@ services:
     image: postgres:15-alpine
     container_name: acadflow-postgres
     restart: always
+    profiles: ["core"]
     environment:
       POSTGRES_USER: acadflow_user
       POSTGRES_PASSWORD: acadflow_password
@@ -25,6 +26,7 @@ services:
     image: mongo:6.0
     container_name: acadflow-mongo
     restart: always
+    profiles: ["core"]
     ports:
       - "27017:27017"
     volumes:
@@ -41,6 +43,7 @@ services:
     image: redis:7-alpine
     container_name: acadflow-redis
     restart: always
+    profiles: ["core"]
     ports:
       - "6379:6379"
     volumes:
@@ -59,8 +62,7 @@ services:
       dockerfile: Dockerfile
     container_name: acadflow-backend-1
     restart: always
-    ports:
-      - "8000:8000"
+    profiles: ["core"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,13 +72,15 @@ services:
         condition: service_healthy
     environment:
       INSTANCE_ID: "api-instance-1"
-      ENVIRONMENT: development
+      ENVIRONMENT: production
       PORT: 8000
       SECRET_KEY: acadflow-dev-secret-key-for-local-docker-testing-only-32chars
       DATABASE_URL: postgresql+psycopg://acadflow_user:acadflow_password@postgres:5432/acadflow_db
       MONGO_URI: mongodb://mongo:27017
       REDIS_URL: redis://redis:6379/0
       ML_SERVICE_URL: http://ml-serve:8001
+      ML_MODE: shadow
+      ALLOWED_ORIGINS: "http://localhost,http://127.0.0.1,http://localhost:80,http://localhost:3000"
     networks:
       - acadflow-net
 
@@ -86,6 +90,7 @@ services:
       dockerfile: Dockerfile
     container_name: acadflow-backend-2
     restart: always
+    profiles: ["core"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,13 +100,15 @@ services:
         condition: service_healthy
     environment:
       INSTANCE_ID: "api-instance-2"
-      ENVIRONMENT: development
+      ENVIRONMENT: production
       PORT: 8000
       SECRET_KEY: acadflow-dev-secret-key-for-local-docker-testing-only-32chars
       DATABASE_URL: postgresql+psycopg://acadflow_user:acadflow_password@postgres:5432/acadflow_db
       MONGO_URI: mongodb://mongo:27017
       REDIS_URL: redis://redis:6379/0
       ML_SERVICE_URL: http://ml-serve:8001
+      ML_MODE: shadow
+      ALLOWED_ORIGINS: "http://localhost,http://127.0.0.1,http://localhost:80,http://localhost:3000"
     networks:
       - acadflow-net
 
@@ -111,8 +118,30 @@ services:
       dockerfile: Dockerfile
     container_name: acadflow-ml-serve
     restart: always
+    profiles: ["ml"]
     ports:
       - "8001:8001"
+    environment:
+      PORT: 8001
+      MODEL_PATH: "/app/models/risk_model.onnx"
+      JOB_FALLBACK_PATH: "/app/models/best_model.joblib"
+      MLFLOW_TRACKING_URI: "http://mlflow:5000"
+    networks:
+      - acadflow-net
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.11.1
+    container_name: acadflow-mlflow
+    restart: always
+    profiles: ["mlflow"]
+    ports:
+      - "5000:5000"
+    environment:
+      - BACKEND_STORE_URI=sqlite:////mlflow/mlflow.db
+      - DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - mlflow_data:/mlflow
+    command: mlflow server --backend-store-uri sqlite:////mlflow/mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0 --port 5000
     networks:
       - acadflow-net
 
@@ -122,15 +151,15 @@ services:
       dockerfile: Dockerfile
     container_name: acadflow-frontend
     restart: always
-    ports:
-      - "3000:80"
+    profiles: ["core"]
     networks:
       - acadflow-net
 
   nginx:
-    image: nginx:1.25-alpine
+    image: nginx:1.27-alpine
     container_name: acadflow-nginx
     restart: always
+    profiles: ["core"]
     ports:
       - "80:80"
     volumes:
@@ -142,6 +171,36 @@ services:
     networks:
       - acadflow-net
 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: acadflow-prometheus
+    restart: always
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/grafana/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    networks:
+      - acadflow-net
+
+  grafana:
+    image: grafana/grafana:10.4.1
+    container_name: acadflow-grafana
+    restart: always
+    profiles: ["monitoring"]
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=acadflow
+    volumes:
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - acadflow-net
+
 networks:
   acadflow-net:
     driver: bridge
@@ -150,3 +209,4 @@ volumes:
   postgres_data:
   mongo_data:
   redis_data:
+  mlflow_data:

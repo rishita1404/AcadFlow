@@ -2,6 +2,7 @@
 Model Evaluation Module — AcadFlow ML (Phase 3).
 
 Evaluates saved models and generates metric summaries for documentation.
+Includes strict quality gate validation (PR-AUC >= 0.70).
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ if VENDOR_DIR.exists() and str(VENDOR_DIR) not in sys.path:
 
 from src.features import FEATURE_NAMES
 from src.train import evaluate_predictions
+
+MIN_PR_AUC_THRESHOLD = 0.70
 
 
 def evaluate_saved_model() -> Dict[str, float]:
@@ -50,6 +53,14 @@ def evaluate_saved_model() -> Dict[str, float]:
     print("Evaluated model metrics:")
     for k, v in metrics.items():
         print(f"  {k}: {v}")
+
+    # Quality Gate Check
+    pr_auc = metrics.get("pr_auc", 0.0)
+    if pr_auc < MIN_PR_AUC_THRESHOLD:
+        print(f"QUALITY GATE FAILED: PR-AUC {pr_auc:.4f} is below minimum threshold {MIN_PR_AUC_THRESHOLD:.4f}")
+        sys.exit(1)
+
+    print(f"QUALITY GATE PASSED: PR-AUC {pr_auc:.4f} >= {MIN_PR_AUC_THRESHOLD:.4f}")
     return metrics
 
 

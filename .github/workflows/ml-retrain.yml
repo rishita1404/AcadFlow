@@ -1,27 +1,71 @@
-name: ML Retrain
+name: ML Retrain & Evaluation Pipeline
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # Weekly retrain
+    - cron: '0 0 * * 0' # Weekly retrain on Sunday at midnight UTC
   workflow_dispatch:
 
 jobs:
-  train-and-evaluate:
+  train-evaluate-and-package:
+    name: Retrain Model & Enforce Quality Gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install ML dependencies
         run: |
-          pip install -r ml/requirements.txt
-      - name: Check Data Drift
-        run: python ml/src/drift.py
-      - name: Train Risk Model
-        run: python ml/src/train.py
-      - name: Evaluate Model Performance
-        run: python ml/src/evaluate.py
-      - name: Export to ONNX
-        run: python ml/onnx/export.py
+          pip install --upgrade pip
+          pip install -r ml/requirements.txt pytest skl2onnx scipy joblib
+
+      - name: Verify Simulated Cohort & Distribution
+        run: |
+          python ml/src/simulate.py
+        env:
+          PYTHONPATH: ml
+
+      - name: Check Input Feature Drift Against Reference
+        run: |
+          python ml/src/drift.py
+        env:
+          PYTHONPATH: ml
+
+      - name: Train Models (Rule Baseline, Logistic Reg, Gradient Boosting)
+        run: |
+          python ml/src/train.py
+        env:
+          PYTHONPATH: ml
+
+      - name: Evaluate Model Performance & Enforce Quality Gate (PR-AUC >= 0.70)
+        run: |
+          python ml/src/evaluate.py
+        env:
+          PYTHONPATH: ml
+
+      - name: Export Best Model to ONNX & Verify Parity
+        run: |
+          python ml/onnx/export.py
+        env:
+          PYTHONPATH: ml
+
+      - name: Dynamic Quantization to INT8
+        run: |
+          python ml/onnx/quantize.py
+        env:
+          PYTHONPATH: ml
+
+      - name: Run Inference Latency Benchmark
+        run: |
+          python ml/onnx/benchmark.py
+        env:
+          PYTHONPATH: ml
+
+      - name: Run ML Service Test Suite
+        run: |
+          pytest ml/tests/ -v
+        env:
+          PYTHONPATH: ml

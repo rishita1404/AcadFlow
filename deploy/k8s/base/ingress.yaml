@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: acadflow-ingress
+  namespace: acadflow
+  labels:
+    app.kubernetes.io/part-of: acadflow
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "15m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  rules:
+    - http:
+        paths:
+          # API traffic routes to FastAPI backend
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: acadflow-backend-svc
+                port:
+                  number: 8000
+          # Health & metrics endpoints on backend
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: acadflow-backend-svc
+                port:
+                  number: 8000
+          - path: /metrics
+            pathType: Exact
+            backend:
+              service:
+                name: acadflow-backend-svc
+                port:
+                  number: 8000
+          # All other traffic routes to React frontend (SPA)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: acadflow-frontend-svc
+                port:
+                  number: 80

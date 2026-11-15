@@ -1,10 +1,52 @@
 groups:
   - name: acadflow_alerts
     rules:
-      - alert: HighRiskLatency
-        expr: http_request_duration_seconds{job="acadflow-ml", quantile="0.99"} > 0.5
+      - alert: HighMLInferenceLatency
+        expr: histogram_quantile(0.95, sum(rate(ml_prediction_duration_seconds_bucket[5m])) by (le)) > 0.100
         for: 2m
         labels:
           severity: warning
+          service: ml-serve
         annotations:
-          summary: ML Prediction Latency High
+          summary: "ML inference p95 latency is exceeding 100ms"
+          description: "Model prediction duration p95 has exceeded 100ms over the last 2 minutes."
+
+      - alert: FeatureDriftDetected
+        expr: ml_feature_drift_psi > 0.25
+        for: 5m
+        labels:
+          severity: critical
+          service: ml-serve
+        annotations:
+          summary: "Significant feature drift detected (PSI > 0.25)"
+          description: "PSI metric for feature {{$labels.feature}} is {{$value}}, exceeding stability threshold 0.25."
+
+      - alert: HighAPIErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: "API 5xx error rate exceeds 5%"
+          description: "Backend error rate is currently {{$value}}%."
+
+      - alert: WebVitalDegradedLCP
+        expr: histogram_quantile(0.75, sum(rate(web_vitals_lcp_seconds_bucket[10m])) by (le)) > 2.5
+        for: 5m
+        labels:
+          severity: warning
+          service: frontend
+        annotations:
+          summary: "Frontend 75th percentile LCP exceeds 2.5 seconds"
+          description: "Core Web Vitals LCP p75 is currently {{$value}}s, falling below Google 'Good' CWV threshold."
+
+      - alert: LowCacheHitRate
+        expr: (sum(rate(cache_hits_total[5m])) / (sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m])))) * 100 < 50
+        for: 10m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "Coordinator cache hit rate dropped below 50%"
+          description: "Redis / in-memory cache hit rate is {{$value}}%."

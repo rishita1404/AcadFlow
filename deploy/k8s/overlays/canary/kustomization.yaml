@@ -1,4 +1,18 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
 resources:
   - ../../base
+  - ml-serve-canary.yaml
+
+patches:
+  # Scale v1 stable deployment to 9 replicas so canary v2 (1 replica) gets ~10% of traffic
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: acadflow-ml-serve
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 9

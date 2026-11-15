@@ -1,0 +1,12 @@
+# ml/.dockerignore
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+tests/
+vendor_packages/
+notebooks/
+*.egg-info/
+.env
+.env.*
+# Keep models/ — they are the trained artifacts

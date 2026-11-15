@@ -104,6 +104,192 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Evaluation 2 (Phases 1-4)",
+      "item": [
+        {
+          "name": "Phase 1: Report Web Vitals Beacon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"LCP\",\n  \"value\": 1850.5,\n  \"delta\": 1850.5,\n  \"id\": \"v3-162342342-1\",\n  \"navigationType\": \"navigate\",\n  \"rating\": \"good\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/metrics/web-vitals",
+            "description": "Submits Core Web Vitals (LCP, INP, CLS, TTFB) metrics unauthenticated via sendBeacon."
+          }
+        },
+        {
+          "name": "Phase 2: Real-time SSE Events Stream",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coordinatorToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/events",
+            "description": "Server-Sent Events endpoint pushing real-time attendance_updated and risk_changed events."
+          }
+        },
+        {
+          "name": "Phase 2: Coordinator Paginated Student Directory",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coordinatorToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/coordinator/students?limit=25&offset=0&sort=name&order=asc&q=Sharma&band=high",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coordinator",
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "25"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "sort",
+                  "value": "name"
+                },
+                {
+                  "key": "order",
+                  "value": "asc"
+                },
+                {
+                  "key": "q",
+                  "value": "Sharma"
+                },
+                {
+                  "key": "band",
+                  "value": "high"
+                }
+              ]
+            },
+            "description": "Paginated, sorted, filtered student list with batch attendance optimization."
+          }
+        },
+        {
+          "name": "Phase 2: Coordinator Summary Stats (Redis Cached)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coordinatorToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/coordinator/summary",
+            "description": "Coordinator summary KPI counts and risk breakdown with Redis cache-aside."
+          }
+        },
+        {
+          "name": "Phase 3: ML Serve Single Prediction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"student_id\": 101,\n  \"attendance_margin\": -8.5,\n  \"attendance_trend_4w\": -2.1,\n  \"deadline_pressure\": 4,\n  \"missed_submissions_count\": 3,\n  \"current_attendance_pct\": 66.5,\n  \"past_quiz_avg\": 54.0\n}"
+            },
+            "url": "{{mlUrl}}/predict",
+            "description": "Direct inference request to FastAPI ONNX ML service with top contributing factors."
+          }
+        },
+        {
+          "name": "Phase 3: ML Serve Batch Prediction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"student_id\": 101,\n      \"attendance_margin\": -10.0,\n      \"attendance_trend_4w\": -3.0,\n      \"deadline_pressure\": 3,\n      \"missed_submissions_count\": 2,\n      \"current_attendance_pct\": 65.0,\n      \"past_quiz_avg\": 50.0\n    },\n    {\n      \"student_id\": 102,\n      \"attendance_margin\": 15.0,\n      \"attendance_trend_4w\": 1.0,\n      \"deadline_pressure\": 1,\n      \"missed_submissions_count\": 0,\n      \"current_attendance_pct\": 90.0,\n      \"past_quiz_avg\": 88.0\n    }\n  ]\n}"
+            },
+            "url": "{{mlUrl}}/predict/batch",
+            "description": "Batch risk inference with micro-batching optimization."
+          }
+        },
+        {
+          "name": "Phase 3: ML Feature Drift Telemetry",
+          "request": {
+            "method": "GET",
+            "url": "{{mlUrl}}/drift",
+            "description": "Calculates PSI and KS p-values on rolling prediction window against baseline."
+          }
+        },
+        {
+          "name": "Phase 3: ML Readiness & Health Probes",
+          "request": {
+            "method": "GET",
+            "url": "{{mlUrl}}/ready",
+            "description": "Kubernetes readiness probe verifying ONNX model is loaded in memory."
+          }
+        },
+        {
+          "name": "Phase 4: Admin ML Shadow Comparison Telemetry",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/ml-shadow-comparison",
+            "description": "Model vs Rules agreement rate, confusion matrix, top disagreements, and section parity."
+          }
+        },
+        {
+          "name": "Phase 4: Student What-If Counterfactual Simulator",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{studentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/me/what-if",
+            "description": "Returns actionable counterfactual scenarios showing predicted risk score changes."
+          }
+        }
+      ]
     }
   ]
 }

@@ -2,8 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: acadflow-backend
+  namespace: acadflow
   labels:
     app: acadflow-backend
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: acadflow
 spec:
   replicas: 2
   selector:
@@ -17,12 +20,147 @@ spec:
       containers:
         - name: backend
           image: acadflow-backend:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: acadflow-config
+            - secretRef:
+                name: acadflow-secrets
           resources:
             requests:
-              memory: "128Mi"
               cpu: "100m"
+              memory: "128Mi"
             limits:
-              memory: "256Mi"
               cpu: "500m"
+              memory: "256Mi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 15
+            timeoutSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acadflow-ml-serve
+  namespace: acadflow
+  labels:
+    app: acadflow-ml-serve
+    app.kubernetes.io/name: ml-serve
+    app.kubernetes.io/part-of: acadflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: acadflow-ml-serve
+  template:
+    metadata:
+      labels:
+        app: acadflow-ml-serve
+        version: v1
+    spec:
+      containers:
+        - name: ml-serve
+          image: acadflow-ml-serve:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+              name: http
+          env:
+            - name: PORT
+              value: "8001"
+            - name: MODEL_PATH
+              value: "/app/models/risk_model.onnx"
+            - name: JOB_FALLBACK_PATH
+              value: "/app/models/best_model.joblib"
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8001
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            periodSeconds: 15
+            timeoutSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acadflow-frontend
+  namespace: acadflow
+  labels:
+    app: acadflow-frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: acadflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: acadflow-frontend
+  template:
+    metadata:
+      labels:
+        app: acadflow-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: acadflow-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            periodSeconds: 15
+            timeoutSeconds: 3

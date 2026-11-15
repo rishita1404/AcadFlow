@@ -2,10 +2,103 @@ apiVersion: v1
 kind: Service
 metadata:
   name: acadflow-backend-svc
+  namespace: acadflow
+  labels:
+    app: acadflow-backend
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: acadflow
 spec:
   type: ClusterIP
   selector:
     app: acadflow-backend
   ports:
-    - port: 8000
+    - name: http
+      port: 8000
       targetPort: 8000
+
+---
+# ML inference service is strictly cluster-internal (not exposed via Ingress)
+apiVersion: v1
+kind: Service
+metadata:
+  name: acadflow-ml-serve-svc
+  namespace: acadflow
+  labels:
+    app: acadflow-ml-serve
+    app.kubernetes.io/name: ml-serve
+    app.kubernetes.io/part-of: acadflow
+spec:
+  type: ClusterIP
+  selector:
+    app: acadflow-ml-serve
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: acadflow-frontend-svc
+  namespace: acadflow
+  labels:
+    app: acadflow-frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: acadflow
+spec:
+  type: ClusterIP
+  selector:
+    app: acadflow-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: acadflow-postgres-svc
+  namespace: acadflow
+  labels:
+    app: acadflow-postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: acadflow-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: acadflow-redis-svc
+  namespace: acadflow
+  labels:
+    app: acadflow-redis
+spec:
+  type: ClusterIP
+  selector:
+    app: acadflow-redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: acadflow-mongo-svc
+  namespace: acadflow
+  labels:
+    app: acadflow-mongo
+spec:
+  type: ClusterIP
+  selector:
+    app: acadflow-mongo
+  ports:
+    - port: 27017
+      targetPort: 27017

@@ -2,17 +2,45 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: acadflow-backend-hpa
+  namespace: acadflow
+  labels:
+    app: acadflow-backend
+    app.kubernetes.io/part-of: acadflow
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: acadflow-backend
   minReplicas: 2
-  maxReplicas: 5
+  maxReplicas: 6
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 75
+          averageUtilization: 70
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: acadflow-ml-serve-hpa
+  namespace: acadflow
+  labels:
+    app: acadflow-ml-serve
+    app.kubernetes.io/part-of: acadflow
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: acadflow-ml-serve
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

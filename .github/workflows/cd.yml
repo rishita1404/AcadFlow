@@ -6,20 +6,46 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy:
+  validate-and-deploy:
+    name: Build Images & Validate Manifests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build and Push Backend Image
+
+      - name: Build Backend Image
         run: |
-          echo "Building backend container image..."
           docker build -t acadflow-backend:latest backend/
-      - name: Build and Push Frontend Image
+
+      - name: Build ML Serve Image
         run: |
-          echo "Building frontend container image..."
+          docker build -t acadflow-ml-serve:latest ml/
+
+      - name: Build Frontend Image
+        run: |
           docker build -t acadflow-frontend:latest frontend/
-      - name: Deploy to Kubernetes cluster
+
+      - name: Set up Kustomize
         run: |
-          echo "Applying Kubernetes manifests from deploy/k8s/base..."
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Validate Kubernetes Manifests (Base)
+        run: |
+          kustomize build deploy/k8s/base > base-rendered.yaml
+          test -s base-rendered.yaml
+          echo "Base kustomization validated successfully."
+
+      - name: Validate Kubernetes Manifests (Kind Overlay)
+        run: |
+          kustomize build deploy/k8s/overlays/kind > kind-rendered.yaml
+          test -s kind-rendered.yaml
+          echo "Kind overlay validated successfully."
+
+      - name: Validate Kubernetes Manifests (Canary Overlay)
+        run: |
+          kustomize build deploy/k8s/overlays/canary > canary-rendered.yaml
+          test -s canary-rendered.yaml
+          echo "Canary overlay validated successfully."

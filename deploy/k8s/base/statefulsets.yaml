@@ -1,0 +1,183 @@
+# StatefulSets for Postgres, Redis, and Mongo persistence
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: acadflow-postgres
+  namespace: acadflow
+  labels:
+    app: acadflow-postgres
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: acadflow
+spec:
+  serviceName: acadflow-postgres-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: acadflow-postgres
+  template:
+    metadata:
+      labels:
+        app: acadflow-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: acadflow-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: acadflow-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: acadflow-secrets
+                  key: POSTGRES_DB
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "acadflow_user", "-d", "acadflow_db"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "acadflow_user", "-d", "acadflow_db"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: acadflow-redis
+  namespace: acadflow
+  labels:
+    app: acadflow-redis
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: acadflow
+spec:
+  serviceName: acadflow-redis-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: acadflow-redis
+  template:
+    metadata:
+      labels:
+        app: acadflow-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: redis-storage
+              mountPath: /data
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: acadflow-mongo
+  namespace: acadflow
+  labels:
+    app: acadflow-mongo
+    app.kubernetes.io/name: mongo
+    app.kubernetes.io/part-of: acadflow
+spec:
+  serviceName: acadflow-mongo-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: acadflow-mongo
+  template:
+    metadata:
+      labels:
+        app: acadflow-mongo
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:6.0
+          ports:
+            - containerPort: 27017
+              name: mongo
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: mongo-storage
+              mountPath: /data/db
+          livenessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

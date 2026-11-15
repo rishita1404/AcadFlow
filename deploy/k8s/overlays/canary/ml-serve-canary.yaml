@@ -1,0 +1,67 @@
+# Canary deployment for ML Serve v2
+# Both v1 (9 replicas) and v2 (1 replica) share the label 'app: acadflow-ml-serve'
+# ClusterIP kube-proxy distributes requests roughly 10% to v2, 90% to v1.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acadflow-ml-serve-v2
+  namespace: acadflow
+  labels:
+    app: acadflow-ml-serve
+    version: v2
+    track: canary
+    app.kubernetes.io/name: ml-serve
+    app.kubernetes.io/part-of: acadflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: acadflow-ml-serve
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: acadflow-ml-serve
+        version: v2
+        track: canary
+    spec:
+      containers:
+        - name: ml-serve
+          image: acadflow-ml-serve:v2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+              name: http
+          env:
+            - name: PORT
+              value: "8001"
+            - name: MODEL_PATH
+              value: "/app/models/risk_model_v2.onnx"
+            - name: MODEL_VERSION
+              value: "v2.0-canary"
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8001
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            periodSeconds: 15
+            timeoutSeconds: 5
