@@ -38,6 +38,8 @@ class NotificationOut(BaseModel):
     title: str
     message: str
     kind: str
+    type: Optional[str] = None
+    priority: Optional[str] = None
     course_id: Optional[int] = None
     assignment_id: Optional[int] = None
     is_read: bool
@@ -89,7 +91,41 @@ def list_notifications(
     )
 
     records = db.scalars(query).all()
-    return [NotificationOut.model_validate(r) for r in records]
+    results = []
+    for r in records:
+        out = NotificationOut.model_validate(r)
+        # Infer type for frontend filtering and icon display
+        inferred_type = None
+        if r.dedup_key and ":" in r.dedup_key:
+            prefix = r.dedup_key.split(":", 1)[0]
+            if prefix in {"notice_new", "notice_updated", "timetable_updated", "buffer_warning", "assignment_reminder"}:
+                inferred_type = prefix
+        if not inferred_type:
+            title_lower = (r.title or "").lower()
+            msg_lower = (r.message or "").lower()
+            if "notice" in title_lower or "notice" in msg_lower or "📢" in (r.title or ""):
+                inferred_type = "notice_new"
+            elif "timetable" in title_lower or "schedule" in title_lower or "🗓" in (r.title or ""):
+                inferred_type = "timetable_updated"
+            elif r.kind in {"critical", "warning", "alert"} or "buffer" in title_lower or "attendance" in title_lower:
+                inferred_type = "buffer_warning"
+            elif r.kind == "reminder" or "due" in title_lower or "assignment" in title_lower or "exam" in title_lower:
+                inferred_type = "assignment_reminder"
+            else:
+                inferred_type = r.kind
+
+        out.type = inferred_type
+
+        # Infer priority
+        if r.kind in {"critical", "alert"} or "🚨" in (r.title or "") or "urgent" in (r.title or "").lower():
+            out.priority = "urgent"
+        elif r.kind == "warning":
+            out.priority = "high"
+        else:
+            out.priority = "normal"
+
+        results.append(out)
+    return results
 
 
 @router.get(

@@ -122,12 +122,13 @@ async def get_auth_index():
     tags=["Auth"],
 )
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
-    """Create a new user account (open — no auth required for self-registration)."""
-    if payload.role not in VALID_ROLES:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid role '{payload.role}'. Must be one of: {sorted(VALID_ROLES)}",
-        )
+    """Create a new user account (open — no auth required for self-registration).
+
+    Role is always forced to 'student' regardless of what the caller sends.
+    Only an admin-only endpoint (/admin/users) may create faculty/coordinator/admin.
+    """
+    # Security: ignore caller-supplied role; always register as student
+    forced_role = "student"
 
     existing = db.scalar(
         select(UserModel).where(UserModel.email == payload.email.lower())
@@ -139,7 +140,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         name=payload.name.strip(),
         email=payload.email.lower(),
         password_hash=get_password_hash(payload.password),
-        role=payload.role,
+        role=forced_role,
         department_id=payload.department_id,
         organization_id=payload.organization_id,
     )

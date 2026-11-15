@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     admin,
+    admin_users,
     assignments,
     attendance,
     auth,
@@ -41,5 +42,6 @@ api_router.include_router(
     coordinator.router, prefix="/coordinator", tags=["Coordinator"]
 )
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+api_router.include_router(admin_users.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(timetable.router, prefix="/timetable", tags=["Timetable"])
 api_router.include_router(notices.router, prefix="/notices", tags=["Notices"])

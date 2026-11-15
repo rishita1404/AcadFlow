@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Send, Users, Clock, AlertTriangle, Link as LinkIcon, ArrowRight, ArrowLeft, Trash2, Plus } from 'lucide-react';
@@ -47,7 +47,10 @@ export default function ComposeNotice() {
     queryKey: ['faculty-courses-notices'],
     queryFn: () => facultyApi.getCourses().then(r => r.data?.items || (Array.isArray(r.data) ? r.data : [])).catch(() => []),
   });
-  const courses = Array.isArray(rawCourses) ? rawCourses : (rawCourses?.items || []);
+  const courses = useMemo(
+    () => (Array.isArray(rawCourses) ? rawCourses : (rawCourses?.items || [])),
+    [rawCourses]
+  );
 
   useEffect(() => {
     if (courses.length > 0 && !selectedCourseId) {

@@ -44,7 +44,7 @@ export default function StudentNotifications() {
   // Filter
   const filtered = filterType === 'all'
     ? notifications
-    : notifications.filter(n => n.type === filterType);
+    : notifications.filter(n => (n.type === filterType || n.kind === filterType));
 
   // Group into Today and Earlier
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -55,7 +55,7 @@ export default function StudentNotifications() {
     if (!notification.is_read) {
       markReadMutation.mutate(notification.id);
     }
-    const t = notification.type || '';
+    const t = (notification.type || notification.kind || '').toLowerCase();
     if (t.includes('assignment') || t.includes('deadline') || t.includes('reminder')) {
       if (notification.entity_id) navigate(`/student/assignments/${notification.entity_id}`);
       else navigate('/student/tasks');
@@ -176,7 +176,13 @@ function NotificationCard({ n, onClick }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ fontSize: 20 }}>
-          {n.type?.includes('warning') ? '⚠️' : n.type?.includes('timetable') ? '🗓' : n.type?.includes('notice') ? '📢' : '🔔'}
+          {((n.type || n.kind)?.includes('warning') || (n.type || n.kind)?.includes('critical') || (n.type || n.kind)?.includes('alert'))
+            ? '⚠️'
+            : (n.type || n.kind)?.includes('timetable')
+            ? '🗓'
+            : ((n.type || n.kind)?.includes('notice') || n.title?.includes('📢') || n.title?.includes('🚨'))
+            ? '📢'
+            : '🔔'}
         </span>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

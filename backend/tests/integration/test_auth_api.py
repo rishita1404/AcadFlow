@@ -54,17 +54,19 @@ class TestRegister:
         res2 = _register(client, email="dup@acadflow.edu")
         assert res2.status_code == 409
 
-    def test_register_invalid_role_returns_422(self, client: TestClient):
+    def test_register_role_is_ignored_and_creates_student(self, client: TestClient):
+        # Role field is ignored; always creates student
         res = client.post(
             f"{BASE}/register",
             json={
                 "name": "Attacker",
                 "email": "evil@acadflow.edu",
                 "password": "StrongPass1!",
-                "role": "superadmin",  # invalid
+                "role": "superadmin",
             },
         )
-        assert res.status_code == 422
+        assert res.status_code == 201
+        assert res.json()["role"] == "student"
 
     def test_register_weak_password_rejected(self, client: TestClient):
         res = client.post(

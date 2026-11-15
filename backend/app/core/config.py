@@ -11,6 +11,11 @@ except ImportError:
         return kwargs
 
 
+def _parse_origins(raw: str) -> list:
+    """Parse a comma-separated ALLOWED_ORIGINS string into a list."""
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "AcadFlow")
     VERSION: str = os.getenv("VERSION", "1.0.0")
@@ -39,6 +44,11 @@ class Settings(BaseSettings):
     )
     RATE_LIMIT_UPLOAD_PER_MINUTE: int = int(
         os.getenv("RATE_LIMIT_UPLOAD_PER_MINUTE", "5")
+    )
+
+    # CORS — parse comma-separated env var or use safe defaults
+    ALLOWED_ORIGINS: list = _parse_origins(
+        os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
     )
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

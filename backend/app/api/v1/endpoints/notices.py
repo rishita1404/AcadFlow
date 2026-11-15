@@ -290,8 +290,10 @@ def create_notice(
                 user_id=uid,
                 title=f"{'🚨 ' if notice.urgent else '📢 '}{notice.title}",
                 message=notice.body[:120] + ("..." if len(notice.body) > 120 else ""),
-                notif_type="notice_new",
+                notif_type="alert" if notice.urgent else "notice_new",
+                commit=False,
             )
+        db.commit()
     except Exception:
         pass
 
@@ -521,7 +523,9 @@ def nudge_unseen(
                 title=f"Reminder: {notice.title}",
                 message=f"You have an unread notice: {notice.body[:80]}...",
                 notif_type="notice_updated",
+                commit=False,
             )
+        db.commit()
     except Exception:
         pass
 

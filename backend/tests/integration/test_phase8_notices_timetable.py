@@ -74,6 +74,10 @@ def _setup_faculty_student(client: TestClient, db: Session):
 
     fac_user = db.scalar(select(UserModel).where(UserModel.email == fac_email))
     assert fac_user is not None
+    if fac_user.role != "faculty":
+        fac_user.role = "faculty"
+        db.add(fac_user)
+        db.flush()
     stu_user = db.scalar(select(UserModel).where(UserModel.email == stu_email))
 
     # Ensure student model exists

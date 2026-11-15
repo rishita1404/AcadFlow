@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import {
   attendanceApi,
   holidayApi,
@@ -12,22 +12,12 @@ import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 import {
   Filter,
-  Calendar as CalendarIcon,
-  BookOpen,
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
   X,
   Trash2,
-  Clock,
-  Flame,
-  ShieldAlert,
-  FileText,
 } from 'lucide-react';
 
 export default function StudentCalendar() {
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const courseIdParam = searchParams.get('course_id');
@@ -247,7 +237,7 @@ export default function StudentCalendar() {
     if (plannedDates.length > 0) {
       planApi
         .projectLeavePlan(plannedDates, newCourseId !== 'all' ? Number(newCourseId) : null)
-        .then(r => computeProjection(plannedDates))
+        .then(() => computeProjection(plannedDates))
         .catch(() => {});
     }
   };

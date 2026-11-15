@@ -404,6 +404,7 @@ def publish_timetable(
                 title="Timetable Updated",
                 message=f"Department timetable version {version.id} has been published with your teaching schedule.",
                 notif_type="timetable_updated",
+                commit=False,
             )
         for uid in affected_student_ids:
             create_in_app_notification(
@@ -412,7 +413,9 @@ def publish_timetable(
                 title="Class Timetable Published",
                 message=f"Your course timetable for semester {version.semester_id} has been updated.",
                 notif_type="timetable_updated",
+                commit=False,
             )
+        db.commit()
     except Exception:
         pass
 

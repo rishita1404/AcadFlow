@@ -71,6 +71,60 @@ def _upsert_notification(
     return notif
 
 
+def create_in_app_notification(
+    db: Session,
+    user_id: int,
+    title: str,
+    message: str,
+    notif_type: str = "info",
+    course_id: Optional[int] = None,
+    assignment_id: Optional[int] = None,
+    commit: bool = True,
+) -> Optional[NotificationModel]:
+    """
+    General in-app notification creator for notices, nudges, timetable changes, etc.
+    Maps notif_type to valid NotificationModel kind ('warning', 'reminder', 'alert', 'info', 'critical').
+    """
+    import uuid
+
+    valid_kinds = {"warning", "reminder", "alert", "info", "critical"}
+    kind = "info"
+    if notif_type in valid_kinds:
+        kind = notif_type
+    elif any(k in notif_type for k in ["urgent", "critical"]):
+        kind = "critical"
+    elif any(k in notif_type for k in ["alert", "risk"]):
+        kind = "alert"
+    elif any(k in notif_type for k in ["warning", "warn", "buffer"]):
+        kind = "warning"
+    elif any(k in notif_type for k in ["reminder", "nudge", "due"]):
+        kind = "reminder"
+    else:
+        kind = "info"
+
+    dedup_key = f"{notif_type}:{user_id}:{uuid.uuid4().hex[:12]}"
+    notif = NotificationModel(
+        recipient_id=user_id,
+        title=title,
+        message=message,
+        kind=kind,
+        course_id=course_id,
+        assignment_id=assignment_id,
+        is_read=False,
+        created_at=datetime.now(timezone.utc),
+        dedup_key=dedup_key,
+    )
+    db.add(notif)
+    if commit:
+        try:
+            db.commit()
+            db.refresh(notif)
+        except Exception:
+            db.rollback()
+            return None
+    return notif
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Auto-trigger: Attendance Buffer Warnings
 # ─────────────────────────────────────────────────────────────────────────────
