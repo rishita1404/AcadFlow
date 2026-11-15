@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit3, Wand2, FileText, CheckCircle2, AlertTriangle, ArrowRight, UploadCloud, X } from 'lucide-react';
+import { Edit3, Wand2, FileText, CheckCircle2, ArrowRight, UploadCloud, X } from 'lucide-react';
 import { timetableApi, coordinatorApi } from '../../api/endpoints.js';
 import Skeleton from '../../components/Skeleton.jsx';
 

@@ -1,6 +1,5 @@
 /* AcadFlow – global reset & base */
-@import '@fontsource-variable/fraunces/index.css';
-@import '@fontsource-variable/inter/index.css';
+@import './fonts.css';
 @import './tokens.css';
 
 *, *::before, *::after {

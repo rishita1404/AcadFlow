@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { CheckCircle, Eye, AlertTriangle, HeartHandshake, Hourglass } from 'lucide-react';
 
 const BANDS = {
@@ -59,7 +60,7 @@ function normaliseBand(band) {
   return 'Safe';
 }
 
-export default function StatusBadge({ band, status, value, level, size = 'md' }) {
+function StatusBadge({ band, status, value, level, size = 'md' }) {
   const raw = band ?? status ?? value ?? level;
   const key = normaliseBand(raw);
   const { label, Icon, bg, fg } = BANDS[key] || BANDS['Insufficient data'];
@@ -90,3 +91,5 @@ export default function StatusBadge({ band, status, value, level, size = 'md' })
     </span>
   );
 }
+
+export default memo(StatusBadge);

@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Calendar, Clock, Plus, Trash2, Edit2, AlertTriangle,
-  CheckCircle2, ArrowLeft, Save, UploadCloud, RefreshCw, X
+  Plus, Trash2, Edit2, AlertTriangle,
+  ArrowLeft, Save, UploadCloud, X
 } from 'lucide-react';
-import { timetableApi, coordinatorApi, courseApi, adminApi } from '../../api/endpoints.js';
+import { timetableApi, coordinatorApi, courseApi } from '../../api/endpoints.js';
 import Button from '../../components/ui/Button.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
@@ -27,8 +27,6 @@ const PERIODS = [
 ];
 
 export default function CoordinatorTimetableEditor() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const qc = useQueryClient();
 
   const [selectedSection, setSelectedSection] = useState('all');
@@ -54,7 +52,7 @@ export default function CoordinatorTimetableEditor() {
   });
   const deptId = overview?.department_id || 1;
 
-  const { data: draftData, isLoading: loadingDraft, refetch: refetchDraft } = useQuery({
+  const { data: draftData, isLoading: loadingDraft } = useQuery({
     queryKey: ['timetable-draft', deptId],
     queryFn: () => timetableApi.getDraft(deptId).then(r => r.data),
   });
@@ -126,7 +124,7 @@ export default function CoordinatorTimetableEditor() {
         effective_from: new Date().toISOString().slice(0, 10),
       });
     },
-    onSuccess: (res) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['timetable-draft'] });
       qc.invalidateQueries({ queryKey: ['timetable-published-slots'] });
       qc.invalidateQueries({ queryKey: ['timetable-versions-list'] });

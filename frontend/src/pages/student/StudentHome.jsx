@@ -1,4 +1,5 @@
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { dashboardApi, tasksApi, timetableApi, noticeApi } from '../../api/endpoints.js';
@@ -40,6 +41,24 @@ export default function StudentHome() {
     queryFn: () => noticeApi.getMyNotices().then(r => r.data).catch(() => []),
   });
 
+  const todayDayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
+
+  const courses = useMemo(() => dash?.courses || [], [dash?.courses]);
+  const worstBand = useMemo(() => {
+    let worst = 'Safe';
+    for (const c of courses) {
+      if (c.risk_band === 'Critical') return 'Critical';
+      if (c.risk_band === 'At risk') { worst = 'At risk'; }
+      else if (c.risk_band === 'Watch' && worst !== 'At risk') { worst = 'Watch'; }
+    }
+    return worst;
+  }, [courses]);
+
+  const unreadNoticesCount = useMemo(() => notices.filter(n => !n.seen).length, [notices]);
+  const todayClasses = useMemo(() => {
+    return timetable.filter(s => s.day_name === todayDayName || s.day === (new Date().getDay() - 1));
+  }, [timetable, todayDayName]);
+
   if (isLoading) {
     return (
       <div style={{ display: 'grid', gap: 'var(--space-6)' }}>
@@ -55,18 +74,6 @@ export default function StudentHome() {
   if (error) {
     return <ErrorState message={error?.response?.data?.detail || error.message} retry={() => window.location.reload()} />;
   }
-
-  const courses = dash?.courses || [];
-  let worstBand = 'Safe';
-  for (const c of courses) {
-    if (c.risk_band === 'Critical') { worstBand = 'Critical'; break; }
-    if (c.risk_band === 'At risk') { worstBand = 'At risk'; }
-    else if (c.risk_band === 'Watch' && worstBand !== 'At risk') { worstBand = 'Watch'; }
-  }
-
-  const unreadNoticesCount = notices.filter(n => !n.seen).length;
-  const todayDayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
-  const todayClasses = timetable.filter(s => s.day_name === todayDayName || s.day === (new Date().getDay() - 1));
 
   return (
     <div style={{ maxWidth: 1440, margin: '0 auto' }}>

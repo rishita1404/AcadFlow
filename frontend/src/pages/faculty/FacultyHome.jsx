@@ -9,8 +9,8 @@ import { Skeleton } from '../../components/ui/Skeleton.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import {
   Users, BookOpen, Search, Calendar,
-  AlertTriangle, ArrowUpRight, Megaphone,
-  Upload, School, CheckCircle2, Eye, Filter
+  Megaphone,
+  Upload, School, Filter
 } from 'lucide-react';
 
 const C = {

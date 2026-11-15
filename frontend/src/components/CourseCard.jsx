@@ -1,9 +1,10 @@
+import { memo } from 'react';
 import Card from './ui/Card.jsx';
 import StatusBadge from './StatusBadge.jsx';
 import BufferGauge from './BufferGauge.jsx';
 import { formatPct } from '../utils/format.js';
 
-export default function CourseCard({ course, onClick }) {
+function CourseCard({ course, onClick }) {
   const pct = course.attendance_pct ?? course.attendance_percentage ?? null;
   const pctColor = pct == null
     ? 'var(--text-muted)'
@@ -95,3 +96,5 @@ export default function CourseCard({ course, onClick }) {
     </Card>
   );
 }
+
+export default memo(CourseCard);

@@ -11,8 +11,6 @@ import {
   BookOpen,
   GraduationCap,
   X,
-  CheckCircle2,
-  AlertCircle,
   UserMinus,
 } from 'lucide-react';
 import { adminApi } from '../../api/endpoints.js';

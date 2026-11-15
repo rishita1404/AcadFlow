@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { coordinatorApi, facultyApi } from '../../api/endpoints.js';
@@ -9,14 +9,14 @@ const C = {
   card: { background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' },
 };
 
-function KpiCard({ label, value, color = 'var(--text)' }) {
+const KpiCard = memo(function KpiCard({ label, value, color = 'var(--text)' }) {
   return (
     <div style={C.card}>
       <div style={{ fontSize: 26, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>{value}</div>
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{label}</div>
     </div>
   );
-}
+});
 
 export default function CoordinatorSummary() {
   const [selectedBatch, setSelectedBatch] = useState('ALL');
@@ -31,6 +31,28 @@ export default function CoordinatorSummary() {
     queryFn: () => facultyApi.getCourses().then(r => r.data?.items || (Array.isArray(r.data) ? r.data : [])),
   });
 
+  const courses = useMemo(() => {
+    const courseList = overview?.courses && overview.courses.length > 0
+      ? overview.courses
+      : (Array.isArray(rawCourses) ? rawCourses : (rawCourses?.items || []));
+    return overview?.department_id
+      ? courseList.filter(c => !c.department_id || c.department_id === overview.department_id)
+      : courseList;
+  }, [overview?.courses, overview?.department_id, rawCourses]);
+
+  const totalStudents = overview?.total_students ?? 0;
+  const atRiskCount = overview?.at_risk_count ?? (overview?.students_at_risk_count ?? 0);
+  const criticalCount = overview?.critical_count ?? 0;
+  const watchCount = overview?.watch_count ?? 0;
+  const safeCount = overview?.safe_count ?? Math.max(0, totalStudents - atRiskCount - criticalCount - watchCount);
+
+  const BAND_BLOCKS = useMemo(() => [
+    { label: 'On Track', sublabel: 'Safe', count: safeCount, bg: 'var(--ok-bg)', fg: 'var(--ok-fg)' },
+    { label: 'Keep an Eye', sublabel: 'Watch', count: watchCount, bg: 'var(--watch-bg)', fg: 'var(--watch-fg)' },
+    { label: 'Needs Attention', sublabel: 'At Risk', count: atRiskCount, bg: 'var(--risk-bg)', fg: 'var(--risk-fg)' },
+    { label: 'Priority Support', sublabel: 'Critical', count: criticalCount, bg: 'var(--crit-bg)', fg: 'var(--crit-fg)' },
+  ], [safeCount, watchCount, atRiskCount, criticalCount]);
+
   if (isLoading) return <Skeleton lines={10} />;
   if (error) {
     return (
@@ -40,27 +62,7 @@ export default function CoordinatorSummary() {
     );
   }
 
-  const courseList = overview?.courses && overview.courses.length > 0
-    ? overview.courses
-    : (Array.isArray(rawCourses) ? rawCourses : (rawCourses?.items || []));
-  const courses = overview?.department_id
-    ? courseList.filter(c => !c.department_id || c.department_id === overview.department_id)
-    : courseList;
-
-  const totalStudents = overview?.total_students ?? 0;
-  const atRiskCount = overview?.at_risk_count ?? (overview?.students_at_risk_count ?? 0);
-  const criticalCount = overview?.critical_count ?? 0;
-  const watchCount = overview?.watch_count ?? 0;
-  const safeCount = overview?.safe_count ?? Math.max(0, totalStudents - atRiskCount - criticalCount - watchCount);
-
   const selectSt = { padding: '7px 12px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface)', color: 'var(--text)', fontFamily: 'var(--font-sans)' };
-
-  const BAND_BLOCKS = [
-    { label: 'On Track', sublabel: 'Safe', count: safeCount, bg: 'var(--ok-bg)', fg: 'var(--ok-fg)' },
-    { label: 'Keep an Eye', sublabel: 'Watch', count: watchCount, bg: 'var(--watch-bg)', fg: 'var(--watch-fg)' },
-    { label: 'Needs Attention', sublabel: 'At Risk', count: atRiskCount, bg: 'var(--risk-bg)', fg: 'var(--risk-fg)' },
-    { label: 'Priority Support', sublabel: 'Critical', count: criticalCount, bg: 'var(--crit-bg)', fg: 'var(--crit-fg)' },
-  ];
 
   const TOOLS = [
     { to: '/coordinator/deadlines', label: 'Deadline Load Heatmap', desc: 'Department week × course pressure matrix' },

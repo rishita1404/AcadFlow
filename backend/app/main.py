@@ -35,6 +35,12 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
+    @app.get("/metrics", tags=["Metrics"], include_in_schema=True)
+    async def get_root_metrics():
+        from fastapi import Response
+        from app.services.metrics_collector import registry
+        return Response(content=registry.generate_prometheus_text(), media_type="text/plain; version=0.0.4; charset=utf-8")
+
     # ── Database Initialization & Background workers ──────────────────────────
     @app.on_event("startup")
     async def startup_event() -> None:

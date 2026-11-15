@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     health,
     me,
     mentor,
+    metrics,
     notices,
     notifications,
     risk,
@@ -45,3 +46,4 @@ api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(admin_users.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(timetable.router, prefix="/timetable", tags=["Timetable"])
 api_router.include_router(notices.router, prefix="/notices", tags=["Notices"])
+api_router.include_router(metrics.router, tags=["Metrics"])

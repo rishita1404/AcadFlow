@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { dashboardApi, studentApi } from '../../api/endpoints.js';
+import { dashboardApi } from '../../api/endpoints.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
-import { Calendar, CalendarDays, BookOpen, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { Calendar, CalendarDays, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function StudentAttendance() {
   const navigate = useNavigate();
