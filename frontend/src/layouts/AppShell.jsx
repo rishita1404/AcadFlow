@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../app/AuthContext.jsx';
 import { useQuery } from '@tanstack/react-query';
@@ -6,7 +6,7 @@ import { notificationApi } from '../api/endpoints.js';
 import {
   Home, CalendarDays, ClipboardList, LayoutGrid, AlertTriangle,
   Megaphone, Bell, Settings, Users, BarChart2, BookOpen,
-  HeartHandshake, ChevronLeft, ChevronRight, LogOut,
+  HeartHandshake, ChevronLeft, ChevronRight, LogOut, Search, X,
 } from 'lucide-react';
 
 const STUDENT_NAV = [
@@ -15,7 +15,7 @@ const STUDENT_NAV = [
   { to: '/student/calendar', icon: CalendarDays, label: 'Calendar' },
   { to: '/student/tasks', icon: ClipboardList, label: 'Tasks' },
   { to: '/student/timetable', icon: LayoutGrid, label: 'Timetable' },
-  { to: '/student/risk', icon: AlertTriangle, label: 'Risk Analysis' },
+  { to: '/student/risk', icon: AlertTriangle, label: 'Risk Details' },
   { to: '/student/notices', icon: Megaphone, label: 'Notices' },
   { to: '/student/notifications', icon: Bell, label: 'Notifications', badge: true },
   { to: '/student/preferences', icon: Settings, label: 'Preferences' },
@@ -81,6 +81,9 @@ export default function AppShell() {
   const { user, permissions, activeRole, switchRole, logout } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [searchVal, setSearchVal] = useState('');
+  const alertRef = useRef(null);
 
   const duties = permissions?.duties || [activeRole];
   const allowedRoles = permissions?.allowed_roles || [activeRole];
@@ -92,6 +95,33 @@ export default function AppShell() {
     queryFn: () => notificationApi.unreadCount().then(r => r.data.unread_count).catch(() => 0),
     refetchInterval: 60_000,
   });
+
+  const { data: recentNotifications = [] } = useQuery({
+    queryKey: ['recent-notifications-dropdown'],
+    queryFn: () => notificationApi.list({ limit: 5 }).then(r => r.data).catch(() => []),
+    enabled: alertOpen,
+  });
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (alertRef.current && !alertRef.current.contains(event.target)) {
+        setAlertOpen(false);
+      }
+    }
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setAlertOpen(false);
+      }
+    }
+    if (alertOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [alertOpen]);
 
   const getHomeRoute = () => {
     if (activeRole === 'admin') return '/admin';
@@ -120,7 +150,7 @@ export default function AppShell() {
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        overflow: 'hidden',
+        overflow: 'visible',
       }}>
 
         {/* Wordmark / Brand Logo */}
@@ -366,29 +396,178 @@ export default function AppShell() {
           borderBottom: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
           padding: '0 var(--space-8)',
           gap: 'var(--space-4)',
           flexShrink: 0,
+          position: 'relative',
         }}>
-          {/* breadcrumb placeholder — pages set via context or just their own h1 */}
-          <div style={{ flex: 1 }} />
+          {/* Page Title & Search Box */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', flex: 1 }}>
+            <span style={{
+              fontFamily: 'var(--font-serif)',
+              fontWeight: 600,
+              fontSize: 18,
+              color: 'var(--ink-900)',
+              whiteSpace: 'nowrap',
+            }}>
+              AcadFlow {ROLE_LABEL[activeRole] || 'Portal'}
+            </span>
 
-          {/* Notification badge */}
-          <NavLink
-            to={activeRole === 'student' ? '/student/notifications' : '/notifications'}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px',
+            {/* Accessible Search box */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
               borderRadius: 'var(--radius-pill)',
-              background: unread > 0 ? 'var(--crit-bg)' : 'var(--surface)',
-              border: `1px solid ${unread > 0 ? 'var(--crit-fg)' : 'var(--border)'}`,
-              color: unread > 0 ? 'var(--crit-fg)' : 'var(--text-muted)',
-              fontSize: 13, fontWeight: 600, textDecoration: 'none',
-            }}
-          >
-            <Bell size={15} />
-            {unread > 0 ? `${unread} alert${unread > 1 ? 's' : ''}` : 'Alerts'}
-          </NavLink>
+              padding: '6px 14px',
+              width: 320,
+              maxWidth: '100%',
+              boxShadow: 'inset 0 1px 2px rgba(13,27,42,0.04)',
+            }}>
+              <Search size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <input
+                type="text"
+                value={searchVal}
+                onChange={(e) => setSearchVal(e.target.value)}
+                placeholder="Search courses, tasks, notices..."
+                aria-label="Search courses, tasks, notices"
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: 13,
+                  color: 'var(--text)',
+                  width: '100%',
+                }}
+              />
+              {searchVal && (
+                <button
+                  type="button"
+                  onClick={() => setSearchVal('')}
+                  aria-label="Clear search"
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Alert pill with Dropdown */}
+          <div ref={alertRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setAlertOpen(o => !o)}
+              aria-expanded={alertOpen}
+              aria-haspopup="true"
+              aria-label={`${unread} alerts available. System updates.`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '7px 14px',
+                borderRadius: 'var(--radius-pill)',
+                background: unread > 0 ? 'var(--crit-bg)' : 'var(--surface)',
+                border: `1px solid ${unread > 0 ? 'var(--crit-fg)' : 'var(--border)'}`,
+                color: unread > 0 ? 'var(--crit-fg)' : 'var(--text-muted)',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <Bell size={15} />
+              <span aria-live="polite">
+                {unread > 0 ? `${unread} alert${unread > 1 ? 's' : ''}` : 'Alerts'}
+              </span>
+            </button>
+
+            {alertOpen && (
+              <div
+                role="region"
+                aria-label="Alerts and Notifications"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  width: 320,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-card)',
+                  boxShadow: 'var(--shadow-card)',
+                  padding: 'var(--space-4)',
+                  zIndex: 200,
+                }}
+              >
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 'var(--space-3)',
+                  borderBottom: '1px solid var(--border)',
+                  paddingBottom: 'var(--space-2)',
+                }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: 14, fontFamily: 'var(--font-serif)', color: 'var(--ink-900)' }}>
+                      Notifications
+                    </h4>
+                    <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>
+                      System updates
+                    </p>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>
+                    {unread} unread
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gap: 'var(--space-2)', maxHeight: 240, overflowY: 'auto' }}>
+                  {recentNotifications.length === 0 ? (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>
+                      No recent notifications
+                    </div>
+                  ) : (
+                    recentNotifications.slice(0, 4).map(n => (
+                      <div
+                        key={n.id}
+                        style={{
+                          fontSize: 12,
+                          padding: '6px 8px',
+                          borderRadius: 8,
+                          background: 'var(--bg)',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{n.title || n.message}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {n.created_at ? new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div style={{ marginTop: 'var(--space-3)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                  <Link
+                    to={activeRole === 'student' ? '/student/notifications' : '/notifications'}
+                    onClick={() => setAlertOpen(false)}
+                    style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', textDecoration: 'none' }}
+                  >
+                    View all notifications →
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
         </header>
 
         <main style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-8)' }}>
