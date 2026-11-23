@@ -692,6 +692,9 @@ def update_admin_risk_config(
             require_recommendation=payload.require_recommendation
             if payload.require_recommendation is not None
             else (existing.require_recommendation if existing.require_recommendation is not None else True),
+            collision_warning_threshold=payload.collision_warning_threshold
+            if payload.collision_warning_threshold is not None
+            else (existing.collision_warning_threshold if hasattr(existing, "collision_warning_threshold") and existing.collision_warning_threshold is not None else 3),
             version=payload.version or f"v{existing.id + 1}",
         )
     else:
@@ -708,6 +711,7 @@ def update_admin_risk_config(
             require_recommendation=payload.require_recommendation
             if payload.require_recommendation is not None
             else True,
+            collision_warning_threshold=payload.collision_warning_threshold or 3,
             version=payload.version or "v1",
         )
 

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { courseApi, facultyApi } from '../../api/endpoints.js';
+import { courseApi, facultyApi, assignmentApi } from '../../api/endpoints.js';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import DeadlineCollisionWarning from '../../components/DeadlineCollisionWarning.jsx';
 
 export default function FacultyAssignments() {
   const { id } = useParams();
@@ -22,6 +23,8 @@ export default function FacultyAssignments() {
   const [graceHours, setGraceHours] = useState(48);
   const [weight, setWeight] = useState(10);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [editingAssignmentId, setEditingAssignmentId] = useState(null);
+  const [collisionWarning, setCollisionWarning] = useState(null);
 
   // Fetch course info
   const { data: course } = useQuery({
@@ -52,10 +55,27 @@ export default function FacultyAssignments() {
     onSuccess: () => {
       queryClient.invalidateQueries(['course-assignments', courseId]);
       setCreateModalOpen(false);
+      setEditingAssignmentId(null);
       setTitle('');
       setDescription('');
       setDueDate('');
       setWeight(10);
+      setCollisionWarning(null);
+    },
+  });
+
+  // Update Assignment Mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }) => assignmentApi.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['course-assignments', courseId]);
+      setCreateModalOpen(false);
+      setEditingAssignmentId(null);
+      setTitle('');
+      setDescription('');
+      setDueDate('');
+      setWeight(10);
+      setCollisionWarning(null);
     },
   });
 
@@ -70,10 +90,64 @@ export default function FacultyAssignments() {
     },
   });
 
-  function handleCreateAssignment(e) {
+  async function checkCollision(dueVal, assignmentId = null) {
+    if (!dueVal || !courseId) {
+      setCollisionWarning(null);
+      return;
+    }
+    try {
+      const res = await assignmentApi.collisionPreview({
+        course_id: courseId,
+        proposed_due_at: dueVal,
+        assignment_id: assignmentId,
+      });
+      setCollisionWarning(res.data);
+    } catch {
+      setCollisionWarning(null);
+    }
+  }
+
+  function handleOpenCreate() {
+    setEditingAssignmentId(null);
+    setTitle('');
+    setDescription('');
+    setDueDate('');
+    setGraceHours(48);
+    setWeight(10);
+    setCollisionWarning(null);
+    setCreateModalOpen(true);
+  }
+
+  function handleOpenEdit(assignment) {
+    if (!assignment) return;
+    setEditingAssignmentId(assignment.id);
+    setTitle(assignment.title || '');
+    setDescription(assignment.description || '');
+    const dt = assignment.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : '';
+    setDueDate(dt);
+    setGraceHours(assignment.grace_hours || 48);
+    setWeight(assignment.weight || 10);
+    setCreateModalOpen(true);
+    if (dt) checkCollision(dt, assignment.id);
+  }
+
+  function handleSaveAssignment(e) {
     e.preventDefault();
-    createMutation.mutate({
+    const payload = {
       course_id: courseId,
+      title,
+      description,
+      due_date: dueDate,
+      grace_hours: Number(graceHours),
+      weight: Number(weight),
+      is_active: true,
+    };
+    if (editingAssignmentId) {
+      updateMutation.mutate({ id: editingAssignmentId, payload });
+    } else {
+      createMutation.mutate(payload);
+    }
+  }
       title,
       description,
       due_date: dueDate,
@@ -117,7 +191,7 @@ export default function FacultyAssignments() {
             </p>
           </div>
           <button
-            onClick={() => setCreateModalOpen(true)}
+            onClick={handleOpenCreate}
             style={{
               background: 'var(--accent)', color: 'var(--on-dark)', border: 'none',
               padding: '10px 20px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600,
@@ -195,6 +269,24 @@ export default function FacultyAssignments() {
                     </p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      onClick={() => handleOpenEdit(activeAssignment)}
+                      style={{
+                        background: 'var(--bg)',
+                        color: 'var(--accent)',
+                        border: '1px solid var(--border)',
+                        padding: '6px 14px',
+                        borderRadius: 'var(--radius-pill)',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <span>✏️</span> Edit
+                    </button>
                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Status:</span>
                     <select
                       value={statusFilter}
@@ -295,9 +387,9 @@ export default function FacultyAssignments() {
         }}>
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-dialog)', padding: 24, width: 480, maxWidth: '90%', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', margin: '0 0 14px 0' }}>
-              Create New Course Assignment
+              {editingAssignmentId ? 'Edit Course Assignment' : 'Create New Course Assignment'}
             </h3>
-            <form onSubmit={handleCreateAssignment}>
+            <form onSubmit={handleSaveAssignment}>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Title</label>
                 <input
@@ -321,6 +413,16 @@ export default function FacultyAssignments() {
                 />
               </div>
 
+              {/* Deadline collision warning banner */}
+              <DeadlineCollisionWarning
+                preview={collisionWarning}
+                onApplySuggestedDate={(dateStr) => {
+                  const updated = `${dateStr}T23:59`;
+                  setDueDate(updated);
+                  checkCollision(updated, editingAssignmentId);
+                }}
+              />
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Due Date & Time</label>
@@ -328,7 +430,10 @@ export default function FacultyAssignments() {
                     type="datetime-local"
                     required
                     value={dueDate}
-                    onChange={e => setDueDate(e.target.value)}
+                    onChange={e => {
+                      setDueDate(e.target.value);
+                      checkCollision(e.target.value, editingAssignmentId);
+                    }}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box' }}
                   />
                 </div>
@@ -372,13 +477,15 @@ export default function FacultyAssignments() {
                 </button>
                 <button
                   type="submit"
-                  disabled={createMutation.isPending}
+                  disabled={createMutation.isPending || updateMutation.isPending}
                   style={{
                     background: 'var(--accent)', color: 'var(--on-dark)', border: 'none',
                     padding: '8px 20px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  {createMutation.isPending ? 'Publishing...' : 'Publish Assignment'}
+                  {editingAssignmentId
+                    ? (updateMutation.isPending ? 'Updating...' : 'Update Assignment')
+                    : (createMutation.isPending ? 'Publishing...' : 'Publish Assignment')}
                 </button>
               </div>
             </form>

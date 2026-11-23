@@ -7,6 +7,7 @@ import { formatPct } from '../../utils/format.js';
 import Button from '../../components/ui/Button.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
+import FollowUpsPanel from '../../components/FollowUpsPanel.jsx';
 import {
   Users, BookOpen, Search, Calendar,
   AlertTriangle, ArrowUpRight, Megaphone,
@@ -482,6 +483,8 @@ export default function FacultyHome({ defaultTab }) {
 
           {/* Right Rail: Mentor + Coordinator + Quick Announcement */}
           <div style={{ display: 'grid', gap: 'var(--space-6)', alignContent: 'start' }}>
+            <FollowUpsPanel daysAhead={7} />
+
             {isMentor && (
               <div style={C.card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>

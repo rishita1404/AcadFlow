@@ -5,6 +5,8 @@ import { facultyApi } from '../../api/endpoints.js';
 import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import InterventionModal from '../../components/InterventionModal.jsx';
+import InterventionTimeline from '../../components/InterventionTimeline.jsx';
 
 export default function FacultyMenteeDetail() {
   const { id } = useParams();
@@ -13,6 +15,7 @@ export default function FacultyMenteeDetail() {
 
   const [noteText, setNoteText] = useState('');
   const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [interventionModalOpen, setInterventionModalOpen] = useState(false);
 
   // Fetch mentee summary
   const { data: mentee, isLoading: menteeLoading, error: menteeError } = useQuery({
@@ -105,16 +108,28 @@ export default function FacultyMenteeDetail() {
               Roll No: {mentee?.roll_no} · Email: {mentee?.email} · Overall Attendance: <strong>{formatPct(mentee?.overall_attendance_pct)}</strong>
             </p>
           </div>
-          <button
-            onClick={() => setNoteModalOpen(true)}
-            style={{
-              background: 'var(--accent)', color: 'var(--on-dark)', border: 'none',
-              padding: '10px 20px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            + Add Mentor Note
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => setInterventionModalOpen(true)}
+              style={{
+                background: 'var(--accent)', color: 'var(--on-dark)', border: 'none',
+                padding: '10px 18px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              <span>+</span> Log Action
+            </button>
+            <button
+              onClick={() => setNoteModalOpen(true)}
+              style={{
+                background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)',
+                padding: '10px 18px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              + Add Mentor Note
+            </button>
+          </div>
         </div>
       </div>
 
@@ -172,6 +187,14 @@ export default function FacultyMenteeDetail() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Intervention Log & Support Timeline */}
+          <div style={{ marginTop: 24 }}>
+            <InterventionTimeline
+              studentId={studentId}
+              onLogNew={() => setInterventionModalOpen(true)}
+            />
           </div>
         </div>
 
@@ -258,6 +281,15 @@ export default function FacultyMenteeDetail() {
             </form>
           </div>
         </div>
+      )}
+      {/* Intervention Modal */}
+      {mentee && (
+        <InterventionModal
+          isOpen={interventionModalOpen}
+          onClose={() => setInterventionModalOpen(false)}
+          studentId={studentId}
+          studentName={mentee.name}
+        />
       )}
     </div>
   );

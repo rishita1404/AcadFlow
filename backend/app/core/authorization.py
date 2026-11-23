@@ -48,6 +48,11 @@ class Action(str, Enum):
     VIEW_CONDONATION = "view_condonation"
     DECIDE_CONDONATION = "decide_condonation"
 
+    # Intervention actions (Phase 3)
+    CREATE_INTERVENTION = "create_intervention"
+    VIEW_INTERVENTIONS = "view_interventions"
+    UPDATE_INTERVENTION = "update_intervention"
+
 
 # Base role capabilities mapping (Role -> Allowed Actions)
 ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
@@ -59,6 +64,7 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.SUBMIT_LEAVE,
         Action.VIEW_LEAVE,
         Action.VIEW_CONDONATION,
+        # Note: Students CANNOT see interventions
     },
     Role.FACULTY.value: {
         Action.VIEW_COURSE,
@@ -73,6 +79,9 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.RECOMMEND_CONDONATION,
         Action.VIEW_CONDONATION,
         Action.DECIDE_CONDONATION,
+        Action.CREATE_INTERVENTION,
+        Action.VIEW_INTERVENTIONS,
+        Action.UPDATE_INTERVENTION,
     },
     Role.TRAINER.value: {
         Action.VIEW_COURSE,
@@ -85,6 +94,9 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_LEAVE,
         Action.RECOMMEND_CONDONATION,
         Action.VIEW_CONDONATION,
+        Action.CREATE_INTERVENTION,
+        Action.VIEW_INTERVENTIONS,
+        Action.UPDATE_INTERVENTION,
     },
     Role.MENTOR.value: {
         Action.VIEW_COURSE,
@@ -95,6 +107,9 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.DECIDE_LEAVE,
         Action.RECOMMEND_CONDONATION,
         Action.VIEW_CONDONATION,
+        Action.CREATE_INTERVENTION,
+        Action.VIEW_INTERVENTIONS,
+        Action.UPDATE_INTERVENTION,
     },
     Role.COORDINATOR.value: {
         Action.VIEW_COURSE,
@@ -107,6 +122,7 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.RECOMMEND_CONDONATION,
         Action.VIEW_CONDONATION,
         Action.DECIDE_CONDONATION,
+        Action.VIEW_INTERVENTIONS,  # Dean has read-only access to interventions
     },
     Role.ADMIN.value: set(Action),  # Admin has full capabilities across all actions
 }
@@ -216,6 +232,25 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
                 return False
         if is_viewer is True:
             return True
+
+    # Phase 3: Interventions Visibility Rules
+    if action == Action.CREATE_INTERVENTION:
+        if user_role == Role.STUDENT.value:
+            return False
+        is_creator = _get_val(resource, "is_authorized_creator")
+        return bool(is_creator)
+
+    if action == Action.VIEW_INTERVENTIONS:
+        if user_role == Role.STUDENT.value:
+            return False
+        is_viewer = _get_val(resource, "is_authorized_viewer")
+        return bool(is_viewer)
+
+    if action == Action.UPDATE_INTERVENTION:
+        if user_role in (Role.STUDENT.value, Role.COORDINATOR.value):
+            return False  # students cannot see/update; dean has read-only access
+        is_updater = _get_val(resource, "is_authorized_updater")
+        return bool(is_updater)
 
     # Scenario 1: Student accessing student-specific resources (dashboard, marks, buffer)
     if user_role == Role.STUDENT.value:
@@ -343,6 +378,62 @@ def check_can_decide_condonation(db, user_id: int, user_role: str, student_id: i
     student_user = db.get(UserModel, student_id)
     if student_user and student_user.department_id:
         return check_is_dean(db, user_id, student_user.department_id)
+    return False
+
+
+def check_can_create_intervention(db, user_id: int, user_role: str, student_id: int, course_id: Optional[int] = None) -> bool:
+    if user_role == Role.ADMIN.value:
+        return True
+    if user_role == Role.STUDENT.value or user_role == Role.COORDINATOR.value:
+        return False  # students forbidden; dean is read-only
+    if check_is_mentor(db, user_id, student_id):
+        return True
+    if course_id:
+        from sqlalchemy import select
+        from app.models.course import CourseStaffModel
+        if db.scalar(select(CourseStaffModel.course_id).where(CourseStaffModel.user_id == user_id, CourseStaffModel.course_id == course_id)) is not None:
+            return True
+    else:
+        if check_is_course_instructor(db, user_id, student_id):
+            return True
+    return False
+
+
+def check_can_view_interventions(db, user_id: int, user_role: str, student_id: int) -> bool:
+    if user_role == Role.ADMIN.value:
+        return True
+    if user_role == Role.STUDENT.value:
+        return False
+    # Creator / Mentor / Course Instructor
+    if check_is_mentor(db, user_id, student_id):
+        return True
+    if check_is_course_instructor(db, user_id, student_id):
+        return True
+    # Dean of student's department (read-only)
+    from app.models.user import UserModel
+    student_user = db.get(UserModel, student_id)
+    if student_user and student_user.department_id:
+        if check_is_dean(db, user_id, student_user.department_id):
+            return True
+    return False
+
+
+def check_can_update_intervention(db, user_id: int, user_role: str, intervention: Any) -> bool:
+    if user_role == Role.ADMIN.value:
+        return True
+    if user_role in (Role.STUDENT.value, Role.COORDINATOR.value):
+        return False  # dean is read-only
+    if intervention.created_by == user_id:
+        return True
+    if check_is_mentor(db, user_id, intervention.student_id):
+        return True
+    if intervention.course_id:
+        from sqlalchemy import select
+        from app.models.course import CourseStaffModel
+        if db.scalar(select(CourseStaffModel.course_id).where(CourseStaffModel.user_id == user_id, CourseStaffModel.course_id == intervention.course_id)) is not None:
+            return True
+    elif check_is_course_instructor(db, user_id, intervention.student_id):
+        return True
     return False
 
 

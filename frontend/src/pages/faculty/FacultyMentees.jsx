@@ -5,6 +5,7 @@ import { facultyApi } from '../../api/endpoints.js';
 import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import InterventionModal from '../../components/InterventionModal.jsx';
 
 const BAND_BORDER = {
   'Safe': '4px solid var(--ok-bg)',
@@ -18,6 +19,8 @@ export default function FacultyMentees() {
   const navigate = useNavigate();
   const [bandFilter, setBandFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMentee, setSelectedMentee] = useState(null);
+  const [interventionModalOpen, setInterventionModalOpen] = useState(false);
 
   // Fetch mentees list
   const { data: mentees = [], isLoading, error } = useQuery({
@@ -173,9 +176,29 @@ export default function FacultyMentees() {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    Dept: #{m.department_id || 1}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedMentee(m);
+                      setInterventionModalOpen(true);
+                    }}
+                    style={{
+                      background: 'var(--accent)',
+                      color: 'var(--on-dark)',
+                      border: 'none',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-pill)',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <span>+</span> Log action
+                  </button>
                   <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
                     Open 360° Profile →
                   </span>
@@ -184,6 +207,18 @@ export default function FacultyMentees() {
             );
           })}
         </div>
+      )}
+
+      {selectedMentee && (
+        <InterventionModal
+          isOpen={interventionModalOpen}
+          onClose={() => {
+            setInterventionModalOpen(false);
+            setSelectedMentee(null);
+          }}
+          studentId={selectedMentee.student_id}
+          studentName={selectedMentee.name}
+        />
       )}
     </div>
   );

@@ -141,6 +141,7 @@ class RiskConfigOut(BaseModel):
     min_classes: int
     condonation_floor_pct: Optional[float] = 65.0
     require_recommendation: Optional[bool] = True
+    collision_warning_threshold: Optional[int] = 3
     version: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -157,4 +158,5 @@ class RiskConfigUpdate(BaseModel):
     min_classes: Optional[int] = Field(None, ge=0)
     condonation_floor_pct: Optional[float] = Field(None, ge=0, le=100)
     require_recommendation: Optional[bool] = None
+    collision_warning_threshold: Optional[int] = Field(None, ge=1, le=50)
     version: Optional[str] = None

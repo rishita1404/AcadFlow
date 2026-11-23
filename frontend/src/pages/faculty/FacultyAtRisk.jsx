@@ -5,6 +5,8 @@ import { courseApi, facultyApi } from '../../api/endpoints.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import ScoreExpander from '../../components/ScoreExpander.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
+import InterventionModal from '../../components/InterventionModal.jsx';
+import InterventionTimeline from '../../components/InterventionTimeline.jsx';
 
 export default function FacultyAtRisk() {
   const { id } = useParams();
@@ -18,6 +20,7 @@ export default function FacultyAtRisk() {
   const [nudgeModalOpen, setNudgeModalOpen] = useState(false);
   const [nudgeMessage, setNudgeMessage] = useState('');
   const [nudgeSent, setNudgeSent] = useState(false);
+  const [interventionModalOpen, setInterventionModalOpen] = useState(false);
 
   // Fetch course details
   const { data: course } = useQuery({
@@ -256,15 +259,27 @@ export default function FacultyAtRisk() {
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={() => { setSelectedStudent(s); setNudgeModalOpen(true); }}
-                        style={{
-                          background: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--border)',
-                          padding: '4px 12px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                        }}
-                      >
-                        🔔 Nudge
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          onClick={() => { setSelectedStudent(s); setInterventionModalOpen(true); }}
+                          style={{
+                            background: 'var(--accent)', color: 'var(--on-dark)', border: 'none',
+                            padding: '4px 10px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                          }}
+                        >
+                          <span>+</span> Log action
+                        </button>
+                        <button
+                          onClick={() => { setSelectedStudent(s); setNudgeModalOpen(true); }}
+                          style={{
+                            background: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--border)',
+                            padding: '4px 10px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          }}
+                        >
+                          🔔 Nudge
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -367,12 +382,30 @@ export default function FacultyAtRisk() {
               </div>
             </div>
 
+            {/* Interventions Timeline */}
+            <div style={{ marginBottom: 20 }}>
+              <InterventionTimeline
+                studentId={selectedStudent.student_id || selectedStudent.user_id}
+                onLogNew={() => setInterventionModalOpen(true)}
+              />
+            </div>
+
             {/* Action buttons */}
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
               <button
-                onClick={() => setNudgeModalOpen(true)}
+                onClick={() => setInterventionModalOpen(true)}
                 style={{
                   flex: 1, background: 'var(--accent)', color: 'var(--on-dark)', border: 'none',
+                  padding: '10px 16px', borderRadius: 'var(--radius-pill)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                <span>+</span> Log action
+              </button>
+              <button
+                onClick={() => setNudgeModalOpen(true)}
+                style={{
+                  flex: 1, background: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--border)',
                   padding: '10px 16px', borderRadius: 'var(--radius-pill)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
                 }}
               >
@@ -381,6 +414,18 @@ export default function FacultyAtRisk() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Intervention Modal */}
+      {selectedStudent && (
+        <InterventionModal
+          isOpen={interventionModalOpen}
+          onClose={() => setInterventionModalOpen(false)}
+          studentId={selectedStudent.student_id || selectedStudent.user_id}
+          studentName={selectedStudent.name || `Student ${selectedStudent.roll_no || ''}`}
+          courseId={courseId}
+          courseName={course?.name}
+        />
       )}
 
       {/* Nudge Confirmation Modal */}

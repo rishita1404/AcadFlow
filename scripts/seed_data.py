@@ -796,6 +796,40 @@ def seed_all(session=None, engine=None) -> dict:
                 counts.setdefault("condonation_requests", 0)
                 counts["condonation_requests"] += 1
 
+            # ── Phase 3: Synthetic Interventions ─────────────────────────────
+            from app.models.intervention import InterventionModel
+
+            if not _session.scalar(select(InterventionModel).where(InterventionModel.student_id == karan_id)):
+                _session.add(InterventionModel(
+                    student_id=karan_id,
+                    created_by=mentor_user_id,
+                    kind="talk",
+                    note="Discussed catch-up study plan after midterm missed classes. Student agreed to attend office hours.",
+                    follow_up_on=today + timedelta(days=3),
+                    outcome="open",
+                    score_at_creation=Decimal("72.00"),
+                    band_at_creation="Critical",
+                    created_at=datetime.now(timezone.utc) - timedelta(days=4),
+                ))
+                counts.setdefault("interventions", 0)
+                counts["interventions"] += 1
+
+            if not _session.scalar(select(InterventionModel).where(InterventionModel.student_id == dev_id)):
+                _session.add(InterventionModel(
+                    student_id=dev_id,
+                    created_by=mentor_user_id,
+                    kind="call",
+                    note="Contacted student regarding lab submission checklist and attendance recovery path.",
+                    follow_up_on=today - timedelta(days=1),
+                    outcome="recovered",
+                    score_at_creation=Decimal("58.00"),
+                    band_at_creation="At risk",
+                    created_at=datetime.now(timezone.utc) - timedelta(days=10),
+                    closed_at=datetime.now(timezone.utc) - timedelta(days=1),
+                ))
+                counts.setdefault("interventions", 0)
+                counts["interventions"] += 1
+
             _session.flush()
         except Exception as ph2_err:
             print(f"[WARN] Phase 2 seed notice: {ph2_err}")

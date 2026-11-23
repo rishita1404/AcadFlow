@@ -177,3 +177,106 @@ def delete_assignment(
     db.delete(asgn)
     db.commit()
     return None
+
+
+# ── Deadline Collision Warning (Phase 3) ────────────────────────────────────
+from datetime import timedelta
+from app.schemas.intervention import (
+    DeadlineCollisionPreviewRequest,
+    DeadlineCollisionPreviewResponse,
+)
+from app.models.risk import RiskConfigModel
+
+@router.post(
+    "/collision-preview",
+    response_model=DeadlineCollisionPreviewResponse,
+    summary="Preview deadline collisions and suggest lightest nearby dates",
+)
+def preview_deadline_collision(
+    payload: DeadlineCollisionPreviewRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    course = db.get(CourseModel, payload.course_id)
+    if not course:
+        raise NotFoundError(f"Course {payload.course_id} not found")
+
+    peer_courses = db.scalars(
+        select(CourseModel.id).where(
+            CourseModel.department_id == course.department_id,
+            CourseModel.semester_id == course.semester_id,
+        )
+    ).all()
+    if not peer_courses:
+        peer_courses = [course.id]
+
+    cfg = db.scalar(select(RiskConfigModel).order_by(RiskConfigModel.id.desc()).limit(1))
+    threshold = (
+        int(cfg.collision_warning_threshold)
+        if cfg and hasattr(cfg, "collision_warning_threshold") and cfg.collision_warning_threshold
+        else 3
+    )
+
+    prop_date = payload.proposed_due_at.date() if hasattr(payload.proposed_due_at, "date") else payload.proposed_due_at
+    window_start = prop_date - timedelta(days=3)
+    window_end = prop_date + timedelta(days=3)
+
+    query = select(AssignmentModel).where(AssignmentModel.course_id.in_(peer_courses))
+    if payload.assignment_id:
+        query = query.where(AssignmentModel.id != payload.assignment_id)
+
+    all_asgns = db.scalars(query).all()
+
+    daily_counts = {}
+    curr_d = window_start
+    while curr_d <= window_end:
+        daily_counts[curr_d.isoformat()] = 0
+        curr_d += timedelta(days=1)
+
+    window_count = 0
+    for a in all_asgns:
+        if a.due_at:
+            a_date = a.due_at.date() if hasattr(a.due_at, "date") else a.due_at
+            if a_date.isoformat() in daily_counts:
+                daily_counts[a_date.isoformat()] += 1
+            if window_start <= a_date <= window_end:
+                window_count += 1
+
+    search_start = prop_date - timedelta(days=5)
+    search_end = prop_date + timedelta(days=5)
+    surrounding_counts = {}
+    curr_s = search_start
+    while curr_s <= search_end:
+        surrounding_counts[curr_s] = 0
+        curr_s += timedelta(days=1)
+
+    for a in all_asgns:
+        if a.due_at:
+            a_date = a.due_at.date() if hasattr(a.due_at, "date") else a.due_at
+            if a_date in surrounding_counts:
+                surrounding_counts[a_date] += 1
+
+    lightest_date = min(
+        surrounding_counts.keys(),
+        key=lambda d: (surrounding_counts[d], abs((d - prop_date).days)),
+    )
+
+    has_warning = window_count >= threshold
+    if has_warning:
+        msg = (
+            f"Caution: {window_count} deadlines already scheduled within 7 days of this proposed date "
+            f"(threshold: {threshold}). Consider {lightest_date.isoformat()} as a lighter date with "
+            f"{surrounding_counts[lightest_date]} deadline(s)."
+        )
+    else:
+        msg = "No deadline clustering detected in this 7-day window."
+
+    return DeadlineCollisionPreviewResponse(
+        has_collision_warning=has_warning,
+        warning_threshold=threshold,
+        window_count=window_count,
+        daily_counts=daily_counts,
+        lightest_nearby_date=lightest_date,
+        message=msg,
+    )
+

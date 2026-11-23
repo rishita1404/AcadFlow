@@ -29,33 +29,42 @@
   - Seed script extended with synthetic leave and condonation requests.
   - Pytest suite: 9 integration tests added in `tests/integration/test_phase2_leave_condonation.py` covering leave submission, mentor approval, dean approval without mentor, 403 scope violations, neutral attendance arithmetic, condonation recommendation, floor percentage validation, and profile note logging. Total backend tests passing: 195/195.
   - Frontend: created Student "My leave" (`StudentLeave.jsx`), Faculty "Leave inbox" (`FacultyLeaveInbox.jsx`), and Dean "Condonation queue" (`DeanCondonationQueue.jsx`). 3 vitest tests added. Total frontend tests passing: 21/21.
+  - Committed as `cfa754b`.
 
 ### Phase 3: Intervention Log and Deadline Collision Warning
-- [/] **In Progress**:
-  - [ ] Schema & Models: `interventions` table (id, student_id, course_id, created_by, kind, note, follow_up_on, outcome, score_at_creation, band_at_creation, created_at, closed_at).
-  - [ ] Alembic migration `005_phase3_interventions_collision.py`.
-  - [ ] Visibility rules: creator, student's mentor, course instructors can create/view; dean has read-only access (audited); students cannot see interventions (403); others 403.
-  - [ ] Interventions API endpoints with score delta calculation (current score - score_at_creation). Human-driven outcome selection.
-  - [ ] Deadline collision warning preview endpoint: per-day deadline counts in +/-3 day window and lightest nearby date in +/-5 days; non-blocking warning when >= 3 deadlines in 7 days.
-  - [ ] UI integration: "Log action" button on at-risk and mentee lists, per-student timeline, "Follow-ups due" panel on faculty home, non-blocking deadline warning in assignment form.
-  - [ ] Seed data, unit and integration tests, vitest tests.
-  - [ ] Phase 3 git commit and report.
-
-### Phase 3: Intervention Log and Deadline Collision Warning
-- [ ] **Remaining**:
-  - `interventions` table and model.
-  - Visibility rules (creator, mentor, instructor, dean read-only audited, student 403).
-  - UI: Log action button, timeline, follow-ups due panel, score change delta display.
-  - Deadline collision preview endpoint and non-blocking form warning.
-  - Phase 3 migration, endpoints, tests, commit.
+- [x] **Done**:
+  - Schema & Models: `interventions` table (id, student_id, course_id, created_by, kind, note, follow_up_on, outcome, score_at_creation, band_at_creation, created_at, closed_at) and `collision_warning_threshold` added to `RiskConfigModel`.
+  - Alembic migration `005_phase3_interventions_collision.py` applied.
+  - Central visibility & RBAC rules in `authorization.py` (`Action.CREATE_INTERVENTION`, `Action.VIEW_INTERVENTIONS`, `Action.UPDATE_INTERVENTION`):
+    - Creator, student's mentor, and course instructors can create/view/update.
+    - Dean of department has read-only access (audited with `DEAN_RECORD_VIEW`). Dean cannot modify (403).
+    - Students cannot see interventions (403).
+    - Other out-of-scope users receive 403.
+  - API Endpoints:
+    - `POST /interventions`: logs intervention, snapshots baseline score & band, writes audit event.
+    - `GET /interventions/students/{student_id}`: returns timeline with calculated score change delta (`current_score - score_at_creation`). Audited on dean access.
+    - `PATCH /interventions/{id}`: human-driven outcome selection (open, recovered, not_recovered, escalated), stamps closed_at when resolved.
+    - `GET /interventions/follow-ups-due`: returns active follow-ups due for caller's students.
+    - `POST /assignments/collision-preview`: calculates per-day deadline counts in +/-3 day window, finds lightest nearby date in +/-5 days, returns non-blocking warning when >= threshold (default 3).
+  - UI Implementation:
+    - `InterventionModal.jsx`: modal with action types (talk, call, email, referral, other), notes, and follow-up date.
+    - `InterventionTimeline.jsx`: per-student timeline showing score change delta (`current_score - score_at_creation`), baseline metrics, and human-driven outcome selector.
+    - `FollowUpsPanel.jsx`: faculty home dashboard panel displaying upcoming scheduled student follow-ups and quick actions.
+    - `DeadlineCollisionWarning.jsx`: non-blocking warning banner with daily deadline counts and one-click "Use suggested date" button.
+    - Integrated into `FacultyAtRisk.jsx`, `FacultyMentees.jsx`, `FacultyMenteeDetail.jsx`, `FacultyHome.jsx`, and `FacultyAssignments.jsx`.
+  - Tests:
+    - 10 backend integration tests in `test_phase3_interventions_collision.py` (all 205 backend tests passing).
+    - 5 frontend vitest tests in `Intervention.test.jsx` (all 26 frontend tests passing).
 
 ### Phase 4: Dean Trends and Export
-- [ ] **Remaining**:
-  - `GET /departments/{id}/trends?weeks=8` with risk band trends, hotspot table, intervention funnel.
-  - Dean page: trend chart, hotspot table, funnel, Excel export.
-  - Mentor load view for dean.
-  - Cross-department 403 scope check with audit logging.
-  - Phase 4 migration, endpoints, tests, commit.
+- [/] **In Progress**:
+  - [ ] Schema & Models / Migration for Phase 4 (if needed).
+  - [ ] `GET /departments/{id}/trends?weeks=8`: weekly counts per risk band from `risk_snapshots`, top courses/sections by share needing support, intervention funnel (flagged, contacted, recovered).
+  - [ ] Scoped to dean's own department; cross-department access returns 403 with audit log.
+  - [ ] Dean page UI: trend chart (using existing charting library), hotspot table, intervention funnel, Excel export.
+  - [ ] Mentor load view for dean: mentees per mentor and share of high-risk mentees.
+  - [ ] Pytest and vitest suites.
+  - [ ] Phase 4 git commit and report.
 
 ### Phase 5: Additional Enhancements (Conditional on Phases 1-4 passing all tests)
 - [ ] **Remaining**:

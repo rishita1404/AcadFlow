@@ -26,6 +26,9 @@ class RiskConfigModel(Base):
     require_recommendation: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=True
     )
+    collision_warning_threshold: Mapped[int] = mapped_column(
+        Integer, default=3, nullable=True
+    )
     version: Mapped[str] = mapped_column(String(50))
 
 

@@ -4,6 +4,7 @@ from app.models.attendance import AttendanceRecordModel, ClassSessionModel
 from app.models.audit import AuditLogModel
 from app.models.course import CourseModel, CourseStaffModel, HolidayModel, SemesterModel
 from app.models.enrollment import EnrolmentModel
+from app.models.intervention import InterventionModel
 from app.models.leave import CondonationRequestModel, LeaveRequestModel
 from app.models.notice import (
     NoticeDeadlineModel,
@@ -60,4 +61,5 @@ __all__ = [
     "NoticeDeadlineModel",
     "LeaveRequestModel",
     "CondonationRequestModel",
+    "InterventionModel",
 ]

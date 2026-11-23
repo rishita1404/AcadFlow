@@ -74,6 +74,7 @@ export const assignmentApi = {
   create: (payload) => apiClient.post('/assignments', payload),
   update: (id, payload) => apiClient.patch(`/assignments/${id}`, payload),
   delete: (id) => apiClient.delete(`/assignments/${id}`),
+  collisionPreview: (payload) => apiClient.post('/assignments/collision-preview', payload),
 };
 
 // ── Submissions ──────────────────────────────────────────────────────────────
@@ -250,3 +251,12 @@ export const condonationApi = {
   getMyRequests: () => apiClient.get('/condonation/my-requests'),
   decide: (id, data) => apiClient.post(`/condonation/${id}/decide`, data),
 };
+
+// Phase 3: Interventions
+export const interventionApi = {
+  create: (data) => apiClient.post('/interventions', data),
+  getStudentInterventions: (studentId) => apiClient.get(`/interventions/students/${studentId}`),
+  update: (id, data) => apiClient.patch(`/interventions/${id}`, data),
+  getFollowUpsDue: (daysAhead = 7) => apiClient.get('/interventions/follow-ups-due', { params: { days_ahead: daysAhead } }),
+};
+
