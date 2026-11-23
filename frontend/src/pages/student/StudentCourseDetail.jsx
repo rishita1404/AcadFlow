@@ -5,7 +5,7 @@ import { courseApi, attendanceApi, assignmentApi, riskApi } from '../../api/endp
 import { useAuth } from '../../app/AuthContext.jsx';
 import { formatPct } from '../../utils/format.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
-import BufferGauge from '../../components/BufferGauge.jsx';
+import BufferCard from '../../components/BufferCard.jsx';
 import ScoreExpander from '../../components/ScoreExpander.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 
@@ -152,8 +152,12 @@ export default function StudentCourseDetail() {
 
         {tab === 'attendance' && (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-              <BufferGauge bufferClasses={bufferData?.buffer ?? 0} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 24 }}>
+              <BufferCard
+                stillNeed={bufferData?.still_need}
+                buffer={bufferData?.buffer}
+                insufficientData={bufferData?.insufficient_data}
+              />
               <div style={infoBoxStyle}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Attendance Rate</div>
                 <div style={{ fontSize: 24, fontWeight: 800, color: (bufferData?.attendance_pct ?? 0) >= 75 ? 'var(--ok-fg)' : 'var(--crit-fg)', marginTop: 4 }}>

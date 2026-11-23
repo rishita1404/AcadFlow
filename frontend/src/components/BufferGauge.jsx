@@ -1,6 +1,6 @@
+import React from 'react';
 
-
-/** BufferGauge: shows how many classes a student can still miss */
+/** BufferGauge: shows the student's reserve cushion */
 export default function BufferGauge({ buffer, small = false }) {
   if (buffer == null) {
     return (
@@ -15,13 +15,13 @@ export default function BufferGauge({ buffer, small = false }) {
 
   const color = isNeg ? 'var(--crit-fg)' : isZero ? 'var(--risk-fg)' : buffer <= 2 ? 'var(--risk-fg)' : 'var(--sage)';
   const label = isNeg
-    ? `${Math.abs(buffer)} behind`
-    : `${buffer} spare`;
+    ? 'Not recoverable'
+    : `${buffer} cushion`;
 
-  const barWidth = Math.min(Math.abs(buffer) * 12, 100);
+  const barWidth = isNeg ? 100 : Math.min(Math.abs(buffer) * 12, 100);
 
   return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, minWidth: small ? 60 : 80 }}>
+    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, minWidth: small ? 60 : 80 }} title={isNeg ? 'Not recoverable by attendance alone' : `Your cushion: ${buffer} classes, kept in reserve for illness and emergencies`}>
       <span style={{
         fontSize: small ? 12 : 14,
         fontWeight: 700,

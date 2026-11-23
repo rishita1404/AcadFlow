@@ -26,11 +26,11 @@ class DummyRedis:
         raise ConnectionError("Redis unavailable")
 
 
-def _is_redis_listening() -> bool:
+def _is_redis_listening(host: str = "127.0.0.1", port: int = 6379) -> bool:
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.05)
-        res = s.connect_ex(("127.0.0.1", 6379))
+        s.settimeout(0.5)
+        res = s.connect_ex((host, port))
         s.close()
         return res == 0
     except Exception:
@@ -39,19 +39,31 @@ def _is_redis_listening() -> bool:
 
 redis_client = None
 
-if _is_redis_listening():
-    try:
-        import redis.asyncio as aioredis
-        redis_client = aioredis.from_url(
-            settings.REDIS_URL,
-            decode_responses=True,
-            socket_connect_timeout=0.2,
-            socket_timeout=0.2,
+try:
+    import redis.asyncio as aioredis
+
+    url = settings.REDIS_URL or ""
+    is_remote = not ("localhost" in url or "127.0.0.1" in url)
+
+    if is_remote or _is_redis_listening():
+        redis_kwargs = {
+            "decode_responses": True,
+            "socket_connect_timeout": 3.0,
+            "socket_timeout": 3.0,
+        }
+        if url.startswith("rediss://"):
+            import ssl
+
+            redis_kwargs["ssl_cert_reqs"] = ssl.CERT_NONE
+
+        redis_client = aioredis.from_url(url, **redis_kwargs)
+        logger.info(
+            "Configured Redis client with URL: %s",
+            url.split("@")[-1] if "@" in url else url,
         )
-        logger.info("Connected to Redis successfully.")
-    except Exception as e:
-        logger.warning("Redis initialization failed: %s. Using in-memory fallback.", e)
+    else:
+        logger.info("Local Redis not detected on 127.0.0.1:6379. Using in-memory fallback.")
         redis_client = DummyRedis()
-else:
-    logger.info("Redis server is not running on port 6379. Using in-memory fallback immediately.")
+except Exception as e:
+    logger.warning("Redis initialization error: %s. Using in-memory fallback.", e)
     redis_client = DummyRedis()

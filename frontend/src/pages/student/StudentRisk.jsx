@@ -83,7 +83,7 @@ export default function StudentRisk() {
                 whiteSpace: 'nowrap', fontFamily: 'var(--font-sans)',
               }}
             >
-              {c.code} · {c.risk_band}
+              {c.code} · {c.risk_band === 'Critical' ? 'Needs support' : c.risk_band}
             </button>
           );
         })}
@@ -102,7 +102,7 @@ export default function StudentRisk() {
                   {activeCourse.name}
                 </h2>
               </div>
-              <StatusBadge band={activeCourse.risk_band} />
+              <StatusBadge band={activeCourse.risk_band} showNextStep />
             </div>
 
             {/* Stacked bar */}
@@ -130,11 +130,17 @@ export default function StudentRisk() {
             <div style={{ display: 'grid', gap: 'var(--space-3)', marginBottom: 'var(--space-6)' }}>
               {[
                 {
-                  label: '1. Attendance Buffer Margin',
-                  value: activeCourse.buffer != null ? `${activeCourse.buffer} classes spare` : 'N/A',
-                  detail: activeCourse.buffer >= 3 ? 'Healthy attendance margin above the required 75% threshold.'
-                    : activeCourse.buffer >= 0 ? `Close to margin. You can only miss ${activeCourse.buffer} more class(es).`
-                    : 'Attendance is currently below the recoverable 75% limit.',
+                  label: '1. Attendance Buffer & Cushion',
+                  value: activeCourse.buffer != null
+                    ? (activeCourse.buffer < 0 ? 'Not recoverable by attendance alone' : `${activeCourse.buffer} classes cushion`)
+                    : 'N/A',
+                  detail: activeCourse.buffer == null
+                    ? 'Awaiting session records.'
+                    : activeCourse.buffer < 0
+                    ? 'Not recoverable by attendance alone. Attendance is below the required 75% limit.'
+                    : activeCourse.buffer >= 3
+                    ? `Healthy cushion of ${activeCourse.buffer} classes kept in reserve for illness and emergencies.`
+                    : `Close to margin. Your cushion is ${activeCourse.buffer} classes in reserve.`,
                 },
                 { label: '2. Attendance Trend Trajectory', value: '+0.2% / week', detail: 'Slope of your last 14 days of classes shows stable or improving attendance.' },
                 { label: '3. Upcoming Deadlines Load', value: '1 assignment due in next 14 days', detail: 'Submitting upcoming graded coursework on time directly keeps deadline risk at 0.' },
@@ -161,18 +167,18 @@ export default function StudentRisk() {
             </div>
           </div>
 
-          {/* Right: What-if simulator */}
+          {/* Right: Impact Preview */}
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 'var(--space-6)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)', height: 'fit-content' }}>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: '0 0 var(--space-3)' }}>
-              &quot;What-If&quot; Absence Simulator
+              Impact Preview
             </h3>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 var(--space-6)' }}>
-              See what happens to your buffer and attendance % if you miss N upcoming classes.
+              Preview how potential absences affect your attendance percentage and reserve cushion.
             </p>
             <form onSubmit={handleSimulate} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>
-                  If I miss the next N classes:
+                  Anticipated absent sessions:
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                   <input
@@ -188,7 +194,7 @@ export default function StudentRisk() {
                 </div>
               </div>
               <Button type="submit" variant="primary" loading={simulateMutation.isPending} style={{ width: '100%' }}>
-                Run Simulation
+                Preview Impact
               </Button>
             </form>
 
@@ -199,10 +205,10 @@ export default function StudentRisk() {
                 border: `1px solid ${simResult.is_recoverable ? 'var(--sage)' : 'var(--crit-fg)'}`,
               }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: simResult.is_recoverable ? 'var(--ok-fg)' : 'var(--crit-fg)' }}>
-                  {simResult.is_recoverable ? 'Target Remains Reachable' : 'Target Not Reachable'}
+                  {simResult.is_recoverable ? 'Target Remains Reachable' : 'Not Recoverable by Attendance Alone'}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 'var(--space-3)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)', fontVariantNumeric: 'tabular-nums' }}>
-                  <div>Buffer: <strong>{simResult.current_buffer} → {simResult.simulated_buffer}</strong></div>
+                  <div>Reserve Cushion: <strong>{simResult.current_buffer ?? 0} → {simResult.simulated_buffer ?? 0}</strong></div>
                   <div>Attendance: <strong>{simResult.current_attendance_pct}% → {simResult.simulated_attendance_pct}%</strong></div>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 'var(--space-3)', lineHeight: 1.5 }}>

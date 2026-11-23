@@ -22,9 +22,9 @@ class TimetableVersionModel(Base):
     department_id: Mapped[int] = mapped_column(Integer, ForeignKey("departments.id"))
     semester_id: Mapped[int] = mapped_column(Integer, ForeignKey("semesters.id"))
     status: Mapped[str] = mapped_column(String(20), default="draft")  # draft / published / archived
-    effective_from: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    effective_from: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     created_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    published_at: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    published_at: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
 
 class PeriodConfigModel(Base):

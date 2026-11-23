@@ -372,11 +372,11 @@ export default function StudentCalendar() {
                 margin: 0,
               }}
             >
-              Academic Calendar & Leave Planner
+              Academic Calendar & Impact Preview
             </h1>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
-            Attendance history with lecture ratios, academic pressure heatmap with deadline breakdown, and live leave simulation.
+            Attendance history with lecture ratios, academic pressure heatmap with deadline breakdown, and live impact preview on eligibility.
           </p>
         </div>
 
@@ -482,10 +482,10 @@ export default function StudentCalendar() {
               }}
             >
               {planMode
-                ? '✓ Plan Mode Active'
+                ? '✓ Impact Preview Active'
                 : activeCourse
-                ? `Plan Leaves (${activeCourse.code})`
-                : 'Plan Leaves Mode'}
+                ? `Impact Preview (${activeCourse.code})`
+                : 'Impact Preview Mode'}
             </button>
           )}
 
@@ -975,7 +975,7 @@ export default function StudentCalendar() {
                         margin: 0,
                       }}
                     >
-                      Leave Planner Simulation
+                      Impact Preview Simulation
                     </h3>
                     {activeCourse && (
                       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)' }}>
@@ -999,11 +999,11 @@ export default function StudentCalendar() {
                     marginBottom: 14,
                   }}
                 >
-                  Click future days on the calendar to select planned leaves, or click already saved leaves to delete them.
+                  Click future days on the calendar to preview eligibility impact, or click saved dates to manage them.
                   <div style={{ fontWeight: 600, color: 'var(--accent)', marginTop: 4 }}>
                     {activeCourse
-                      ? `Simulating leaves specifically for ${activeCourse.code}.`
-                      : 'Simulating leaves across all enrolled courses.'}
+                      ? `Previewing impact specifically for ${activeCourse.code}.`
+                      : 'Previewing impact across all enrolled courses.'}
                   </div>
                 </div>
 

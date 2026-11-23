@@ -23,21 +23,18 @@ elif sync_database_url.startswith("postgresql://"):
     )
 
 
-def _is_pg_listening() -> bool:
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.05)
-        res = s.connect_ex(("127.0.0.1", 5432))
-        s.close()
-        return res == 0
-    except Exception:
-        return False
-
-
 is_connected = False
-if use_postgres_env and _is_pg_listening():
+if use_postgres_env:
     try:
-        engine = create_engine(sync_database_url, echo=False, connect_args={"connect_timeout": 1})
+        connect_args = {"connect_timeout": 5}
+        if "sslmode" not in sync_database_url and "supabase.co" in sync_database_url or "pooler.supabase.com" in sync_database_url:
+            connect_args["sslmode"] = "require"
+        engine = create_engine(
+            sync_database_url, 
+            echo=False, 
+            pool_pre_ping=True,
+            connect_args=connect_args
+        )
         with engine.connect():
             is_connected = True
             logger.info("Connected to PostgreSQL successfully.")

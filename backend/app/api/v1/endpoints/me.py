@@ -812,7 +812,7 @@ def get_my_warnings(
 @router.post(
     "/simulate",
     response_model=SimulateResponse,
-    summary="What-if attendance simulation",
+    summary="Impact preview attendance simulation",
 )
 def simulate_attendance(
     payload: SimulateRequest,
@@ -820,8 +820,8 @@ def simulate_attendance(
     db: Session = Depends(get_db),
 ):
     """
-    Simulate the impact of missing N more classes on an attendance buffer.
-    Returns current vs. simulated buffer and attendance percentage.
+    Preview the impact of hypothetical absences on attendance eligibility and reserve cushion.
+    Returns current vs. simulated cushion and attendance percentage.
     """
     user, student = _get_user_and_student(current_user, db)
     user_id = user.id
@@ -885,20 +885,20 @@ def simulate_attendance(
 
     if not is_recoverable:
         impact = (
-            f"Missing {n_missed} more class(es) would make the 75% target "
-            f"UNRECOVERABLE. Attendance would drop to {sim_pct}%."
+            f"With {n_missed} absence(s), attendance would drop to {sim_pct}%, "
+            f"making eligibility not recoverable by attendance alone."
         )
         msg = impact
     elif sim_buf is not None and sim_buf == 0:
-        impact = f"After {n_missed} miss(es), you'll have zero buffer — no more absences allowed."
+        impact = f"With {n_missed} absence(s), your reserve cushion reaches 0 classes. Attendance would be {sim_pct}%."
         msg = impact
     else:
         pct_diff = round((sim_pct or 0) - (curr_pct or 0), 1)
         impact = (
-            f"After {n_missed} miss(es): attendance {curr_pct}% → {sim_pct}% "
-            f"({pct_diff}%), buffer {curr_buf} → {sim_buf}."
+            f"With {n_missed} absence(s): attendance changes from {curr_pct}% to {sim_pct}% "
+            f"({pct_diff}%), reserve cushion from {curr_buf} to {sim_buf} classes."
         )
-        msg = f"Buffer drops to {sim_buf} with {sim_pct}% attendance."
+        msg = f"Reserve cushion would become {sim_buf} classes with {sim_pct}% attendance."
 
     return SimulateResponse(
         course_id=payload.course_id,

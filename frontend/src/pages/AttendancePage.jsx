@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Shield, Sparkles, History, UploadCloud, CheckCircle2, AlertTriangle, Download, ArrowRight } from 'lucide-react';
+import BufferCard from '../components/BufferCard.jsx';
 import { attendanceApi, dashboardApi, courseApi } from '../api/endpoints.js';
 import { useAuth } from '../app/AuthContext.jsx';
 import { formatPct, invalidateAttendanceQueries } from '../utils/format.js';
@@ -118,7 +119,7 @@ export default function AttendancePage() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
         <TabButton icon={<Shield size={14} />} label="Buffers & Courses" active={activeTab === 'buffer'} onClick={() => setActiveTab('buffer')} />
-        <TabButton icon={<Sparkles size={14} />} label="What-If Simulator" active={activeTab === 'simulator'} onClick={() => setActiveTab('simulator')} />
+        <TabButton icon={<Sparkles size={14} />} label="Impact Preview" active={activeTab === 'simulator'} onClick={() => setActiveTab('simulator')} />
         <TabButton icon={<History size={14} />} label="Attendance History" active={activeTab === 'history'} onClick={() => setActiveTab('history')} />
         {isFaculty && (
           <TabButton icon={<UploadCloud size={14} />} label="Excel / CSV Upload" active={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
@@ -161,26 +162,13 @@ export default function AttendancePage() {
                       {course.name}
                     </h3>
 
-                    {/* Buffer Pill */}
-                    <div style={{
-                      background: bufferBg,
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-card)',
-                      padding: '14px 18px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: 16,
-                    }}>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>LEAVE BUFFER</div>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: bufferColor, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
-                          {course.buffer != null ? `${course.buffer} Classes` : 'Insufficient Data'}
-                        </div>
-                      </div>
-                      <div style={{ color: bufferColor }}>
-                        {isShortfall ? <AlertTriangle size={24} /> : <CheckCircle2 size={24} />}
-                      </div>
+                    {/* Buffer Card */}
+                    <div style={{ marginBottom: 16 }}>
+                      <BufferCard
+                        stillNeed={course.still_need}
+                        buffer={course.buffer}
+                        insufficientData={course.insufficient_data}
+                      />
                     </div>
 
                     {/* Details breakdown */}
@@ -210,14 +198,14 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* TAB 2: What-If Attendance Simulator */}
+      {/* TAB 2: Impact Preview */}
       {activeTab === 'simulator' && (
         <div style={{ maxWidth: 680, background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 28, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
           <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 6 }}>
-            What-If Leave & Absence Simulator
+            Impact Preview
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
-            Simulate the impact of missing future classes before taking leave. See your new buffer and projected percentage.
+            Preview how potential absences impact your course eligibility and reserve cushion.
           </p>
 
           <form onSubmit={handleSimulate} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -241,7 +229,7 @@ export default function AttendancePage() {
 
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', marginBottom: 8 }}>
-                Number of future classes you might miss: <strong style={{ color: 'var(--accent)' }}>{missCount}</strong>
+                Number of anticipated absent classes: <strong style={{ color: 'var(--accent)' }}>{missCount}</strong>
               </label>
               <input
                 type="range"
@@ -275,7 +263,7 @@ export default function AttendancePage() {
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
-              {simMut.isPending ? 'Simulating…' : 'Run Simulation'} <ArrowRight size={16} />
+              {simMut.isPending ? 'Calculating…' : 'Preview Impact'} <ArrowRight size={16} />
             </button>
           </form>
 
@@ -294,17 +282,17 @@ export default function AttendancePage() {
                 </div>
                 <div>
                   <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 600, color: simulationResult.is_recoverable ? 'var(--ok-fg)' : 'var(--crit-fg)', margin: 0 }}>
-                    {simulationResult.is_recoverable ? 'Absence is Recoverable' : 'Target Unrecoverable!'}
+                    {simulationResult.is_recoverable ? 'Eligibility Remains Reachable' : 'Not Recoverable by Attendance Alone'}
                   </h3>
                   <div style={{ fontSize: 12, color: 'var(--ink-900)', marginTop: 2 }}>
-                    Missing {simulationResult.miss_count} more class(es) in this course
+                    Impact of {simulationResult.miss_count} anticipated absent session(s)
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 14 }}>
                 <div style={{ background: 'var(--surface)', padding: 14, borderRadius: 'var(--radius-input)', textAlign: 'center', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current → Simulated Buffer</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Current → Projected Cushion</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink-900)', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
                     {simulationResult.current_buffer != null ? simulationResult.current_buffer : '—'} →{' '}
                     <span style={{ color: simulationResult.simulated_buffer < 0 ? 'var(--crit-fg)' : 'var(--ok-fg)' }}>

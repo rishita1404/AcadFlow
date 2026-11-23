@@ -121,9 +121,9 @@ def get_student_course_attendance(
     if buffer < 0:
         status_message = "Not recoverable by attendance alone"
     elif buffer == 0:
-        status_message = "Cannot miss any more classes"
+        status_message = "Your cushion: 0 classes, kept in reserve for illness and emergencies"
     else:
-        status_message = f"Can miss up to {buffer} more class(es)"
+        status_message = f"Your cushion: {buffer} class{'es' if buffer != 1 else ''}, kept in reserve for illness and emergencies"
 
     return {
         "held": held,

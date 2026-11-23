@@ -179,7 +179,7 @@ class TestEdgeCases:
 
     def test_status_message_positive(self):
         result = compute_attendance_buffer(attended=30, held=40, total_classes=60)
-        assert "Can miss up to 5" in result["status_message"]
+        assert result["status_message"] == "Your cushion: 5 classes, kept in reserve for illness and emergencies"
 
     def test_status_message_negative(self):
         result = compute_attendance_buffer(attended=30, held=50, total_classes=60)

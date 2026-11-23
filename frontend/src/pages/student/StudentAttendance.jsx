@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi, studentApi } from '../../api/endpoints.js';
 import StatusBadge from '../../components/StatusBadge.jsx';
+import BufferCard from '../../components/BufferCard.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 import { Calendar, CalendarDays, BookOpen, AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 
@@ -69,10 +70,10 @@ export default function StudentAttendance() {
               </span>
             </div>
             <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 700, color: 'var(--ink-900)', margin: 0 }}>
-              Subject Attendance & Leave Planner
+              Subject Attendance & Impact Preview
             </h1>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4, maxWidth: 680 }}>
-              View attendance records for each subject. Click any subject to open its filtered calendar, check past held lectures, and simulate planned leaves specifically for that subject.
+              View attendance records for each subject. Click any subject to open its filtered calendar, check past held lectures, and preview attendance impact for that subject.
             </p>
           </div>
 
@@ -208,23 +209,14 @@ export default function StudentAttendance() {
                   </div>
                 </div>
 
-                {/* Buffer Message */}
-                <div style={{ marginTop: 14, fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {buffer >= 0 ? (
-                    <>
-                      <CheckCircle size={14} color="var(--ok-fg)" />
-                      <span>
-                        Buffer: <strong style={{ color: 'var(--ok-fg)' }}>+{buffer}</strong> {buffer === 1 ? 'class' : 'classes'} can still be missed.
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle size={14} color="var(--crit-fg)" />
-                      <span>
-                        Buffer: <strong style={{ color: 'var(--crit-fg)' }}>{buffer}</strong> classes. Needs {Math.abs(buffer)} more classes to reach 75%.
-                      </span>
-                    </>
-                  )}
+                {/* Buffer Card */}
+                <div style={{ marginTop: 14 }}>
+                  <BufferCard
+                    stillNeed={course.still_need}
+                    buffer={course.buffer}
+                    insufficientData={course.insufficient_data}
+                    compact
+                  />
                 </div>
               </div>
 
@@ -249,7 +241,7 @@ export default function StudentAttendance() {
                     border: '1px solid var(--border)', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  Plan Leaves →
+                  Impact Preview →
                 </button>
               </div>
             </div>
