@@ -40,6 +40,14 @@ class Action(str, Enum):
     # Admin actions
     ADMIN_MANAGE = "admin_manage"
 
+    # Leave & Condonation actions (Phase 2)
+    SUBMIT_LEAVE = "submit_leave"
+    VIEW_LEAVE = "view_leave"
+    DECIDE_LEAVE = "decide_leave"
+    RECOMMEND_CONDONATION = "recommend_condonation"
+    VIEW_CONDONATION = "view_condonation"
+    DECIDE_CONDONATION = "decide_condonation"
+
 
 # Base role capabilities mapping (Role -> Allowed Actions)
 ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
@@ -48,6 +56,9 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_STUDENT_RECORD,
         Action.SUBMIT_WORK,
         Action.VIEW_OWN_RISK,
+        Action.SUBMIT_LEAVE,
+        Action.VIEW_LEAVE,
+        Action.VIEW_CONDONATION,
     },
     Role.FACULTY.value: {
         Action.VIEW_COURSE,
@@ -57,6 +68,11 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.CREATE_ASSIGNMENT,
         Action.GRADE_SUBMISSION,
         Action.VIEW_STUDENT_RECORD,
+        Action.VIEW_LEAVE,
+        Action.DECIDE_LEAVE,
+        Action.RECOMMEND_CONDONATION,
+        Action.VIEW_CONDONATION,
+        Action.DECIDE_CONDONATION,
     },
     Role.TRAINER.value: {
         Action.VIEW_COURSE,
@@ -66,12 +82,19 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.CREATE_ASSIGNMENT,
         Action.GRADE_SUBMISSION,
         Action.VIEW_STUDENT_RECORD,
+        Action.VIEW_LEAVE,
+        Action.RECOMMEND_CONDONATION,
+        Action.VIEW_CONDONATION,
     },
     Role.MENTOR.value: {
         Action.VIEW_COURSE,
         Action.VIEW_MENTEE_RECORDS,
         Action.VIEW_MENTEE_RISK,
         Action.VIEW_STUDENT_RECORD,
+        Action.VIEW_LEAVE,
+        Action.DECIDE_LEAVE,
+        Action.RECOMMEND_CONDONATION,
+        Action.VIEW_CONDONATION,
     },
     Role.COORDINATOR.value: {
         Action.VIEW_COURSE,
@@ -79,6 +102,11 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_COORDINATOR_RECORD,
         Action.VIEW_STUDENT_RECORD,
         Action.TIMETABLE_WRITE,
+        Action.VIEW_LEAVE,
+        Action.DECIDE_LEAVE,
+        Action.RECOMMEND_CONDONATION,
+        Action.VIEW_CONDONATION,
+        Action.DECIDE_CONDONATION,
     },
     Role.ADMIN.value: set(Action),  # Admin has full capabilities across all actions
 }
@@ -159,7 +187,35 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
 
     user_id = _get_val(user, "id") or _get_val(user, "user_id") or _get_val(user, "sub")
 
-    # 2. Check Resource Scope Constraints
+    # 2. Check Action-Specific Resource Scope Constraints
+    if action == Action.SUBMIT_LEAVE:
+        target_student_id = _get_val(resource, "student_id")
+        if target_student_id is not None and str(target_student_id) != str(user_id):
+            return False
+        return True
+
+    if action == Action.DECIDE_LEAVE:
+        is_approver = _get_val(resource, "is_authorized_approver")
+        return bool(is_approver)
+
+    if action == Action.RECOMMEND_CONDONATION:
+        is_recommender = _get_val(resource, "is_authorized_recommender")
+        return bool(is_recommender)
+
+    if action == Action.DECIDE_CONDONATION:
+        is_dean = _get_val(resource, "is_authorized_dean")
+        return bool(is_dean)
+
+    if action in (Action.VIEW_LEAVE, Action.VIEW_CONDONATION):
+        is_viewer = _get_val(resource, "is_authorized_viewer")
+        if is_viewer is False:
+            return False
+        if user_role == Role.STUDENT.value:
+            target_student_id = _get_val(resource, "student_id")
+            if target_student_id is not None and str(target_student_id) != str(user_id):
+                return False
+        if is_viewer is True:
+            return True
 
     # Scenario 1: Student accessing student-specific resources (dashboard, marks, buffer)
     if user_role == Role.STUDENT.value:
@@ -207,6 +263,87 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
         return True
 
     return True
+
+
+def check_is_mentor(db, mentor_user_id: int, student_id: int) -> bool:
+    from sqlalchemy import select
+    from app.models.user import MentorAssignmentModel
+    return db.scalar(
+        select(MentorAssignmentModel.mentor_id).where(
+            MentorAssignmentModel.mentor_id == mentor_user_id,
+            MentorAssignmentModel.student_id == student_id,
+        )
+    ) is not None
+
+
+def check_is_dean(db, user_id: int, department_id: int) -> bool:
+    from sqlalchemy import select
+    from app.models.user import DeanAssignmentModel, UserModel
+    if db.scalar(
+        select(DeanAssignmentModel.user_id).where(
+            DeanAssignmentModel.user_id == user_id,
+            DeanAssignmentModel.department_id == department_id,
+        )
+    ) is not None:
+        return True
+    u = db.get(UserModel, user_id)
+    if u and u.role in ("coordinator", "admin"):
+        if u.role == "admin" or u.department_id == department_id:
+            return True
+    return False
+
+
+def check_is_course_instructor(db, user_id: int, student_id: int) -> bool:
+    from sqlalchemy import select
+    from app.models.course import CourseStaffModel
+    from app.models.enrollment import EnrolmentModel
+    return db.scalar(
+        select(CourseStaffModel.course_id)
+        .join(EnrolmentModel, EnrolmentModel.course_id == CourseStaffModel.course_id)
+        .where(
+            CourseStaffModel.user_id == user_id,
+            EnrolmentModel.student_id == student_id,
+        )
+    ) is not None
+
+
+def check_can_decide_leave(db, user_id: int, user_role: str, student_id: int) -> bool:
+    if user_role == Role.ADMIN.value:
+        return True
+    from sqlalchemy import select
+    from app.models.user import MentorAssignmentModel, UserModel
+    mentor_id = db.scalar(
+        select(MentorAssignmentModel.mentor_id).where(
+            MentorAssignmentModel.student_id == student_id
+        )
+    )
+    if mentor_id is not None:
+        return int(mentor_id) == int(user_id)
+    # No mentor assigned -> approver is dean of student's department
+    student_user = db.get(UserModel, student_id)
+    if student_user and student_user.department_id:
+        return check_is_dean(db, user_id, student_user.department_id)
+    return False
+
+
+def check_can_recommend_condonation(db, user_id: int, user_role: str, student_id: int) -> bool:
+    if user_role == Role.ADMIN.value:
+        return True
+    if check_is_mentor(db, user_id, student_id):
+        return True
+    if check_is_course_instructor(db, user_id, student_id):
+        return True
+    return False
+
+
+def check_can_decide_condonation(db, user_id: int, user_role: str, student_id: int) -> bool:
+    if user_role == Role.ADMIN.value:
+        return True
+    from app.models.user import UserModel
+    student_user = db.get(UserModel, student_id)
+    if student_user and student_user.department_id:
+        return check_is_dean(db, user_id, student_user.department_id)
+    return False
 
 
 def verify_access(user: Any, action: Action | str, resource: Any = None) -> None:

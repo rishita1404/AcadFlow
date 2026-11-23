@@ -1847,3 +1847,34 @@ def get_my_timetable(
             )
         )
     return results
+
+
+# ── Official Leave Requests (Phase 2) ───────────────────────────────────────
+from app.schemas.leave import LeaveRequestCreate, LeaveRequestOut
+from app.api.v1.endpoints.leave import submit_leave_request as _submit_leave, get_my_leave_requests as _get_my_leaves
+
+@router.post(
+    "/leave-requests",
+    response_model=LeaveRequestOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit a formal leave request (medical or duty)",
+)
+async def submit_my_leave_request(
+    payload: LeaveRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    return await _submit_leave(payload=payload, db=db, current_user=current_user)
+
+
+@router.get(
+    "/leave-requests",
+    response_model=List[LeaveRequestOut],
+    summary="List my formal leave requests",
+)
+async def list_my_leave_requests(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    return await _get_my_leaves(db=db, current_user=current_user)
+

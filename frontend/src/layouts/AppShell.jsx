@@ -13,6 +13,7 @@ const STUDENT_NAV = [
   { to: '/student/home', icon: Home, label: 'Home', exact: true },
   { to: '/student/attendance', icon: BookOpen, label: 'Attendance' },
   { to: '/student/calendar', icon: CalendarDays, label: 'Calendar' },
+  { to: '/student/leave', icon: CalendarDays, label: 'My Leave' },
   { to: '/student/tasks', icon: ClipboardList, label: 'Tasks' },
   { to: '/student/timetable', icon: LayoutGrid, label: 'Timetable' },
   { to: '/student/risk', icon: AlertTriangle, label: 'Risk Analysis' },
@@ -25,6 +26,7 @@ const FACULTY_NAV = [
   { to: '/faculty/home', icon: Home, label: 'Home', exact: true },
   { to: '/faculty/students', icon: Users, label: 'Assigned Students' },
   { to: '/faculty/mentees', icon: HeartHandshake, label: 'Mentees', dutyGate: 'mentor' },
+  { to: '/faculty/leave-inbox', icon: ClipboardList, label: 'Leave Inbox' },
   { to: '/faculty/sections', icon: Users, label: 'Sections', dutyGate: 'course_coordinator' },
   { to: '/faculty/timetable', icon: LayoutGrid, label: 'My Timetable' },
   { to: '/notices', icon: Megaphone, label: 'Notices' },
@@ -37,6 +39,7 @@ const COORDINATOR_NAV = [
   { to: '/coordinator/students', icon: Users, label: 'Students' },
   { to: '/coordinator/teachers', icon: HeartHandshake, label: 'Teachers' },
   { to: '/coordinator/timetable', icon: LayoutGrid, label: 'Timetable' },
+  { to: '/coordinator/condonation', icon: HeartHandshake, label: 'Condonations' },
   { to: '/notices', icon: Megaphone, label: 'Notices' },
   { to: '/notifications', icon: Bell, label: 'Notifications', badge: true },
 ];

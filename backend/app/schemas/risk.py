@@ -139,6 +139,8 @@ class RiskConfigOut(BaseModel):
     t_risk: float
     t_critical: float
     min_classes: int
+    condonation_floor_pct: Optional[float] = 65.0
+    require_recommendation: Optional[bool] = True
     version: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -153,4 +155,6 @@ class RiskConfigUpdate(BaseModel):
     t_risk: Optional[float] = Field(None, ge=0, le=100)
     t_critical: Optional[float] = Field(None, ge=0, le=100)
     min_classes: Optional[int] = Field(None, ge=0)
+    condonation_floor_pct: Optional[float] = Field(None, ge=0, le=100)
+    require_recommendation: Optional[bool] = None
     version: Optional[str] = None

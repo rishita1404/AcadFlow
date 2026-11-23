@@ -721,6 +721,85 @@ def seed_all(session=None, engine=None) -> dict:
         except Exception as aiml_err:
             print(f"[WARN] AIML seed notice: {aiml_err}")
 
+        # ── Phase 2: Synthetic Leave Requests & Condonation Requests ─────────
+        try:
+            from app.models.leave import LeaveRequestModel, CondonationRequestModel
+
+            today = date.today()
+            riya_id = app_a_students[0].user_id
+            aman_id = app_a_students[1].user_id
+            karan_id = app_a_students[3].user_id
+            dev_id = app_a_students[4].user_id if len(app_a_students) > 4 else app_a_students[0].user_id
+            mentor_user_id = core_users.get("mentor@acadflow.edu", core_users.get("faculty@acadflow.edu")).id
+            dean_user_id = core_users.get("coordinator@acadflow.edu", core_users.get("admin@acadflow.edu")).id
+            sem_id = sem.id if sem else 1
+
+            # 1. Riya: Approved medical leave (historical, 10-8 days ago)
+            if not _session.scalar(select(LeaveRequestModel).where(LeaveRequestModel.student_id == riya_id)):
+                _session.add(LeaveRequestModel(
+                    student_id=riya_id,
+                    type="medical",
+                    date_from=today - timedelta(days=12),
+                    date_to=today - timedelta(days=10),
+                    reason="Viral fever recovery and medical rest",
+                    status="approved",
+                    decided_by=mentor_user_id,
+                    decided_at=datetime.now(timezone.utc) - timedelta(days=9),
+                    decision_note="Approved. Medical prescription submitted to clinic.",
+                    created_at=datetime.now(timezone.utc) - timedelta(days=13),
+                ))
+                counts.setdefault("leave_requests", 0)
+                counts["leave_requests"] += 1
+
+            # 2. Aman: Pending duty leave
+            if not _session.scalar(select(LeaveRequestModel).where(LeaveRequestModel.student_id == aman_id)):
+                _session.add(LeaveRequestModel(
+                    student_id=aman_id,
+                    type="duty",
+                    date_from=today + timedelta(days=2),
+                    date_to=today + timedelta(days=4),
+                    reason="Representing university at Smart India Hackathon finals",
+                    status="pending",
+                    created_at=datetime.now(timezone.utc),
+                ))
+                counts.setdefault("leave_requests", 0)
+                counts["leave_requests"] += 1
+
+            # 3. Karan: Recommended condonation request
+            if not _session.scalar(select(CondonationRequestModel).where(CondonationRequestModel.student_id == karan_id)):
+                _session.add(CondonationRequestModel(
+                    student_id=karan_id,
+                    semester_id=sem_id,
+                    attendance_pct_at_request=Decimal("68.50"),
+                    reason="Hospitalized for knee fracture surgery during midterms.",
+                    status="recommended",
+                    recommended_by=mentor_user_id,
+                    created_at=datetime.now(timezone.utc) - timedelta(days=3),
+                ))
+                counts.setdefault("condonation_requests", 0)
+                counts["condonation_requests"] += 1
+
+            # 4. Dev: Approved condonation request by Dean
+            if not _session.scalar(select(CondonationRequestModel).where(CondonationRequestModel.student_id == dev_id)):
+                _session.add(CondonationRequestModel(
+                    student_id=dev_id,
+                    semester_id=sem_id,
+                    attendance_pct_at_request=Decimal("71.00"),
+                    reason="Inter-university sports tournament duty leaves accumulation.",
+                    status="approved",
+                    recommended_by=mentor_user_id,
+                    decided_by=dean_user_id,
+                    decided_at=datetime.now(timezone.utc) - timedelta(days=1),
+                    decision_note="Approved based on official sports department recommendation letter.",
+                    created_at=datetime.now(timezone.utc) - timedelta(days=5),
+                ))
+                counts.setdefault("condonation_requests", 0)
+                counts["condonation_requests"] += 1
+
+            _session.flush()
+        except Exception as ph2_err:
+            print(f"[WARN] Phase 2 seed notice: {ph2_err}")
+
         if owns_session:
             _session.commit()
             print("[OK] Seed complete! AcadFlow is populated.")

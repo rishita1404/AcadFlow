@@ -685,6 +685,13 @@ def update_admin_risk_config(
             min_classes=payload.min_classes
             if payload.min_classes is not None
             else existing.min_classes,
+            condonation_floor_pct=_dec(
+                payload.condonation_floor_pct,
+                existing.condonation_floor_pct or Decimal("65.0"),
+            ),
+            require_recommendation=payload.require_recommendation
+            if payload.require_recommendation is not None
+            else (existing.require_recommendation if existing.require_recommendation is not None else True),
             version=payload.version or f"v{existing.id + 1}",
         )
     else:
@@ -697,6 +704,10 @@ def update_admin_risk_config(
             t_risk=_dec(payload.t_risk, Decimal("60")),
             t_critical=_dec(payload.t_critical, Decimal("80")),
             min_classes=payload.min_classes or 5,
+            condonation_floor_pct=_dec(payload.condonation_floor_pct, Decimal("65.0")),
+            require_recommendation=payload.require_recommendation
+            if payload.require_recommendation is not None
+            else True,
             version=payload.version or "v1",
         )
 

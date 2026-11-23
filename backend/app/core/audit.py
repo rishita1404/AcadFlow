@@ -36,6 +36,17 @@ class AuditAction(str, Enum):
     DUE_DATE_CHANGE = "due_date_change"
     ADMIN_CONFIG_CHANGE = "admin_config_change"
     COORDINATOR_RECORD_ACCESS = "coordinator_record_access"
+    # Phase 2
+    LEAVE_APPROVAL = "leave_approval"
+    LEAVE_REJECTION = "leave_rejection"
+    CONDONATION_RECOMMENDATION = "condonation_recommendation"
+    CONDONATION_APPROVAL = "condonation_approval"
+    CONDONATION_REJECTION = "condonation_rejection"
+    DEAN_RECORD_VIEW = "dean_record_view"
+    # Phase 3 & 4
+    INTERVENTION_CREATE = "intervention_create"
+    INTERVENTION_VIEW = "intervention_view"
+    DEAN_TRENDS_VIEW = "dean_trends_view"
 
 
 SENSITIVE_FIELD_NAMES = {

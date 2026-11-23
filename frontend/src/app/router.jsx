@@ -17,6 +17,7 @@ import StudentNotifications from '../pages/student/StudentNotifications.jsx';
 import StudentPreferences from '../pages/student/StudentPreferences.jsx';
 import StudentNotices from '../pages/student/StudentNotices.jsx';
 import StudentAttendance from '../pages/student/StudentAttendance.jsx';
+import StudentLeave from '../pages/student/StudentLeave.jsx';
 
 // Legacy / Shared Pages
 import AttendancePage from '../pages/AttendancePage.jsx';
@@ -32,6 +33,7 @@ import FacultyMentees from '../pages/faculty/FacultyMentees.jsx';
 import FacultyMenteeDetail from '../pages/faculty/FacultyMenteeDetail.jsx';
 import FacultySections from '../pages/faculty/FacultySections.jsx';
 import FacultyTimetable from '../pages/faculty/FacultyTimetable.jsx';
+import FacultyLeaveInbox from '../pages/faculty/FacultyLeaveInbox.jsx';
 
 // Coordinator Pages
 import CoordinatorSummary from '../pages/coordinator/CoordinatorSummary.jsx';
@@ -40,6 +42,7 @@ import CoordinatorStudents from '../pages/coordinator/CoordinatorStudents.jsx';
 import CoordinatorTeachers from '../pages/coordinator/CoordinatorTeachers.jsx';
 import CoordinatorTimetable from '../pages/coordinator/CoordinatorTimetable.jsx';
 import CoordinatorTimetableEditor from '../pages/coordinator/CoordinatorTimetableEditor.jsx';
+import DeanCondonationQueue from '../pages/dean/DeanCondonationQueue.jsx';
 
 // Admin Pages
 import AdminDashboard from '../pages/admin/AdminDashboard.jsx';
@@ -144,6 +147,14 @@ export default function AppRouter() {
             element={
               <RoleGuard allowedRoles={['student', 'admin']}>
                 <StudentCalendar />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="student/leave"
+            element={
+              <RoleGuard allowedRoles={['student', 'admin']}>
+                <StudentLeave />
               </RoleGuard>
             }
           />
@@ -287,6 +298,14 @@ export default function AppRouter() {
               </RoleGuard>
             }
           />
+          <Route
+            path="faculty/leave-inbox"
+            element={
+              <RoleGuard allowedRoles={['faculty', 'trainer', 'mentor', 'coordinator', 'admin']}>
+                <FacultyLeaveInbox />
+              </RoleGuard>
+            }
+          />
 
           {/* Coordinator Routes */}
           <Route
@@ -342,6 +361,22 @@ export default function AppRouter() {
             element={
               <RoleGuard allowedRoles={['coordinator', 'admin']}>
                 <CoordinatorTimetableEditor />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="coordinator/condonation"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <DeanCondonationQueue />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="dean/condonation"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <DeanCondonationQueue />
               </RoleGuard>
             }
           />

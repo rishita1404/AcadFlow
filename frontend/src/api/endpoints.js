@@ -234,3 +234,19 @@ export const adminApi = {
   getRiskConfig: () => apiClient.get('/admin/risk-config'),
   updateRiskConfig: (payload) => apiClient.put('/admin/risk-config', payload),
 };
+
+// Phase 2: Leave & Condonation
+export const leaveApi = {
+  submit: (data) => apiClient.post('/leave/requests', data),
+  getMyRequests: () => apiClient.get('/leave/my-requests'),
+  getInbox: (params = {}) => apiClient.get('/leave/inbox', { params }),
+  getDetail: (id) => apiClient.get(`/leave/requests/${id}`),
+  decide: (id, data) => apiClient.post(`/leave/requests/${id}/decide`, data),
+};
+
+export const condonationApi = {
+  recommend: (data) => apiClient.post('/condonation/recommend', data),
+  getQueue: (params = {}) => apiClient.get('/condonation/queue', { params }),
+  getMyRequests: () => apiClient.get('/condonation/my-requests'),
+  decide: (id, data) => apiClient.post(`/condonation/${id}/decide`, data),
+};

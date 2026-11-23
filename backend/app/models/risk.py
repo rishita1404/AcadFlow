@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -20,6 +20,12 @@ class RiskConfigModel(Base):
     t_risk: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     t_critical: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     min_classes: Mapped[int] = mapped_column(Integer, default=8)
+    condonation_floor_pct: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), default=Decimal("65.00"), nullable=True
+    )
+    require_recommendation: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=True
+    )
     version: Mapped[str] = mapped_column(String(50))
 
 

@@ -108,6 +108,30 @@ def get_attendance_inputs(
         )
         enrolled_on = enrolment.enrolled_on if enrolment else None
 
+    # ── Exclude sessions in approved leave ranges for this student ───────────
+    from app.models.leave import LeaveRequestModel
+
+    approved_leaves = db.scalars(
+        select(LeaveRequestModel).where(
+            LeaveRequestModel.student_id == student_id,
+            LeaveRequestModel.status == "approved",
+        )
+    ).all()
+
+    excused_session_ids: set[int] = set()
+    if approved_leaves:
+        for al in approved_leaves:
+            q = select(ClassSessionModel.id).where(
+                ClassSessionModel.course_id == course_id,
+                ClassSessionModel.is_cancelled == False,
+                ClassSessionModel.held_on >= al.date_from,
+                ClassSessionModel.held_on <= al.date_to,
+            )
+            if enrolled_on:
+                q = q.where(ClassSessionModel.held_on >= enrolled_on)
+            for sid in db.scalars(q).all():
+                excused_session_ids.add(sid)
+
     # ── Sessions held (not cancelled, on/after enrolled_on if set) ──────────
     held_query = select(func.count(ClassSessionModel.id)).where(
         ClassSessionModel.course_id == course_id,
@@ -115,6 +139,8 @@ def get_attendance_inputs(
     )
     if enrolled_on:
         held_query = held_query.where(ClassSessionModel.held_on >= enrolled_on)
+    if excused_session_ids:
+        held_query = held_query.where(~ClassSessionModel.id.in_(excused_session_ids))
     held: int = db.scalar(held_query) or 0
 
     # ── Sessions attended (present or late) ─────────────────────────────────
@@ -133,7 +159,12 @@ def get_attendance_inputs(
     )
     if enrolled_on:
         attended_query = attended_query.where(ClassSessionModel.held_on >= enrolled_on)
+    if excused_session_ids:
+        attended_query = attended_query.where(~ClassSessionModel.id.in_(excused_session_ids))
     attended: int = db.scalar(attended_query) or 0
+
+    if excused_session_ids:
+        total_classes = max(1, total_classes - len(excused_session_ids))
 
     # ── Holiday count (future sessions only — already-held holidays don't
     #    affect remaining).  Approximate: count holidays in semester after today.
