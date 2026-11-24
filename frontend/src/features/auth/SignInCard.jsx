@@ -14,6 +14,8 @@ const DEMO_ACCOUNTS = [
 ];
 
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
+// Show chips in explicit demo mode OR in local dev (never in production without the flag)
+const SHOW_DEMO = IS_DEMO || import.meta.env.DEV;
 
 export default function SignInCard({
   onLogin,
@@ -285,8 +287,8 @@ export default function SignInCard({
           {/* Star Divider */}
           <AuthDivider />
 
-          {/* Demo accounts — shown only when VITE_DEMO_MODE=true */}
-          {IS_DEMO && (
+          {/* Demo accounts — shown in demo mode (VITE_DEMO_MODE=true) or local dev */}
+          {SHOW_DEMO && (
             <div className="auth-demo-wrap" aria-label="Demo accounts">
               <div className="auth-demo-title">
                 Demo accounts

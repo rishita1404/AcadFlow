@@ -99,7 +99,7 @@
   grid-template-columns: 3fr 2fr;
   gap: 0;
   align-items: stretch;
-  min-height: calc(100vh - var(--topbar-h) - 52px);
+  min-height: calc(100vh - var(--topbar-h) - 80px);
 }
 
 /* ── Welcome column (left, 60%) ────────────────────────────── */
@@ -108,8 +108,8 @@
   flex-direction: column;
   background-color: var(--bg);
   border-right: 1px solid var(--border);
-  padding: var(--space-8) var(--space-8) var(--space-6);
-  gap: var(--space-5);
+  padding: var(--space-6) var(--space-10);
+  gap: var(--space-4);
   position: relative;
   overflow: hidden;
   animation: authFadeIn 0.4s ease-out;
@@ -124,7 +124,7 @@
     linear-gradient(to right, var(--border) 1px, transparent 1px),
     linear-gradient(to bottom, var(--border) 1px, transparent 1px);
   background-size: 48px 48px;
-  opacity: 0.35;
+  opacity: 0.55;
   pointer-events: none;
 }
 
@@ -183,12 +183,12 @@
 
 .auth-welcome-h1 {
   font-family: var(--font-serif);
-  font-size: clamp(2.25rem, 3.5vw, 3.25rem);
+  font-size: clamp(2.1rem, 3.2vw, 2.9rem);
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.025em;
   color: var(--ink-900);
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-3);
 }
 
 .auth-welcome-h1 em {
@@ -197,8 +197,8 @@
 }
 
 .auth-welcome-subline {
-  font-size: 1rem;
-  line-height: 1.55;
+  font-size: 0.9375rem;
+  line-height: 1.5;
   color: var(--text-muted);
   max-width: 36ch;
   margin: 0;
@@ -211,7 +211,11 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  min-height: 320px;
+  min-height: 260px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  /* very faint inner fill so the frame reads against the grid */
+  background-color: rgba(255, 253, 245, 0.45);
 }
 
 .auth-scene-placeholder {

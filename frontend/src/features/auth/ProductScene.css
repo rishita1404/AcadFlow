@@ -7,7 +7,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 330px;
+  min-height: 300px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -26,8 +26,8 @@
 /* ── Stage — receives tilt transform ────────────────── */
 .pscene-stage {
   position: relative;
-  width: 580px;
-  height: 400px;
+  width: 490px;
+  height: 305px;
   transform-style: preserve-3d;
   /* Idle float when not reduced-motion */
   animation: psceneFloat 5s ease-in-out infinite;
@@ -58,17 +58,17 @@
   transform: translateZ(0px) translateY(calc(var(--depth, 0px)));
 }
 
-/* Layer 1: middle — notice (shifted right so all timetable columns stay visible) */
+/* Layer 1: middle — notice (right of timetable, slight vertical offset) */
 .pscene-layer-1 {
-  top: 60px;
-  left: 240px;
+  top: 44px;
+  left: 196px;
   transform: translateZ(45px) translateY(calc(var(--depth, 0px)));
 }
 
-/* Layer 2: top — support signal (lower-left foreground, below timetable) */
+/* Layer 2: top — support signal (lower-left foreground) */
 .pscene-layer-2 {
-  top: 240px;
-  left: 60px;
+  top: 166px;
+  left: 40px;
   transform: translateZ(90px) translateY(calc(var(--depth, 0px)));
 }
 
@@ -87,7 +87,7 @@
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-3);
   box-shadow:
     0 2px 4px rgba(13, 27, 42, .08),
     0 12px 32px rgba(13, 27, 42, .10);
@@ -132,17 +132,17 @@
 
 /* ── Timetable panel ────────────────────────────────── */
 .pscene-timetable {
-  width: 340px;
+  width: 310px;
 }
 
 .pscene-tt-grid {
   display: grid;
-  grid-template-columns: 42px repeat(5, 1fr);
+  grid-template-columns: 38px repeat(5, 1fr);
   gap: 2px;
 }
 
 .pscene-tt-cell {
-  height: 20px;
+  height: 18px;
   border-radius: 3px;
   display: flex;
   align-items: center;
@@ -200,7 +200,7 @@
 
 /* ── Notice panel ───────────────────────────────────── */
 .pscene-notice {
-  width: 290px;
+  width: 258px;
 }
 
 .pscene-notice-title {
@@ -253,7 +253,7 @@
 
 /* ── Support signal panel ───────────────────────────── */
 .pscene-support {
-  width: 270px;
+  width: 248px;
 }
 
 .pscene-support-row {
