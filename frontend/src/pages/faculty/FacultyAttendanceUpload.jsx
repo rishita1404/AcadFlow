@@ -26,6 +26,15 @@ export default function FacultyAttendanceUpload() {
   const [uploadResult, setUploadResult] = useState(null);
   const [uploadErrorMessage, setUploadErrorMessage] = useState(null);
 
+  // Phase 5: Preview warnings & Undo state
+  const [previewData, setPreviewData] = useState(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewErrorMessage, setPreviewErrorMessage] = useState(null);
+  const [isUndoing, setIsUndoing] = useState(false);
+  const [undoResult, setUndoResult] = useState(null);
+  const [undoErrorMessage, setUndoErrorMessage] = useState(null);
+  const [lastCommittedBatchId, setLastCommittedBatchId] = useState(null);
+
   // Load courses list for faculty
   const { data: rawCourses = [] } = useQuery({
     queryKey: ['faculty-courses-upload'],
@@ -206,7 +215,35 @@ export default function FacultyAttendanceUpload() {
     }
   }
 
-  // Direct File Upload (Option 2 - No verification steps)
+  // File Selection and Automatic Preview Validation (Phase 5)
+  async function handleFileSelected(selectedFile) {
+    setFile(selectedFile);
+    setUploadResult(null);
+    setUploadErrorMessage(null);
+    setUndoResult(null);
+    setUndoErrorMessage(null);
+    setPreviewErrorMessage(null);
+    if (!selectedFile || !activeCourseId) {
+      setPreviewData(null);
+      return;
+    }
+    setIsPreviewing(true);
+    try {
+      const res = await facultyApi.previewUpload(activeCourseId, selectedFile);
+      setPreviewData(res.data);
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setPreviewErrorMessage(
+        typeof detail === 'string'
+          ? detail
+          : detail?.message || 'Failed to generate file preview. Check file format.'
+      );
+    } finally {
+      setIsPreviewing(false);
+    }
+  }
+
+  // Direct File Upload with Batch Tracking
   async function handleDirectFileUpload(e) {
     e.preventDefault();
     if (!file || !activeCourseId) return;
@@ -214,10 +251,15 @@ export default function FacultyAttendanceUpload() {
     setIsUploadingFile(true);
     setUploadErrorMessage(null);
     setUploadResult(null);
+    setUndoResult(null);
+    setUndoErrorMessage(null);
 
     try {
       const res = await attendanceApi.uploadFile(activeCourseId, file, changeReason);
       setUploadResult(res.data);
+      if (res.data?.batch_id) {
+        setLastCommittedBatchId(res.data.batch_id);
+      }
       invalidateAttendanceQueries(qc);
       refetchDateAttendance();
     } catch (err) {
@@ -229,6 +271,33 @@ export default function FacultyAttendanceUpload() {
       );
     } finally {
       setIsUploadingFile(false);
+    }
+  }
+
+  // Undo Upload Action (Phase 5)
+  async function handleUndoUpload(batchId = null) {
+    if (!activeCourseId) return;
+    setIsUndoing(true);
+    setUndoErrorMessage(null);
+    setUndoResult(null);
+
+    try {
+      const targetBatch = batchId || lastCommittedBatchId;
+      const res = await facultyApi.undoUpload(activeCourseId, targetBatch);
+      setUndoResult(res.data);
+      setUploadResult(null);
+      setLastCommittedBatchId(null);
+      invalidateAttendanceQueries(qc);
+      refetchDateAttendance();
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setUndoErrorMessage(
+        typeof detail === 'string'
+          ? detail
+          : detail?.message || 'Failed to undo attendance upload.'
+      );
+    } finally {
+      setIsUndoing(false);
     }
   }
 
@@ -931,7 +1000,7 @@ export default function FacultyAttendanceUpload() {
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => {
                   e.preventDefault();
-                  if (e.dataTransfer.files?.[0]) setFile(e.dataTransfer.files[0]);
+                  if (e.dataTransfer.files?.[0]) handleFileSelected(e.dataTransfer.files[0]);
                 }}
                 onClick={() => document.getElementById('faculty-file-input').click()}
                 style={{
@@ -950,7 +1019,9 @@ export default function FacultyAttendanceUpload() {
                   type="file"
                   accept=".csv,.xlsx,.xls"
                   style={{ display: 'none' }}
-                  onChange={e => setFile(e.target.files?.[0])}
+                  onChange={e => {
+                    if (e.target.files?.[0]) handleFileSelected(e.target.files[0]);
+                  }}
                 />
                 <div style={{ fontSize: 32, marginBottom: 6 }}>{file ? '📄' : '☁️'}</div>
                 {file ? (
@@ -959,7 +1030,7 @@ export default function FacultyAttendanceUpload() {
                       {file.name}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--ok-fg)', marginTop: 2 }}>
-                      {(file.size / 1024).toFixed(1)} KB &bull; Ready to save
+                      {(file.size / 1024).toFixed(1)} KB &bull; {isPreviewing ? 'Validating & checking warnings...' : 'Ready to save'}
                     </div>
                   </div>
                 ) : (
@@ -973,6 +1044,66 @@ export default function FacultyAttendanceUpload() {
                   </div>
                 )}
               </div>
+
+              {/* Preview Status & Validation Warnings (Phase 5) */}
+              {isPreviewing && (
+                <div style={{ padding: '10px 14px', background: 'var(--bg)', borderRadius: 'var(--radius-input)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, textAlign: 'center' }}>
+                  Scanning file for unknown IDs, duplicate sessions, and abnormal patterns...
+                </div>
+              )}
+
+              {previewErrorMessage && (
+                <div style={{ padding: '10px 14px', background: 'var(--crit-bg)', border: '1px solid var(--crit-fg)', borderRadius: 'var(--radius-input)', color: 'var(--crit-fg)', fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
+                  ⚠️ {previewErrorMessage}
+                </div>
+              )}
+
+              {previewData && (
+                <div style={{ marginBottom: 16 }}>
+                  {/* Warning Box */}
+                  {previewData.warning_messages && previewData.warning_messages.length > 0 && (
+                    <div
+                      style={{
+                        padding: '12px 16px',
+                        background: 'var(--warn-bg)',
+                        border: '1px solid var(--warn-fg)',
+                        borderRadius: 'var(--radius-input)',
+                        color: 'var(--warn-fg)',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                        <span>⚠️</span> Upload Warnings Detected ({previewData.warning_messages.length})
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, lineHeight: 1.5 }}>
+                        {previewData.warning_messages.map((msg, i) => (
+                          <li key={i}>{msg}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Preview Summary Pills */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--surface)', border: '1px solid var(--border)', padding: '3px 10px', borderRadius: 'var(--radius-pill)', color: 'var(--text)' }}>
+                      Total rows: {previewData.total_rows}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--ok-bg)', color: 'var(--ok-fg)', padding: '3px 10px', borderRadius: 'var(--radius-pill)' }}>
+                      ✓ Valid: {previewData.valid_rows}
+                    </span>
+                    {previewData.quarantined_rows > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--crit-bg)', color: 'var(--crit-fg)', padding: '3px 10px', borderRadius: 'var(--radius-pill)' }}>
+                        ✕ Quarantined: {previewData.quarantined_rows}
+                      </span>
+                    )}
+                    {previewData.sessions_to_create > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--bg)', border: '1px solid var(--accent)', color: 'var(--accent)', padding: '3px 10px', borderRadius: 'var(--radius-pill)' }}>
+                        + {previewData.sessions_to_create} session(s)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Optional Reason / Notes */}
               <div style={{ marginBottom: 16 }}>
@@ -1015,11 +1146,47 @@ export default function FacultyAttendanceUpload() {
                 </div>
               )}
 
-              {/* Upload Success Banner */}
-              {uploadResult && (
+              {/* Undo Result Banner */}
+              {undoResult && (
                 <div
                   style={{
                     padding: '12px 16px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--accent)',
+                    borderRadius: 'var(--radius-input)',
+                    color: 'var(--ink-900)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    marginBottom: 16,
+                  }}
+                >
+                  ↩️ {undoResult.message || 'Upload reverted successfully! Previous records restored.'}
+                </div>
+              )}
+
+              {/* Undo Error Banner */}
+              {undoErrorMessage && (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    background: 'var(--crit-bg)',
+                    border: '1px solid var(--crit-fg)',
+                    borderRadius: 'var(--radius-input)',
+                    color: 'var(--crit-fg)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    marginBottom: 16,
+                  }}
+                >
+                  ⚠️ {undoErrorMessage}
+                </div>
+              )}
+
+              {/* Upload Success Banner with Undo Action */}
+              {uploadResult && (
+                <div
+                  style={{
+                    padding: '14px 16px',
                     background: 'var(--ok-bg)',
                     border: '1px solid var(--ok-fg)',
                     borderRadius: 'var(--radius-input)',
@@ -1029,11 +1196,37 @@ export default function FacultyAttendanceUpload() {
                     marginBottom: 16,
                   }}
                 >
-                  🎉 Attendance uploaded successfully!
-                  <div style={{ fontSize: 12, fontWeight: 400, marginTop: 4 }}>
-                    <strong>{uploadResult.processed}</strong> records processed,{' '}
-                    <strong>{uploadResult.sessions_created}</strong> session(s) created,{' '}
-                    <strong>{uploadResult.error_count}</strong> errors.
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      🎉 Attendance uploaded successfully!
+                      <div style={{ fontSize: 12, fontWeight: 400, marginTop: 4 }}>
+                        <strong>{uploadResult.processed}</strong> records processed,{' '}
+                        <strong>{uploadResult.sessions_created}</strong> session(s) created,{' '}
+                        <strong>{uploadResult.error_count}</strong> errors.
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleUndoUpload(uploadResult.batch_id)}
+                      disabled={isUndoing}
+                      style={{
+                        background: 'var(--surface)',
+                        border: '1px solid var(--crit-fg)',
+                        color: 'var(--crit-fg)',
+                        padding: '6px 14px',
+                        borderRadius: 'var(--radius-pill)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: isUndoing ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                      }}
+                    >
+                      <span>↩️</span> {isUndoing ? 'Reverting upload...' : 'Undo Upload'}
+                    </button>
                   </div>
                 </div>
               )}
@@ -1041,17 +1234,17 @@ export default function FacultyAttendanceUpload() {
               {/* One-Click Upload & Save Button */}
               <button
                 type="submit"
-                disabled={!file || isUploadingFile}
+                disabled={!file || isUploadingFile || isPreviewing}
                 style={{
                   width: '100%',
-                  background: !file || isUploadingFile ? 'var(--border)' : 'var(--accent)',
-                  color: !file || isUploadingFile ? 'var(--text-muted)' : 'var(--on-dark)',
+                  background: !file || isUploadingFile || isPreviewing ? 'var(--border)' : 'var(--accent)',
+                  color: !file || isUploadingFile || isPreviewing ? 'var(--text-muted)' : 'var(--on-dark)',
                   border: 'none',
                   padding: '12px 24px',
                   borderRadius: 'var(--radius-pill)',
                   fontSize: 14,
                   fontWeight: 700,
-                  cursor: !file || isUploadingFile ? 'not-allowed' : 'pointer',
+                  cursor: !file || isUploadingFile || isPreviewing ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

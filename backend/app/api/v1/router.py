@@ -32,6 +32,7 @@ api_router.include_router(condonation.router, prefix="/condonation", tags=["Cond
 api_router.include_router(interventions.router, prefix="/interventions", tags=["Interventions"])
 api_router.include_router(departments.router, prefix="/departments", tags=["Departments & Dean"])
 api_router.include_router(courses.router, prefix="/courses", tags=["Courses"])
+api_router.include_router(courses.faculty_router, prefix="/faculty", tags=["Faculty"])
 api_router.include_router(students.router, prefix="/students", tags=["Students"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["Attendance"])
 api_router.include_router(

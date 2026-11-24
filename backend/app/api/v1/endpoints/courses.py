@@ -6,8 +6,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
+from app.core.authorization import Action, verify_access
 from app.core.deps import can_access, get_db
-from app.core.errors import ConflictError, NotFoundError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError
 from app.models import CourseModel, EnrolmentModel, StudentModel, UserModel
 from app.schemas.common import PaginatedResponse
 from app.schemas.course import CourseCreate, CourseOut, CourseUpdate
@@ -92,6 +93,26 @@ def create_course(
     db.commit()
     db.refresh(course)
     return CourseOut.model_validate(course)
+
+
+@router.get("/needs-attention", summary="Students needing attention this week across courses (faculty)")
+def get_needs_attention(
+    course_id: Optional[int] = Query(None, description="Optional course filter"),
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """
+    Returns students who missed 2 or more consecutive classes or dropped a risk band since last week.
+    Central scope enforcement: students get 403, faculty can only access assigned courses.
+    """
+    verify_access(user=current_user, action=Action.VIEW_NEEDS_ATTENTION, resource=None)
+
+    from app.services.attendance_stats import get_needs_attention_for_faculty
+    return get_needs_attention_for_faculty(
+        db=db,
+        user=current_user or {},
+        course_id=course_id,
+    )
 
 
 @router.get("/{course_id}", response_model=CourseOut)
@@ -238,9 +259,9 @@ async def preview_attendance_upload(
     """
     Step 2 of the 4-step upload wizard:
     Validates CSV or Excel file without persisting to database.
-    Returns matched students, quarantined rows with reasons, and diffs.
+    Returns matched students, quarantined rows with reasons, diffs, and warnings.
     """
-    can_access(user=current_user, action="mark", resource="attendance")
+    verify_access(user=current_user, action=Action.UPLOAD_ATTENDANCE, resource=None)
     course = db.get(CourseModel, course_id)
     if not course:
         raise NotFoundError(f"Course {course_id} not found")
@@ -266,6 +287,8 @@ async def preview_attendance_upload(
             "valid_rows": result.processed,
             "quarantined_rows": len(result.errors),
             "sessions_to_create": result.sessions_created,
+            "warnings": result.warnings,
+            "warning_messages": result.warning_messages,
             "errors": [
                 {
                     "row": e.row_number,
@@ -284,3 +307,83 @@ async def preview_attendance_upload(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "VALIDATION_ERROR", "message": str(e)},
         )
+
+
+@router.post("/{course_id}/attendance/undo", summary="Undo an attendance upload batch (faculty)")
+def undo_attendance(
+    course_id: int,
+    batch_id: Optional[int] = Query(None, description="Optional batch ID to undo"),
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """
+    Undo the latest or specified attendance upload batch for this course.
+    Restores previous records, removes newly created ones, and cleans up empty sessions.
+    """
+    verify_access(user=current_user, action=Action.UNDO_ATTENDANCE, resource=None)
+
+    course = db.get(CourseModel, course_id)
+    if not course:
+        raise NotFoundError(f"Course {course_id} not found")
+
+    actor_id = int(current_user["sub"]) if current_user and "sub" in current_user else 1
+    user_role = current_user.get("role") if current_user else None
+
+    # Scope check: faculty must teach or be assigned to the course
+    if user_role in ("faculty", "trainer"):
+        from app.models.course import CourseStaffModel
+        assigned = db.scalar(
+            select(CourseStaffModel).where(
+                CourseStaffModel.course_id == course_id,
+                CourseStaffModel.user_id == actor_id,
+            )
+        ) is not None
+        if not assigned:
+            raise ForbiddenError("You are not assigned to instruct or undo attendance for this course.")
+
+    from app.services.csv_ingest import undo_attendance_upload
+    try:
+        return undo_attendance_upload(
+            db=db,
+            course_id=course_id,
+            user_id=actor_id,
+            batch_id=batch_id,
+        )
+    except ValueError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "UNDO_FAILED", "message": str(exc)},
+        )
+
+
+@router.get("/{course_id}/needs-attention", summary="Students needing attention this week for a specific course (faculty)")
+def get_course_needs_attention(
+    course_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """
+    Returns students needing attention this week for this specific course.
+    """
+    verify_access(user=current_user, action=Action.VIEW_NEEDS_ATTENTION, resource=None)
+
+    from app.services.attendance_stats import get_needs_attention_for_faculty
+    return get_needs_attention_for_faculty(
+        db=db,
+        user=current_user or {},
+        course_id=course_id,
+    )
+
+
+faculty_router = APIRouter()
+faculty_router.add_api_route(
+    "/needs-attention",
+    get_needs_attention,
+    methods=["GET"],
+    summary="Students needing attention this week across courses (faculty alias)",
+)
+
+
+
+

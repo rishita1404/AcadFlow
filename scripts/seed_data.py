@@ -867,6 +867,24 @@ def seed_all(session=None, engine=None) -> dict:
                         counts.setdefault("risk_snapshots", 0)
                         counts["risk_snapshots"] += 1
 
+            # ── Phase 5: Synthetic Needs Attention & Upload Batches ─────────────
+            from app.models.attendance import AttendanceUploadBatchModel
+            batch_exists = _session.scalar(select(AttendanceUploadBatchModel).limit(1))
+            if not batch_exists and course_obj:
+                _session.add(AttendanceUploadBatchModel(
+                    course_id=course_obj.id,
+                    uploaded_by=prof_gupta.id,
+                    uploaded_at=now_dt - timedelta(days=2),
+                    filename="cs101_attendance_week10.xlsx",
+                    records_created=25,
+                    records_updated=2,
+                    sessions_created=1,
+                    backup_data="{}",
+                    is_undone=False,
+                ))
+                counts.setdefault("attendance_batches", 0)
+                counts["attendance_batches"] += 1
+
             _session.flush()
         except Exception as ph2_err:
             print(f"[WARN] Phase 2 seed notice: {ph2_err}")

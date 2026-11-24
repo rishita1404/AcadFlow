@@ -1,6 +1,6 @@
 from app.db.base import Base
 from app.models.assignment import AssignmentModel
-from app.models.attendance import AttendanceRecordModel, ClassSessionModel
+from app.models.attendance import AttendanceRecordModel, AttendanceUploadBatchModel, ClassSessionModel
 from app.models.audit import AuditLogModel
 from app.models.course import CourseModel, CourseStaffModel, HolidayModel, SemesterModel
 from app.models.enrollment import EnrolmentModel
@@ -45,6 +45,7 @@ __all__ = [
     "EnrolmentModel",
     "ClassSessionModel",
     "AttendanceRecordModel",
+    "AttendanceUploadBatchModel",
     "AssignmentModel",
     "SubmissionModel",
     "RiskConfigModel",

@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Optional
 
 from sqlalchemy import (
     Boolean,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -50,3 +52,24 @@ class AttendanceRecordModel(Base):
     status: Mapped[str] = mapped_column(String(20))
     marked_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     marked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AttendanceUploadBatchModel(Base):
+    __tablename__ = "attendance_upload_batches"
+    __table_args__ = (
+        Index("ix_upload_batches_course_uploaded", "course_id", "uploaded_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id"), nullable=False)
+    uploaded_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    records_created: Mapped[int] = mapped_column(Integer, default=0)
+    records_updated: Mapped[int] = mapped_column(Integer, default=0)
+    sessions_created: Mapped[int] = mapped_column(Integer, default=0)
+    backup_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_undone: Mapped[bool] = mapped_column(Boolean, default=False)
+    undone_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    undone_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+

@@ -8,6 +8,7 @@ import Button from '../../components/ui/Button.jsx';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 import StatusBadge from '../../components/StatusBadge.jsx';
 import FollowUpsPanel from '../../components/FollowUpsPanel.jsx';
+import NeedsAttentionPanel from '../../components/NeedsAttentionPanel.jsx';
 import {
   Users, BookOpen, Search, Calendar,
   AlertTriangle, ArrowUpRight, Megaphone,
@@ -333,6 +334,11 @@ export default function FacultyHome({ defaultTab }) {
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
           {/* Left Column: Courses + Timetable */}
           <div>
+            {/* Phase 5: Needs attention this week */}
+            <div style={{ marginBottom: 'var(--space-6)' }}>
+              <NeedsAttentionPanel />
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
               <div>
                 <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--ink-900)', margin: 0 }}>

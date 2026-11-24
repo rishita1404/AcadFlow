@@ -58,6 +58,10 @@ class Action(str, Enum):
     EXPORT_DEPARTMENT_TRENDS = "export_department_trends"
     VIEW_MENTOR_LOAD = "view_mentor_load"
 
+    # Needs Attention & Upload Undo actions (Phase 5)
+    VIEW_NEEDS_ATTENTION = "view_needs_attention"
+    UNDO_ATTENDANCE = "undo_attendance"
+
 
 # Base role capabilities mapping (Role -> Allowed Actions)
 ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
@@ -90,6 +94,8 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_DEPARTMENT_TRENDS,
         Action.EXPORT_DEPARTMENT_TRENDS,
         Action.VIEW_MENTOR_LOAD,
+        Action.VIEW_NEEDS_ATTENTION,
+        Action.UNDO_ATTENDANCE,
     },
     Role.TRAINER.value: {
         Action.VIEW_COURSE,
@@ -105,6 +111,8 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.CREATE_INTERVENTION,
         Action.VIEW_INTERVENTIONS,
         Action.UPDATE_INTERVENTION,
+        Action.VIEW_NEEDS_ATTENTION,
+        Action.UNDO_ATTENDANCE,
     },
     Role.MENTOR.value: {
         Action.VIEW_COURSE,
@@ -118,6 +126,7 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.CREATE_INTERVENTION,
         Action.VIEW_INTERVENTIONS,
         Action.UPDATE_INTERVENTION,
+        Action.VIEW_NEEDS_ATTENTION,
     },
     Role.COORDINATOR.value: {
         Action.VIEW_COURSE,
@@ -134,6 +143,8 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_DEPARTMENT_TRENDS,
         Action.EXPORT_DEPARTMENT_TRENDS,
         Action.VIEW_MENTOR_LOAD,
+        Action.VIEW_NEEDS_ATTENTION,
+        Action.UNDO_ATTENDANCE,
     },
     Role.ADMIN.value: set(Action),  # Admin has full capabilities across all actions
 }
@@ -273,6 +284,23 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
             return False
         is_dean = _get_val(resource, "is_authorized_dean")
         return bool(is_dean)
+
+    # Phase 5: Needs Attention & Attendance Undo Rules
+    if action == Action.VIEW_NEEDS_ATTENTION:
+        if user_role == Role.STUDENT.value:
+            return False
+        is_viewer = _get_val(resource, "is_authorized_viewer")
+        if is_viewer is not None:
+            return bool(is_viewer)
+        return True
+
+    if action == Action.UNDO_ATTENDANCE:
+        if user_role == Role.STUDENT.value:
+            return False
+        is_authorized = _get_val(resource, "is_authorized")
+        if is_authorized is not None:
+            return bool(is_authorized)
+        return True
 
     # Scenario 1: Student accessing student-specific resources (dashboard, marks, buffer)
     if user_role == Role.STUDENT.value:

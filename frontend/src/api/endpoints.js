@@ -40,6 +40,15 @@ export const attendanceApi = {
     apiClient.get(`/attendance/upload/template/excel?course_id=${courseId}${sessionDate ? `&session_date=${sessionDate}` : ''}`, {
       responseType: 'blob',
     }),
+  preview: (courseId, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiClient.post(`/courses/${courseId}/attendance/preview`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  undo: (courseId, batchId = null) =>
+    apiClient.post(`/attendance/undo?course_id=${courseId}${batchId ? `&batch_id=${batchId}` : ''}`),
   getDateAttendance: (courseId, sessionDate) =>
     apiClient.get(`/attendance/courses/${courseId}/date/${sessionDate}`),
   directMark: (payload) =>
@@ -187,6 +196,10 @@ export const facultyApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  undoUpload: (courseId, batchId = null) =>
+    apiClient.post(`/courses/${courseId}/attendance/undo${batchId ? `?batch_id=${batchId}` : ''}`),
+  getNeedsAttention: (courseId = null) =>
+    apiClient.get(`/faculty/needs-attention${courseId ? `?course_id=${courseId}` : ''}`),
   correctAttendance: (recordId, status, reason = '') =>
     apiClient.patch(`/attendance/records/${recordId}`, { status, reason }),
   getAssignments: (courseId) =>

@@ -23,11 +23,12 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -117,6 +118,9 @@ class IngestResult:
     sessions_created: int    # New ClassSession rows created
     diffs: List[dict] = field(default_factory=list)
     dry_run: bool = False
+    warnings: dict = field(default_factory=dict)
+    warning_messages: List[str] = field(default_factory=list)
+    batch_id: Optional[int] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -292,6 +296,24 @@ def ingest_attendance_file(
     ).all()
     session_date_map: dict[date, int] = {s.held_on: s.id for s in existing_sessions}
 
+    # Find existing sessions with attendance records to detect duplicate sessions
+    existing_sessions_with_records = set(
+        db.scalars(
+            select(ClassSessionModel.held_on).join(
+                AttendanceRecordModel, AttendanceRecordModel.session_id == ClassSessionModel.id
+            ).where(
+                ClassSessionModel.course_id == course_id
+            )
+        ).all()
+    )
+
+    unknown_ids: set[str] = set()
+    date_statuses: dict[date, list[str]] = {}
+    duplicate_session_dates: set[date] = set()
+    newly_created_session_ids: list[int] = []
+    created_record_ids: list[int] = []
+    updated_records_data: list[dict] = []
+
     # ── Process rows ───────────────────────────────────────────────────────
     result = IngestResult(
         course_id=course_id,
@@ -312,6 +334,8 @@ def ingest_attendance_file(
         # ── Validate roll_no ───────────────────────────────────────────────
         student_id = roll_to_student.get(roll_no)
         if student_id is None:
+            if roll_no:
+                unknown_ids.add(roll_no)
             result.errors.append(
                 RowError(
                     row_number=row_idx,
@@ -356,6 +380,11 @@ def ingest_attendance_file(
             )
             continue
 
+        # ── Track status and duplicate sessions ────────────────────────────
+        date_statuses.setdefault(parsed_date, []).append(normalized_status)
+        if parsed_date in existing_sessions_with_records:
+            duplicate_session_dates.add(parsed_date)
+
         # ── Get or create ClassSession for this date ──────────────────────
         if parsed_date not in session_date_map:
             new_session = ClassSessionModel(
@@ -367,6 +396,7 @@ def ingest_attendance_file(
             try:
                 db.flush()
                 session_date_map[parsed_date] = new_session.id
+                newly_created_session_ids.append(new_session.id)
                 result.sessions_created += 1
             except IntegrityError:
                 db.rollback()
@@ -424,6 +454,11 @@ def ingest_attendance_file(
         )
         if existing_record:
             # Update existing record (teacher is correcting it)
+            if existing_record.status != normalized_status:
+                updated_records_data.append({
+                    "id": existing_record.id,
+                    "old_status": existing_record.status,
+                })
             existing_record.status = normalized_status
             existing_record.marked_by = marked_by_user_id
             existing_record.marked_at = now_utc
@@ -442,20 +477,67 @@ def ingest_attendance_file(
         db.add(new_record)
         try:
             db.flush()
+            created_record_ids.append(new_record.id)
             result.processed += 1
         except IntegrityError:
             db.rollback()
             result.skipped_duplicates += 1
 
+    # ── Compute Phase 5 Warnings ──────────────────────────────────────────
+    all_present_dates: list[str] = []
+    for d, statuses in date_statuses.items():
+        if len(statuses) > 0 and all(st == "present" for st in statuses):
+            all_present_dates.append(str(d))
+
+    result.warnings = {
+        "unknown_ids": sorted(list(unknown_ids)),
+        "all_present_rows": sorted(all_present_dates),
+        "duplicate_sessions": sorted([str(d) for d in duplicate_session_dates]),
+    }
+    result.warning_messages = []
+    if unknown_ids:
+        result.warning_messages.append(
+            f"Found {len(unknown_ids)} unknown student ID(s): {', '.join(sorted(unknown_ids)[:5])}"
+        )
+    if all_present_dates:
+        result.warning_messages.append(
+            f"100% present attendance detected for session(s) on {', '.join(all_present_dates)}. Please verify this is not an unedited template."
+        )
+    if duplicate_session_dates:
+        result.warning_messages.append(
+            f"Session(s) on {', '.join(sorted([str(d) for d in duplicate_session_dates]))} already have recorded attendance. Uploading will update existing records."
+        )
+
+    from app.models.attendance import AttendanceUploadBatchModel
     from app.models.audit import AuditLogModel
+
     if not dry_run:
+        batch = AttendanceUploadBatchModel(
+            course_id=course_id,
+            uploaded_by=marked_by_user_id,
+            uploaded_at=now_utc,
+            filename=filename,
+            records_created=len(created_record_ids),
+            records_updated=len(updated_records_data),
+            sessions_created=result.sessions_created,
+            backup_data=json.dumps({
+                "created_record_ids": created_record_ids,
+                "updated_records": updated_records_data,
+                "created_session_ids": newly_created_session_ids,
+            }),
+            is_undone=False,
+        )
+        db.add(batch)
+        db.flush()
+        result.batch_id = batch.id
+
         try:
             db.add(AuditLogModel(
                 entity="attendance",
                 entity_id=f"course:{course_id}",
                 action="upload_attendance",
                 old_value=None,
-                new_value=f"{result.processed} processed, {result.sessions_created} sessions",
+                new_value=f"Batch {batch.id}: {result.processed} processed, {result.sessions_created} sessions",
                 actor_id=marked_by_user_id,
                 reason=change_reason or "Attendance sheet upload",
                 created_at=now_utc,
@@ -465,6 +547,125 @@ def ingest_attendance_file(
             db.commit()
     result.dry_run = dry_run
     return result
+
+
+def undo_attendance_upload(
+    db: Session,
+    course_id: int,
+    user_id: int,
+    batch_id: Optional[int] = None,
+) -> dict:
+    """
+    Undo an attendance upload batch for a course, reverting created and updated records,
+    cleaning up any empty sessions created by that batch, recomputing risk snapshots,
+    and logging an audit record.
+    """
+    from app.core.audit import AuditAction, AuditLogger
+    from app.models.attendance import AttendanceRecordModel, AttendanceUploadBatchModel, ClassSessionModel
+    from app.models.enrollment import EnrolmentModel
+    from app.services.risk_data import persist_risk_snapshot
+
+    query = select(AttendanceUploadBatchModel).where(
+        AttendanceUploadBatchModel.course_id == course_id,
+        AttendanceUploadBatchModel.is_undone == False,
+    )
+    if batch_id:
+        query = query.where(AttendanceUploadBatchModel.id == batch_id)
+    else:
+        query = query.order_by(AttendanceUploadBatchModel.uploaded_at.desc())
+
+    batch = db.scalar(query)
+    if not batch:
+        raise ValueError("No active attendance upload found to undo.")
+
+    backup = {}
+    if batch.backup_data:
+        try:
+            backup = json.loads(batch.backup_data)
+        except Exception:
+            backup = {}
+
+    created_record_ids = backup.get("created_record_ids", [])
+    updated_records = backup.get("updated_records", [])
+    created_session_ids = backup.get("created_session_ids", [])
+
+    # 1. Delete created records
+    reverted_created = 0
+    if created_record_ids:
+        records_to_delete = db.scalars(
+            select(AttendanceRecordModel).where(AttendanceRecordModel.id.in_(created_record_ids))
+        ).all()
+        for r in records_to_delete:
+            db.delete(r)
+            reverted_created += 1
+
+    # 2. Restore updated records
+    reverted_updated = 0
+    for item in updated_records:
+        rec = db.get(AttendanceRecordModel, item["id"])
+        if rec and "old_status" in item:
+            rec.status = item["old_status"]
+            reverted_updated += 1
+
+    db.flush()
+
+    # 3. Clean up empty created sessions
+    for sess_id in created_session_ids:
+        remaining_count = db.scalar(
+            select(func.count(AttendanceRecordModel.id)).where(AttendanceRecordModel.session_id == sess_id)
+        ) or 0
+        if remaining_count == 0:
+            sess = db.get(ClassSessionModel, sess_id)
+            if sess:
+                db.delete(sess)
+
+    # 4. Mark batch as undone
+    now_utc = datetime.now(timezone.utc)
+    batch.is_undone = True
+    batch.undone_at = now_utc
+    batch.undone_by = user_id
+    db.commit()
+
+    # 5. Recompute risk snapshots for affected enrolled students
+    enrolled_ids = list(
+        db.scalars(
+            select(EnrolmentModel.student_id).where(
+                EnrolmentModel.course_id == course_id
+            )
+        ).all()
+    )
+    for sid in enrolled_ids:
+        try:
+            persist_risk_snapshot(db, sid, course_id)
+        except Exception:
+            pass
+
+    # 6. Audit log with PII redaction
+    from app.models.audit import AuditLogModel
+    try:
+        db.add(AuditLogModel(
+            entity="attendance_batch",
+            entity_id=str(batch.id),
+            action="undo_attendance_upload",
+            old_value=f"Batch {batch.id}: {len(created_record_ids)} created, {len(updated_records)} updated",
+            new_value=f"Reverted {reverted_created} created, {reverted_updated} updated",
+            actor_id=user_id,
+            reason=f"Undo attendance upload {batch.filename}",
+            created_at=now_utc,
+        ))
+        db.commit()
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "batch_id": batch.id,
+        "filename": batch.filename,
+        "course_id": course_id,
+        "reverted_created": reverted_created,
+        "reverted_updated": reverted_updated,
+        "message": f"Successfully undone attendance upload '{batch.filename}'. Reverted {reverted_created + reverted_updated} record(s).",
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -74,9 +74,19 @@
     - 4 frontend vitest tests in `DeanTrends.test.jsx` (all 30 frontend tests passing).
 
 ### Phase 5: Additional Enhancements (Conditional on Phases 1-4 passing all tests)
-- [/] **In Progress**:
-  - [ ] Schema / Migration for Phase 5 (if needed).
-  - [ ] Faculty "Needs attention this week" list: students who missed 2 or more consecutive classes or dropped a band since last week, with what changed.
-  - [ ] Attendance upload preview: before committing a file, show warnings (unknown IDs, 100% present rows, duplicate sessions) and allow undo.
-  - [ ] Pytest and vitest suites.
-  - [ ] Phase 5 git commit and final summary.
+- [x] **Done**:
+  - Schema & Models: created `attendance_upload_batches` table (id, course_id, uploaded_by, uploaded_at, filename, records_created, records_updated, sessions_created, backup_data, is_undone, undone_at, undone_by) with index on `(course_id, uploaded_at)`.
+  - Alembic migration `007_phase5_enhancements.py` created, applied, and verified.
+  - Central RBAC in `authorization.py`: added `Action.VIEW_NEEDS_ATTENTION` and `Action.UNDO_ATTENDANCE` with strict scope checks (students get 403; faculty/trainer restricted to assigned courses).
+  - Faculty "Needs attention this week":
+    - Backend: implemented `get_needs_attention_for_faculty` in `attendance_stats.py` and endpoints `GET /courses/needs-attention` (and `GET /faculty/needs-attention`, `GET /courses/{course_id}/needs-attention`). Detects students with 2+ consecutive absences (accounting for neutral approved leave) or risk band drop since last week (comparing against ~7 days ago with "Needs support" UI label), synthesizing "what changed" and supportive "suggested next step".
+    - Frontend: created `NeedsAttentionPanel.jsx` in desktop-only Holst palette with icon + text status indicators, course filter, and one-click "Log action" integration with `InterventionModal`. Integrated into `FacultyHome.jsx`.
+  - Attendance upload preview warnings & undo:
+    - Backend: extended `ingest_attendance_file` and preview endpoints (`POST /courses/{course_id}/attendance/preview`, `POST /attendance/preview`) to return structured warnings: unknown roll numbers/IDs, 100% present sessions (preventing accidental default template commits), and duplicate sessions (dates with pre-existing attendance).
+    - Backend Undo: implemented `undo_attendance_upload` and endpoints `POST /courses/{course_id}/attendance/undo` (and `POST /attendance/undo`), which deletes newly created attendance records, restores overwritten statuses to their exact prior values, cleans up orphan sessions, recomputes risk snapshots, and records audit logs with PII redaction.
+    - Frontend: updated `FacultyAttendanceUpload.jsx` with automatic preview validation scanning for warnings, warning callout cards, upload summary chips, post-commit "Undo Upload" action button, and revert confirmation banner.
+  - Synthetic Data: Extended `scripts/seed_data.py` with multi-week snapshot band drops and synthetic attendance upload batches.
+  - Testing:
+    - 9 backend pytest integration tests in `backend/tests/integration/test_phase5_enhancements.py` covering consecutive absence detection, band drop detection, preview warnings, undo restoration, audit logs, and 403 out-of-scope permissions. Full backend pytest suite passing: **227/227 passed**.
+    - 5 frontend vitest tests across `NeedsAttention.test.jsx` and `AttendanceUploadPreview.test.jsx`. Full frontend vitest suite passing: **35/35 passed**.
+  - No teacher ranking or per-teacher compliance views added. Supportive vocabulary maintained. Strict LOCAL-ONLY MODE maintained.

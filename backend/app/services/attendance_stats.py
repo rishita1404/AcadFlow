@@ -367,3 +367,267 @@ def get_department_attendance_summary(db: Session, department_id: int) -> Dict:
         },
         "courses": course_standings,
     }
+
+
+def get_needs_attention_for_faculty(
+    db: Session,
+    user: dict,
+    course_id: Optional[int] = None,
+) -> List[dict]:
+    """
+    Phase 5: Retrieve students who need attention this week:
+    - Missed 2 or more consecutive classes in a course, OR
+    - Dropped a risk band since last week (e.g. Safe -> Watch, Watch -> Needs support).
+
+    Scoped strictly to the faculty's assigned courses or mentor's mentees.
+    Returns details on what changed and supportive suggested next steps.
+    """
+    from datetime import timedelta
+    from app.core.errors import ForbiddenError, NotFoundError
+    from app.models.course import CourseStaffModel
+    from app.models.leave import LeaveRequestModel
+    from app.models.user import MentorAssignmentModel
+
+    actor_id = int(user["sub"]) if "sub" in user else user.get("id")
+    user_role = user.get("role", "")
+
+    if user_role == "student":
+        raise ForbiddenError("Students cannot view faculty attention lists.")
+
+    # 1. Determine scoped courses
+    if course_id is not None:
+        course = db.get(CourseModel, course_id)
+        if not course:
+            raise NotFoundError(f"Course {course_id} not found")
+        if user_role in ("faculty", "trainer"):
+            is_assigned = (
+                db.scalar(
+                    select(CourseStaffModel).where(
+                        CourseStaffModel.course_id == course_id,
+                        CourseStaffModel.user_id == actor_id,
+                    )
+                ) is not None
+            )
+            if not is_assigned:
+                raise ForbiddenError("You are not assigned to instruct or view attention lists for this course.")
+        target_courses = [course]
+    else:
+        if user_role in ("faculty", "trainer"):
+            staff_course_ids = set(
+                db.scalars(
+                    select(CourseStaffModel.course_id).where(
+                        CourseStaffModel.user_id == actor_id
+                    )
+                ).all()
+            )
+            query = select(CourseModel).where(CourseModel.id.in_(staff_course_ids))
+            target_courses = list(db.scalars(query).all())
+        else:
+            target_courses = list(db.scalars(select(CourseModel)).all())
+
+    # Mentor mentee filter if user is mentor and not instructor
+    mentee_ids = set()
+    if user_role == "mentor":
+        mentee_ids = set(
+            db.scalars(
+                select(MentorAssignmentModel.student_id).where(
+                    MentorAssignmentModel.mentor_id == actor_id
+                )
+            ).all()
+        )
+
+    results: List[dict] = []
+    seen_student_course = set()
+
+    # Preload approved leaves to avoid penalizing students on approved medical or duty leave
+    approved_leaves = db.scalars(
+        select(LeaveRequestModel).where(LeaveRequestModel.status == "approved")
+    ).all()
+
+    def _is_on_approved_leave(stu_id: int, s_date) -> bool:
+        for lv in approved_leaves:
+            if lv.student_id == stu_id and lv.date_from <= s_date <= lv.date_to:
+                return True
+        return False
+
+    BAND_RANK = {
+        "safe": 0,
+        "watch": 1,
+        "at risk": 2,
+        "at_risk": 2,
+        "risk": 2,
+        "critical": 3,
+        "needs support": 3,
+        "needs_support": 3,
+    }
+
+    for course in target_courses:
+        is_instructor = db.scalar(
+            select(CourseStaffModel).where(
+                CourseStaffModel.course_id == course.id,
+                CourseStaffModel.user_id == actor_id,
+            )
+        ) is not None
+        # Enrolled students
+        enrollment_query = (
+            select(StudentModel, UserModel)
+            .join(UserModel, UserModel.id == StudentModel.user_id)
+            .join(EnrolmentModel, EnrolmentModel.student_id == StudentModel.user_id)
+            .where(EnrolmentModel.course_id == course.id)
+        )
+        enrolled_pairs = db.execute(enrollment_query).all()
+
+        # Sessions for this course (ordered most recent first)
+        sessions = list(
+            db.scalars(
+                select(ClassSessionModel)
+                .where(
+                    ClassSessionModel.course_id == course.id,
+                    ClassSessionModel.is_cancelled == False,
+                )
+                .order_by(ClassSessionModel.held_on.desc())
+            ).all()
+        )
+
+        session_ids = [s.id for s in sessions]
+        attendance_map = {}
+        if session_ids:
+            records = db.scalars(
+                select(AttendanceRecordModel).where(
+                    AttendanceRecordModel.session_id.in_(session_ids)
+                )
+            ).all()
+            for r in records:
+                attendance_map[(r.student_id, r.session_id)] = r.status
+
+        for student, user_obj in enrolled_pairs:
+            stu_id = student.user_id
+            pair_key = (stu_id, course.id)
+            if pair_key in seen_student_course:
+                continue
+
+            # If mentor, filter to mentees unless user also teaches the course
+            if user_role == "mentor" and mentee_ids and stu_id not in mentee_ids:
+                if not is_instructor:
+                    continue
+
+            # 1. Consecutive absence check
+            consecutive_count = 0
+            missed_dates = []
+            for sess in sessions:
+                # If date is covered by approved leave, skip it (neutral)
+                if _is_on_approved_leave(stu_id, sess.held_on):
+                    continue
+
+                st = attendance_map.get((stu_id, sess.id))
+                if st == "absent":
+                    consecutive_count += 1
+                    missed_dates.append(sess.held_on)
+                elif st in ("present", "late"):
+                    # Streak broken
+                    break
+                else:
+                    # Unrecorded session, continue checking
+                    continue
+
+            has_consecutive = consecutive_count >= 2
+
+            # 2. Risk band drop check
+            snaps = list(
+                db.scalars(
+                    select(RiskSnapshotModel)
+                    .where(RiskSnapshotModel.student_id == stu_id)
+                    .order_by(RiskSnapshotModel.computed_at.desc())
+                ).all()
+            )
+
+            has_dropped_band = False
+            prev_band_str = None
+            curr_band_str = None
+            if len(snaps) >= 2:
+                curr_snap = snaps[0]
+                target_cutoff = curr_snap.computed_at - timedelta(days=5)
+                prev_snap = next(
+                    (s for s in snaps[1:] if s.computed_at <= target_cutoff),
+                    snaps[1],
+                )
+                curr_rank = BAND_RANK.get(curr_snap.band.lower(), 0)
+                prev_rank = BAND_RANK.get(prev_snap.band.lower(), 0)
+                if curr_rank > prev_rank:
+                    has_dropped_band = True
+                    curr_band_str = curr_snap.band
+                    prev_band_str = prev_snap.band
+                else:
+                    curr_band_str = curr_snap.band
+                    prev_band_str = prev_snap.band
+            elif len(snaps) == 1:
+                curr_band_str = snaps[0].band
+
+            if has_consecutive or has_dropped_band:
+                seen_student_course.add(pair_key)
+                reasons = []
+                what_parts = []
+                if has_consecutive:
+                    reasons.append("consecutive_absences")
+                    fmt_dates = [
+                        d.strftime("%b %d") if hasattr(d, "strftime") else str(d)
+                        for d in missed_dates[:2]
+                    ]
+                    what_parts.append(
+                        f"Missed {consecutive_count} consecutive classes ({', '.join(fmt_dates)})"
+                    )
+                if has_dropped_band:
+                    reasons.append("band_drop")
+                    pb_label = (
+                        "Needs support"
+                        if prev_band_str and prev_band_str.lower() in ("critical", "needs support", "needs_support")
+                        else (prev_band_str or "Watch")
+                    )
+                    cb_label = (
+                        "Needs support"
+                        if curr_band_str and curr_band_str.lower() in ("critical", "needs support", "needs_support")
+                        else (curr_band_str or "Needs support")
+                    )
+                    what_parts.append(f"Risk band dropped from {pb_label} to {cb_label} since last week")
+
+                display_band = (
+                    "Needs support"
+                    if curr_band_str and curr_band_str.lower() in ("critical", "needs support", "needs_support")
+                    else (curr_band_str or "Watch")
+                )
+
+                if display_band == "Needs support" or has_dropped_band:
+                    step = "Schedule an in-person discussion or log an intervention"
+                elif has_consecutive:
+                    step = "Reach out to check in on recent missed classes"
+                else:
+                    step = "Review attendance cushion and check in"
+
+                results.append({
+                    "student_id": stu_id,
+                    "roll_no": student.roll_no,
+                    "name": user_obj.name,
+                    "email": user_obj.email,
+                    "course_id": course.id,
+                    "course_code": course.code,
+                    "course_name": course.name,
+                    "current_band": curr_band_str or "Watch",
+                    "current_band_label": display_band,
+                    "previous_band": prev_band_str,
+                    "consecutive_absences": consecutive_count,
+                    "missed_dates": [str(d) for d in missed_dates],
+                    "reasons": reasons,
+                    "what_changed": "; ".join(what_parts),
+                    "suggested_next_step": step,
+                    "score": float(snaps[0].score) if snaps else None,
+                })
+
+    # Sort results: Critical / Needs support first, then by consecutive absences descending
+    results.sort(
+        key=lambda x: (
+            0 if x["current_band_label"] == "Needs support" else 1,
+            -x["consecutive_absences"],
+        )
+    )
+    return results
+
