@@ -55,18 +55,28 @@
   - Tests:
     - 10 backend integration tests in `test_phase3_interventions_collision.py` (all 205 backend tests passing).
     - 5 frontend vitest tests in `Intervention.test.jsx` (all 26 frontend tests passing).
+  - Committed as `605457e`.
 
 ### Phase 4: Dean Trends and Export
-- [/] **In Progress**:
-  - [ ] Schema & Models / Migration for Phase 4 (if needed).
-  - [ ] `GET /departments/{id}/trends?weeks=8`: weekly counts per risk band from `risk_snapshots`, top courses/sections by share needing support, intervention funnel (flagged, contacted, recovered).
-  - [ ] Scoped to dean's own department; cross-department access returns 403 with audit log.
-  - [ ] Dean page UI: trend chart (using existing charting library), hotspot table, intervention funnel, Excel export.
-  - [ ] Mentor load view for dean: mentees per mentor and share of high-risk mentees.
-  - [ ] Pytest and vitest suites.
-  - [ ] Phase 4 git commit and report.
+- [x] **Done**:
+  - Schema & Index Migration: `006_phase4_dean_trends.py` adding index `ix_risk_snapshots_computed_band` on `risk_snapshots`.
+  - Central RBAC Actions: `VIEW_DEPARTMENT_TRENDS`, `EXPORT_DEPARTMENT_TRENDS`, `VIEW_MENTOR_LOAD` in `authorization.py` with strict department dean scoping (cross-department returns 403).
+  - Endpoints in `departments.py`:
+    - `GET /departments/{id}/trends?weeks=8`: weekly risk snapshot band distribution, top hotspots by support share, and 3-stage intervention funnel (flagged, contacted, recovered). Audited as `DEAN_RECORD_VIEW`.
+    - `GET /departments/{id}/mentor-load`: mentees per mentor, high-risk mentee counts, high-risk percentage share, and open interventions count. Audited as `DEAN_RECORD_VIEW`.
+    - `GET /departments/{id}/trends/export`: openpyxl Excel spreadsheet generator with 4 styled worksheets (Weekly Trends, Course Hotspots, Intervention Funnel, Mentor Load). Audited as `DEAN_RECORD_VIEW`.
+  - UI Implementation:
+    - `DeanTrends.jsx`: Responsive Recharts multi-week stacked bar chart using Holst palette, course hotspots table with advisory recommendations, visual 3-stage intervention funnel, mentor load balancing table, and one-click Excel report export.
+    - Mounted in `router.jsx` (`/dean/trends`, `/coordinator/trends`) and linked in `AppShell.jsx`.
+  - Synthetic Data: Extended `scripts/seed_data.py` with 8 weeks of multi-week risk snapshot series for department cohorts.
+  - Tests:
+    - 11 backend integration tests in `test_phase4_dean_trends.py` (all 216 backend tests passing).
+    - 4 frontend vitest tests in `DeanTrends.test.jsx` (all 30 frontend tests passing).
 
 ### Phase 5: Additional Enhancements (Conditional on Phases 1-4 passing all tests)
-- [ ] **Remaining**:
-  - Faculty "Needs attention this week" list (missed 2+ consecutive or dropped band).
-  - Attendance upload preview with warnings (unknown IDs, 100% present, duplicate sessions) and undo.
+- [/] **In Progress**:
+  - [ ] Schema / Migration for Phase 5 (if needed).
+  - [ ] Faculty "Needs attention this week" list: students who missed 2 or more consecutive classes or dropped a band since last week, with what changed.
+  - [ ] Attendance upload preview: before committing a file, show warnings (unknown IDs, 100% present rows, duplicate sessions) and allow undo.
+  - [ ] Pytest and vitest suites.
+  - [ ] Phase 5 git commit and final summary.

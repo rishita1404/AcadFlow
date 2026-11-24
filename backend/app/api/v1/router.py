@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     condonation,
     coordinator,
     courses,
+    departments,
     health,
     interventions,
     leave,
@@ -29,6 +30,7 @@ api_router.include_router(me.router, prefix="/me", tags=["Personal Dashboard"])
 api_router.include_router(leave.router, prefix="/leave", tags=["Leave"])
 api_router.include_router(condonation.router, prefix="/condonation", tags=["Condonation"])
 api_router.include_router(interventions.router, prefix="/interventions", tags=["Interventions"])
+api_router.include_router(departments.router, prefix="/departments", tags=["Departments & Dean"])
 api_router.include_router(courses.router, prefix="/courses", tags=["Courses"])
 api_router.include_router(students.router, prefix="/students", tags=["Students"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["Attendance"])

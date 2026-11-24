@@ -43,6 +43,7 @@ import CoordinatorTeachers from '../pages/coordinator/CoordinatorTeachers.jsx';
 import CoordinatorTimetable from '../pages/coordinator/CoordinatorTimetable.jsx';
 import CoordinatorTimetableEditor from '../pages/coordinator/CoordinatorTimetableEditor.jsx';
 import DeanCondonationQueue from '../pages/dean/DeanCondonationQueue.jsx';
+import DeanTrends from '../pages/dean/DeanTrends.jsx';
 
 // Admin Pages
 import AdminDashboard from '../pages/admin/AdminDashboard.jsx';
@@ -377,6 +378,22 @@ export default function AppRouter() {
             element={
               <RoleGuard allowedRoles={['coordinator', 'admin']}>
                 <DeanCondonationQueue />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="coordinator/trends"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <DeanTrends />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="dean/trends"
+            element={
+              <RoleGuard allowedRoles={['coordinator', 'admin']}>
+                <DeanTrends />
               </RoleGuard>
             }
           />

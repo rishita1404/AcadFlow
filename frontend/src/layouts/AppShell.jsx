@@ -6,7 +6,7 @@ import { notificationApi } from '../api/endpoints.js';
 import {
   Home, CalendarDays, ClipboardList, LayoutGrid, AlertTriangle,
   Megaphone, Bell, Settings, Users, BarChart2, BookOpen,
-  HeartHandshake, ChevronLeft, ChevronRight, LogOut,
+  HeartHandshake, ChevronLeft, ChevronRight, LogOut, TrendingUp,
 } from 'lucide-react';
 
 const STUDENT_NAV = [
@@ -35,6 +35,7 @@ const FACULTY_NAV = [
 
 const COORDINATOR_NAV = [
   { to: '/coordinator/summary', icon: BarChart2, label: 'Summary', exact: true },
+  { to: '/dean/trends', icon: TrendingUp, label: 'Trends & Hotspots' },
   { to: '/coordinator/deadlines', icon: CalendarDays, label: 'Deadline Load' },
   { to: '/coordinator/students', icon: Users, label: 'Students' },
   { to: '/coordinator/teachers', icon: HeartHandshake, label: 'Teachers' },

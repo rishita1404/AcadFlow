@@ -728,6 +728,7 @@ def seed_all(session=None, engine=None) -> dict:
             today = date.today()
             riya_id = app_a_students[0].user_id
             aman_id = app_a_students[1].user_id
+            meera_id = app_a_students[2].user_id
             karan_id = app_a_students[3].user_id
             dev_id = app_a_students[4].user_id if len(app_a_students) > 4 else app_a_students[0].user_id
             mentor_user_id = core_users.get("mentor@acadflow.edu", core_users.get("faculty@acadflow.edu")).id
@@ -829,6 +830,42 @@ def seed_all(session=None, engine=None) -> dict:
                 ))
                 counts.setdefault("interventions", 0)
                 counts["interventions"] += 1
+
+            # ── Phase 4: Synthetic Multi-Week Risk Snapshots for Trends ─────────
+            from app.models.risk import RiskSnapshotModel
+            now_dt = datetime.now(timezone.utc)
+            course_obj = _session.scalar(select(CourseModel).where(CourseModel.code == "CS101"))
+            c_snap_id = course_obj.id if course_obj else 1
+
+            students_bands = [
+                (riya_id, [("Safe", Decimal("15.0"))] * 8),
+                (aman_id, [("Safe", Decimal("18.0"))] * 8),
+                (meera_id, [("Safe", Decimal("10.0"))] * 8),
+                (karan_id, [("Watch", Decimal("45.0"))] * 3 + [("At risk", Decimal("62.0"))] * 3 + [("Critical", Decimal("78.0"))] * 2),
+                (dev_id, [("Critical", Decimal("85.0"))] * 2 + [("At risk", Decimal("65.0"))] * 3 + [("Watch", Decimal("48.0"))] * 3),
+            ]
+            for stu_id, band_series in students_bands:
+                if not stu_id:
+                    continue
+                for w_idx, (b_name, b_score) in enumerate(band_series):
+                    snap_time = now_dt - timedelta(days=(7 - w_idx) * 7 + 2)
+                    existing_snap = _session.scalar(
+                        select(RiskSnapshotModel).where(
+                            RiskSnapshotModel.student_id == stu_id,
+                            RiskSnapshotModel.computed_at >= snap_time - timedelta(days=2),
+                            RiskSnapshotModel.computed_at <= snap_time + timedelta(days=2),
+                        )
+                    )
+                    if not existing_snap:
+                        _session.add(RiskSnapshotModel(
+                            student_id=stu_id,
+                            computed_at=snap_time,
+                            score=b_score,
+                            band=b_name,
+                            worst_course_id=c_snap_id,
+                        ))
+                        counts.setdefault("risk_snapshots", 0)
+                        counts["risk_snapshots"] += 1
 
             _session.flush()
         except Exception as ph2_err:

@@ -53,6 +53,11 @@ class Action(str, Enum):
     VIEW_INTERVENTIONS = "view_interventions"
     UPDATE_INTERVENTION = "update_intervention"
 
+    # Dean & Department Trends actions (Phase 4)
+    VIEW_DEPARTMENT_TRENDS = "view_department_trends"
+    EXPORT_DEPARTMENT_TRENDS = "export_department_trends"
+    VIEW_MENTOR_LOAD = "view_mentor_load"
+
 
 # Base role capabilities mapping (Role -> Allowed Actions)
 ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
@@ -82,6 +87,9 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.CREATE_INTERVENTION,
         Action.VIEW_INTERVENTIONS,
         Action.UPDATE_INTERVENTION,
+        Action.VIEW_DEPARTMENT_TRENDS,
+        Action.EXPORT_DEPARTMENT_TRENDS,
+        Action.VIEW_MENTOR_LOAD,
     },
     Role.TRAINER.value: {
         Action.VIEW_COURSE,
@@ -123,6 +131,9 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_CONDONATION,
         Action.DECIDE_CONDONATION,
         Action.VIEW_INTERVENTIONS,  # Dean has read-only access to interventions
+        Action.VIEW_DEPARTMENT_TRENDS,
+        Action.EXPORT_DEPARTMENT_TRENDS,
+        Action.VIEW_MENTOR_LOAD,
     },
     Role.ADMIN.value: set(Action),  # Admin has full capabilities across all actions
 }
@@ -251,6 +262,17 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
             return False  # students cannot see/update; dean has read-only access
         is_updater = _get_val(resource, "is_authorized_updater")
         return bool(is_updater)
+
+    # Phase 4: Department Trends & Mentor Load Visibility Rules
+    if action in (
+        Action.VIEW_DEPARTMENT_TRENDS,
+        Action.EXPORT_DEPARTMENT_TRENDS,
+        Action.VIEW_MENTOR_LOAD,
+    ):
+        if user_role == Role.STUDENT.value:
+            return False
+        is_dean = _get_val(resource, "is_authorized_dean")
+        return bool(is_dean)
 
     # Scenario 1: Student accessing student-specific resources (dashboard, marks, buffer)
     if user_role == Role.STUDENT.value:

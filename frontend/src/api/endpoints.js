@@ -260,3 +260,17 @@ export const interventionApi = {
   getFollowUpsDue: (daysAhead = 7) => apiClient.get('/interventions/follow-ups-due', { params: { days_ahead: daysAhead } }),
 };
 
+// Phase 4: Department Trends & Dean Views
+export const departmentApi = {
+  getTrends: (departmentId, weeks = 8) =>
+    apiClient.get(`/departments/${departmentId}/trends`, { params: { weeks } }),
+  getMentorLoad: (departmentId) =>
+    apiClient.get(`/departments/${departmentId}/mentor-load`),
+  exportTrends: (departmentId, weeks = 8) =>
+    apiClient.get(`/departments/${departmentId}/trends/export`, {
+      params: { weeks },
+      responseType: 'blob',
+    }),
+};
+
+
