@@ -148,14 +148,6 @@ export default function FacultyAssignments() {
       createMutation.mutate(payload);
     }
   }
-      title,
-      description,
-      due_date: dueDate,
-      grace_hours: Number(graceHours),
-      weight: Number(weight),
-      is_active: true,
-    });
-  }
 
   function handleExcuseSubmit(e) {
     e.preventDefault();

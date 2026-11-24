@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Info, Loader2 } from 'lucide-react';
 import AuthDivider from './AuthDivider.jsx';
 
+// All seeded demo accounts per spec.
+// Visible only when VITE_DEMO_MODE=true in the environment.
 const DEMO_ACCOUNTS = [
-  { email: 'student@acadflow.edu', label: 'Student' },
-  { email: 'faculty@acadflow.edu', label: 'Faculty' },
-  { email: 'coordinator@acadflow.edu', label: 'Coordinator' },
-  { email: 'admin@acadflow.edu', label: 'Admin' },
+  { email: 'student@acadflow.edu',     label: 'Student',                 password: 'AcadFlow@123' },
+  { email: 'faculty@acadflow.edu',     label: 'Faculty',                 password: 'AcadFlow@123' },
+  { email: 'mentor@acadflow.edu',      label: 'Mentor and coordinator',  password: 'AcadFlow@123' },
+  { email: 'trainer@acadflow.edu',     label: 'Trainer',                 password: 'AcadFlow@123' },
+  { email: 'coordinator@acadflow.edu', label: 'Dean',                    password: 'AcadFlow@123' },
+  { email: 'admin@acadflow.edu',       label: 'Admin',                   password: 'AcadFlow@123' },
 ];
+
+const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
 
 export default function SignInCard({
   onLogin,
@@ -133,9 +139,9 @@ export default function SignInCard({
     }
   };
 
-  const fillDemoAccount = (demoEmail) => {
+  const fillDemoAccount = (demoEmail, demoPassword) => {
     setEmail(demoEmail);
-    setPassword('AcadFlow@123');
+    setPassword(demoPassword || 'AcadFlow@123');
     setFieldErrors({ email: '', password: '' });
     setTouched({ email: false, password: false });
     setApiError('');
@@ -145,11 +151,12 @@ export default function SignInCard({
     <div className="auth-card-col">
       <div className="auth-signin-card">
         <div>
+          {/* Card header with redesigned copy */}
           <div className="auth-card-header">
-            <div className="auth-card-label">Secure sign-in</div>
-            <h2 className="auth-card-title">Welcome back</h2>
+            <div className="auth-card-label">Department access</div>
+            <h2 className="auth-card-title">Sign in to AcadFlow</h2>
             <p className="auth-card-subtitle">
-              Sign in to see your courses, deadlines and academic health.
+              Attendance support, notices and timetables for your department.
             </p>
           </div>
 
@@ -255,7 +262,7 @@ export default function SignInCard({
               )}
             </div>
 
-            {/* Submit Button */}
+            {/* Submit Button — 3D press effect via CSS active state */}
             <button
               type="submit"
               className="auth-submit-btn"
@@ -278,18 +285,44 @@ export default function SignInCard({
           {/* Star Divider */}
           <AuthDivider />
 
-          {/* Demo Accounts (Shown ONLY in development) */}
-          {import.meta.env.DEV && (
+          {/* Demo accounts — shown only when VITE_DEMO_MODE=true */}
+          {IS_DEMO && (
+            <div className="auth-demo-wrap" aria-label="Demo accounts">
+              <div className="auth-demo-title">
+                Demo accounts
+              </div>
+              <div className="auth-demo-note">
+                Demo data only. No real student records.
+              </div>
+              <div className="auth-demo-chips">
+                {DEMO_ACCOUNTS.map(({ email: demoEmail, label, password: demoPassword }) => (
+                  <button
+                    key={demoEmail}
+                    type="button"
+                    onClick={() => fillDemoAccount(demoEmail, demoPassword)}
+                    className={`auth-demo-chip ${email === demoEmail ? 'is-active' : ''}`}
+                    aria-label={`Fill credentials for ${label}`}
+                    title={`Fill ${demoEmail}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Also show chips in DEV mode regardless of VITE_DEMO_MODE for development convenience */}
+          {!IS_DEMO && import.meta.env.DEV && (
             <div className="auth-demo-wrap" aria-label="Development Demo Accounts">
               <div className="auth-demo-title">
                 Demo accounts (development only)
               </div>
               <div className="auth-demo-chips">
-                {DEMO_ACCOUNTS.map(({ email: demoEmail, label }) => (
+                {DEMO_ACCOUNTS.map(({ email: demoEmail, label, password: demoPassword }) => (
                   <button
                     key={demoEmail}
                     type="button"
-                    onClick={() => fillDemoAccount(demoEmail)}
+                    onClick={() => fillDemoAccount(demoEmail, demoPassword)}
                     className={`auth-demo-chip ${email === demoEmail ? 'is-active' : ''}`}
                     aria-label={`Fill credentials for ${label}`}
                     title={`Fill ${demoEmail}`}
@@ -302,7 +335,7 @@ export default function SignInCard({
           )}
 
           <div className="auth-quiet-line">
-            Need an account? Ask your coordinator.
+            Demo data only. No real student records.
           </div>
         </div>
 

@@ -1,50 +1,56 @@
-import { useMemo } from 'react';
-import { Calendar, ShieldCheck, Clock, Bell, AlertTriangle } from 'lucide-react';
-import DeskIllustration from './DeskIllustration.jsx';
+/**
+ * WelcomePanel — left column of the redesigned login page.
+ * 60% width on desktop. Contains the 3D product scene and
+ * typographic context. The scene is lazy-loaded so the form
+ * is never blocked by scene initialisation.
+ */
+import { lazy, Suspense } from 'react';
 
-const FEATURE_CHIPS = [
-  { label: 'Attendance buffer', icon: ShieldCheck },
-  { label: 'Deadline radar', icon: Clock },
-  { label: 'Early-warning risk', icon: AlertTriangle },
-  { label: 'Notices & timetable', icon: Bell },
-];
+const ProductScene = lazy(() => import('./ProductScene.jsx'));
 
 export default function WelcomePanel() {
-  const formattedDate = useMemo(() => {
-    return new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    });
-  }, []);
-
   return (
-    <div className="auth-welcome-col">
-      <div className="auth-welcome-panel">
-        <div>
-          <div className="auth-date-badge">
-            <Calendar size={14} aria-hidden="true" />
-            <span>{formattedDate}</span>
-          </div>
+    <div className="auth-welcome-col" aria-hidden="true" tabIndex={-1}>
+      {/* Top metadata bar */}
+      <div className="auth-welcome-eyebrow">
+        <span className="auth-eyebrow-mono">AcadFlow</span>
+        <span className="auth-eyebrow-sep" aria-hidden="true">·</span>
+        <span className="auth-eyebrow-mono">Academic management</span>
+        <span className="auth-eyebrow-status">
+          <span className="auth-status-dot" aria-hidden="true" />
+          Live
+        </span>
+      </div>
 
-          <h1 className="auth-headline">
-            Know where you stand, before it&apos;s too late.
-          </h1>
+      {/* Main heading area */}
+      <div className="auth-welcome-heading-block">
+        <h1 className="auth-welcome-h1">
+          Know where
+          <br />
+          <em>every student</em>
+          <br />
+          stands.
+        </h1>
+        <p className="auth-welcome-subline">
+          Attendance, support signals, targeted notices and timetable — for your department.
+        </p>
+      </div>
 
-          <p className="auth-supporting">
-            Attendance buffers, deadline radar and gentle early-warning signals, all in one calm place.
-          </p>
-        </div>
+      {/* 3D product scene — lazy, decorative, aria-hidden */}
+      <div className="auth-scene-wrap">
+        <Suspense fallback={<div className="auth-scene-placeholder" />}>
+          <ProductScene />
+        </Suspense>
+      </div>
 
-        <DeskIllustration />
-
-        <div className="auth-chips-row" aria-label="Key platform features">
-          {FEATURE_CHIPS.map(({ label, icon: Icon }) => (
-            <span key={label} className="auth-chip">
-              <Icon size={13} aria-hidden="true" />
-              <span>{label}</span>
-            </span>
-          ))}
+      {/* Bottom grid rule + metadata */}
+      <div className="auth-welcome-footer-meta">
+        <div className="auth-thin-rule" />
+        <div className="auth-meta-row">
+          <span className="auth-meta-pill">Notices</span>
+          <span className="auth-meta-pill">Timetable</span>
+          <span className="auth-meta-pill">Attendance buffer</span>
+          <span className="auth-meta-pill">Early warnings</span>
         </div>
       </div>
     </div>

@@ -1,0 +1,375 @@
+/* AcadFlow — ProductScene 3D CSS panel stack
+   Uses only Holst tokens. No hex codes.
+   Layers built from CSS transforms + opacity only. */
+
+/* ── Root container ─────────────────────────────────── */
+.pscene-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  perspective: 1000px;
+  perspective-origin: 50% 45%;
+  user-select: none;
+  pointer-events: none; /* scene is decorative; click-through */
+}
+
+/* Re-enable pointer events on layers for hover labels */
+.pscene-layer {
+  pointer-events: auto;
+}
+
+/* ── Stage — receives tilt transform ────────────────── */
+.pscene-stage {
+  position: relative;
+  width: 500px;
+  height: 310px;
+  transform-style: preserve-3d;
+  /* Idle float when not reduced-motion */
+  animation: psceneFloat 5s ease-in-out infinite;
+}
+
+.pscene-root.is-reduced-motion .pscene-stage {
+  animation: none;
+}
+
+@keyframes psceneFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* ── Layers — absolute positioned, staggered in 3D ──── */
+.pscene-layer {
+  position: absolute;
+  width: auto;
+  transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity 0.2s ease;
+  transform-style: preserve-3d;
+}
+
+/* Layer 0: deepest — timetable (top-left, clash cell at Wed 10:00 exposed) */
+.pscene-layer-0 {
+  top: 0;
+  left: 0;
+  transform: translateZ(0px) translateY(calc(var(--depth, 0px)));
+}
+
+/* Layer 1: middle — notice (shifted right so timetable & clash stay visible) */
+.pscene-layer-1 {
+  top: 52px;
+  left: 225px;
+  transform: translateZ(45px) translateY(calc(var(--depth, 0px)));
+}
+
+/* Layer 2: top — support signal (bottom-center foreground) */
+.pscene-layer-2 {
+  top: 170px;
+  left: 115px;
+  transform: translateZ(90px) translateY(calc(var(--depth, 0px)));
+}
+
+/* Hovered layer lifts forward */
+.pscene-layer.is-hovered {
+  transform: translateZ(120px) translateY(-8px) !important;
+  z-index: 10;
+}
+
+.pscene-root.is-reduced-motion .pscene-layer.is-hovered {
+  transform: none !important;
+}
+
+/* ── Shared panel base ──────────────────────────────── */
+.pscene-panel {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-3) var(--space-4);
+  box-shadow:
+    0 2px 4px rgba(13, 27, 42, .08),
+    0 12px 32px rgba(13, 27, 42, .10);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.pscene-panel.is-lifted {
+  box-shadow:
+    0 4px 8px rgba(13, 27, 42, .12),
+    0 24px 48px rgba(13, 27, 42, .18);
+}
+
+/* ── Eyebrow / metadata row ─────────────────────────── */
+.pscene-panel-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;    /* 10px */
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-800);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.pscene-eyebrow-pill {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.pscene-pill-important {
+  background-color: var(--risk-bg);
+  color: var(--risk-fg);
+}
+
+/* ── Timetable panel ────────────────────────────────── */
+.pscene-timetable {
+  width: 300px;
+}
+
+.pscene-tt-grid {
+  display: grid;
+  grid-template-columns: 36px repeat(5, 1fr);
+  gap: 2px;
+}
+
+.pscene-tt-cell {
+  height: 18px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.5rem;
+  font-family: var(--font-mono);
+  position: relative;
+}
+
+.pscene-tt-corner {
+  background: transparent;
+}
+
+.pscene-tt-head {
+  background-color: var(--bg);
+  color: var(--ink-800);
+  font-weight: 700;
+  font-size: 0.5625rem;
+  letter-spacing: 0.04em;
+}
+
+.pscene-tt-time {
+  color: var(--text-muted);
+  font-size: 0.5rem;
+  justify-content: flex-end;
+  padding-right: 4px;
+}
+
+.pscene-tt-slot {
+  background-color: var(--bg);
+}
+
+.pscene-tt-slot.has-class {
+  background-color: var(--heat-1);
+}
+
+.pscene-tt-slot.has-clash {
+  background-color: var(--risk-bg);
+  outline: 1px solid var(--risk-fg);
+}
+
+.pscene-slot-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  display: block;
+}
+
+.pscene-clash-badge {
+  color: var(--risk-fg);
+  display: flex;
+  align-items: center;
+}
+
+/* ── Notice panel ───────────────────────────────────── */
+.pscene-notice {
+  width: 268px;
+}
+
+.pscene-notice-title {
+  font-family: var(--font-serif);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-900);
+  line-height: 1.3;
+  margin: 0 0 var(--space-2);
+}
+
+.pscene-notice-to {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+}
+
+.pscene-notice-to strong {
+  color: var(--ink-900);
+  font-weight: 700;
+}
+
+.pscene-notice-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pscene-deadline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background-color: var(--watch-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  color: var(--ink-800);
+  font-family: var(--font-mono);
+}
+
+.pscene-chip-check {
+  color: var(--sage);
+}
+
+/* ── Support signal panel ───────────────────────────── */
+.pscene-support {
+  width: 240px;
+}
+
+.pscene-support-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.pscene-ring-svg {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.pscene-ring-track {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 4;
+}
+
+.pscene-ring-fill {
+  fill: none;
+  stroke: var(--risk-fg);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transform-origin: center;
+  transform: rotate(-90deg);
+}
+
+.pscene-ring-text {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--ink-900);
+}
+
+.pscene-support-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pscene-needs-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background-color: var(--risk-bg);
+  color: var(--risk-fg);
+  border-radius: var(--radius-pill);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+}
+
+.pscene-student-name {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--ink-900);
+  margin: 0 0 2px;
+}
+
+.pscene-student-meta {
+  font-size: 0.5625rem;
+  color: var(--text-muted);
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+/* ── Hover tooltip ──────────────────────────────────── */
+.pscene-tooltip {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--ink-900);
+  color: var(--on-dark);
+  font-size: 0.6875rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+  z-index: 20;
+}
+
+.pscene-tooltip.is-visible {
+  opacity: 1;
+}
+
+.pscene-root.is-reduced-motion .pscene-tooltip {
+  transition: none;
+}
+
+/* ── Ground shadow ──────────────────────────────────── */
+.pscene-ground-shadow {
+  width: 240px;
+  height: 20px;
+  background: radial-gradient(ellipse at center, rgba(13,27,42,0.12) 0%, transparent 70%);
+  margin-top: var(--space-4);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Reduced motion — static stacked look ───────────── */
+.pscene-root.is-reduced-motion .pscene-layer-0 {
+  transform: none;
+}
+.pscene-root.is-reduced-motion .pscene-layer-1 {
+  transform: none;
+}
+.pscene-root.is-reduced-motion .pscene-layer-2 {
+  transform: none;
+}

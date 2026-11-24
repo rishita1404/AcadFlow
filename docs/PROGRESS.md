@@ -242,4 +242,22 @@
     - Full backend pytest suite: **259/259 passed** (100%) with SQLite `PRAGMA foreign_keys=ON`.
     - Full frontend Vitest suite: **44/44 passed across 10 test files** (100%).
 
+### Login Page Redesign
+- [x] **Done**:
+  - Asymmetric 60/40 split desktop layout reusing exact Holst palette tokens from `tokens.css` (`--bg`, `--surface`, `--border`, `--ink-900`, `--accent`, `--risk-bg`, `--risk-fg`) and existing typography (`--font-serif`, `--font-sans`, `--font-mono`) with zero new dependencies.
+  - Lazy-loaded CSS 3D perspective scene (`ProductScene.jsx` + `ProductScene.css`) with three staggered product layers:
+    1. Weekly timetable slab (`Semester V · Sec B`) with `Wed 10:00` amber clash marker.
+    2. Notice card (`Sent to: Sem 5, Section B` and detected deadline chip).
+    3. Early support signal card (`59%` attendance ring + `Needs support` icon-and-text badge).
+  - Cursor-reactive 3D tilt (max 12 degrees), per-layer Z parallax, hover Z-lift with single-line labels (`Timetable with clash warnings`, `Targeted notices`, `Early support signals`), subtle idle float, and full `prefers-reduced-motion` static fallback (`aria-hidden="true"`, `tabIndex={-1}`, non-blocking).
+  - Preserved all login behaviour, validation, 401/403/429 error states, accessible labels, show/hide password toggle, and added 3D press effect on submit button.
+  - Updated copy (`Sign in to AcadFlow`, `Attendance support, notices and timetables for your department.`, `Demo data only. No real student records.`), added `VITE_DEMO_MODE=false` to `.env.example`, and gated demo credential chips (`Student`, `Faculty`, `Mentor and coordinator`, `Trainer`, `Dean`, `Admin`) on `VITE_DEMO_MODE=true` (and dev mode).
+  - Fixed two pre-existing Vite build syntax errors in `StudentNotices.jsx` and `FacultyAssignments.jsx`.
+  - Frontend Vitest suite: **51/51 passed across 11 test files** (including `LoginPage.test.jsx` and `ProductScene.test.jsx`).
+  - Production build (`vite build`):
+    - Before: `index.js` `1,275.13 kB` (`307.41 kB` gzip), `index.css` `13.79 kB` (`3.33 kB` gzip).
+    - After: `index.js` `1,273.39 kB` (`307.34 kB` gzip), `ProductScene.js` `5.82 kB` (`1.98 kB` gzip, lazy chunk), `index.css` `22.36 kB` (`5.02 kB` gzip).
+  - Saved before/after screenshots in `docs/evidence/login-redesign/before.png` and `docs/evidence/login-redesign/after.png`.
+
+
 

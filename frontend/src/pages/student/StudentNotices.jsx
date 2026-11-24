@@ -159,7 +159,7 @@ export default function StudentNotices() {
             </p>
             {selectedNotice.audience_summary && (
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 'var(--space-3)' }}>
-                Sent to: <strong style={{ color: 'var(--ink-900)' }}>{selectedNotice.audience_summary}</strong>{selectedNotice.reason ?  () : ''}
+                Sent to: <strong style={{ color: 'var(--ink-900)' }}>{selectedNotice.audience_summary}</strong>{selectedNotice.reason ? ` — ${selectedNotice.reason}` : ''}
               </div>
             )}
             {selectedNotice.link && (
