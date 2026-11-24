@@ -150,7 +150,7 @@ def phase5_setup(db_session: Session):
 
 def test_needs_attention_forbidden_for_student(client: TestClient, phase5_setup):
     headers = _auth_headers(phase5_setup["stu1_user"].id, "student", phase5_setup["stu1_user"].email)
-    resp = client.get("/api/v1/courses/needs-attention", headers=headers)
+    resp = client.get("/api/v1/faculty/needs-attention", headers=headers)
     assert resp.status_code == 403
     assert "FORBIDDEN" in str(resp.json()).upper()
 
@@ -158,7 +158,7 @@ def test_needs_attention_forbidden_for_student(client: TestClient, phase5_setup)
 def test_needs_attention_unassigned_course_forbidden(client: TestClient, phase5_setup):
     # fac2 tries to access needs-attention for course1 which is taught by fac1
     headers = _auth_headers(phase5_setup["fac2"].id, "faculty", phase5_setup["fac2"].email)
-    resp = client.get(f"/api/v1/courses/needs-attention?course_id={phase5_setup['course1'].id}", headers=headers)
+    resp = client.get(f"/api/v1/courses/{phase5_setup['course1'].id}/needs-attention", headers=headers)
     assert resp.status_code == 403
     assert "FORBIDDEN" in str(resp.json()).upper()
 
@@ -186,7 +186,7 @@ def test_needs_attention_detects_consecutive_absences(client: TestClient, db_ses
     db_session.commit()
 
     headers = _auth_headers(fac1.id, "faculty", fac1.email)
-    resp = client.get(f"/api/v1/courses/needs-attention?course_id={course1.id}", headers=headers)
+    resp = client.get(f"/api/v1/faculty/needs-attention?course_id={course1.id}", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) >= 1
@@ -225,7 +225,7 @@ def test_needs_attention_detects_band_drop(client: TestClient, db_session: Sessi
     db_session.commit()
 
     headers = _auth_headers(fac1.id, "faculty", fac1.email)
-    resp = client.get(f"/api/v1/courses/needs-attention?course_id={course1.id}", headers=headers)
+    resp = client.get(f"/api/v1/courses/{course1.id}/needs-attention", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
 
@@ -383,3 +383,79 @@ def test_attendance_undo_forbidden_for_student(client: TestClient, phase5_setup)
     )
     assert resp.status_code == 403
     assert "FORBIDDEN" in str(resp.json()).upper()
+
+
+def test_removed_phase5_duplicate_routes_return_404_or_405(client: TestClient, phase5_setup):
+    fac1 = phase5_setup["fac1"]
+    headers = _auth_headers(fac1.id, "faculty", fac1.email)
+
+    # 1. /courses/needs-attention is removed (only /faculty/needs-attention and /courses/{id}/needs-attention exist)
+    r1 = client.get("/api/v1/courses/needs-attention", headers=headers)
+    # Since {course_id} is an integer path param, non-int string matches 422 or 404
+    assert r1.status_code in (404, 422)
+
+    # 2. /attendance/preview is removed
+    r2 = client.post("/api/v1/attendance/preview", headers=headers)
+    assert r2.status_code in (404, 405)
+
+    # 3. /attendance/undo is removed
+    r3 = client.post("/api/v1/attendance/undo", headers=headers)
+    assert r3.status_code in (404, 405)
+
+
+def test_attendance_undo_only_most_recent_batch_otherwise_409(client: TestClient, phase5_setup):
+    course1 = phase5_setup["course1"]
+    fac1 = phase5_setup["fac1"]
+    stu1 = phase5_setup["stu1"]
+    headers = _auth_headers(fac1.id, "faculty", fac1.email)
+
+    today = date.today()
+    d1 = (today - timedelta(days=6)).isoformat()
+    d2 = (today - timedelta(days=5)).isoformat()
+
+    # Upload Batch 1
+    csv1 = f"roll_no,date,status\n{stu1.roll_no},{d1},present\n"
+    res1 = client.post(
+        "/api/v1/attendance/upload",
+        headers=headers,
+        files={"file": ("batch1.csv", csv1.encode("utf-8"), "text/csv")},
+        data={"course_id": str(course1.id)},
+    )
+    assert res1.status_code == 200
+    batch1_id = res1.json()["batch_id"]
+
+    # Upload Batch 2
+    csv2 = f"roll_no,date,status\n{stu1.roll_no},{d2},present\n"
+    res2 = client.post(
+        "/api/v1/attendance/upload",
+        headers=headers,
+        files={"file": ("batch2.csv", csv2.encode("utf-8"), "text/csv")},
+        data={"course_id": str(course1.id)},
+    )
+    assert res2.status_code == 200
+    batch2_id = res2.json()["batch_id"]
+    assert batch2_id > batch1_id
+
+    # Attempt to undo Batch 1 while Batch 2 is the most recent active batch -> MUST return 409
+    undo_old = client.post(
+        f"/api/v1/courses/{course1.id}/attendance/undo?batch_id={batch1_id}",
+        headers=headers,
+    )
+    assert undo_old.status_code == 409
+    assert "Only the most recent attendance upload batch" in str(undo_old.json())
+
+    # Undo Batch 2 (most recent) -> succeeds
+    undo_b2 = client.post(
+        f"/api/v1/courses/{course1.id}/attendance/undo?batch_id={batch2_id}",
+        headers=headers,
+    )
+    assert undo_b2.status_code == 200
+    assert undo_b2.json()["success"] is True
+
+    # Now Batch 1 is the most recent non-undone batch -> undoing Batch 1 succeeds!
+    undo_b1 = client.post(
+        f"/api/v1/courses/{course1.id}/attendance/undo?batch_id={batch1_id}",
+        headers=headers,
+    )
+    assert undo_b1.status_code == 200
+    assert undo_b1.json()["success"] is True

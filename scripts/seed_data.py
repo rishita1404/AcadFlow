@@ -55,7 +55,7 @@ def get_engine():
         engine.connect().close()
         return engine
     except Exception:
-        sqlite_path = str(BACKEND_DIR / "acadflow.db")
+        sqlite_path = os.environ.get("ACADFLOW_DB_PATH", str(BACKEND_DIR / "acadflow.db"))
         print(f"[INFO] PostgreSQL unavailable, seeding into SQLite: {sqlite_path}")
         return create_engine(f"sqlite:///{sqlite_path}", echo=False)
 
@@ -951,10 +951,12 @@ def seed_all(session=None, engine=None) -> dict:
                 counts["interventions"] += 1
 
             # ── Phase 4: Synthetic Multi-Week Risk Snapshots for Trends ─────────
-            from app.models.risk import RiskSnapshotModel
+            from app.models.risk import RiskConfigModel, RiskSnapshotModel
             now_dt = datetime.now(timezone.utc)
             course_obj = _session.scalar(select(CourseModel).where(CourseModel.code == "CS101"))
             c_snap_id = course_obj.id if course_obj else 1
+            risk_cfg = _session.scalar(select(RiskConfigModel))
+            cfg_id = risk_cfg.id if risk_cfg else 1
 
             students_bands = [
                 (riya_id, [("Safe", Decimal("15.0"))] * 8),
@@ -982,6 +984,7 @@ def seed_all(session=None, engine=None) -> dict:
                             score=b_score,
                             band=b_name,
                             worst_course_id=c_snap_id,
+                            config_id=cfg_id,
                         ))
                         counts.setdefault("risk_snapshots", 0)
                         counts["risk_snapshots"] += 1

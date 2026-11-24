@@ -7,7 +7,7 @@ room master management, versioning & restore, diff preview, targeted notificatio
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -17,10 +17,12 @@ from app.models import (
     CourseModel,
     DepartmentModel,
     EnrolmentModel,
+    NotificationModel,
     SemesterModel,
     StudentModel,
     UserModel,
 )
+from app.models.attendance import AttendanceRecordModel, ClassSessionModel
 from app.models.audit import AuditLogModel
 from app.models.timetable import (
     PeriodConfigModel,
@@ -658,3 +660,371 @@ def test_room_master_management_and_scoping(client: TestClient, db_session: Sess
     # 6. Delete room
     res_del = client.delete(f"{BASE}/timetable/rooms/{room_id}", headers=coord1_headers)
     assert res_del.status_code == 200
+
+
+def test_replaced_teacher_is_notified_and_grouped_notifications_per_person(client: TestClient, db_session: Session):
+    """
+    Publish notification delivery:
+    - Replaced teacher is notified of the reassignment.
+    - Newly assigned teacher is notified.
+    - Enrolled student is notified.
+    - Each affected user receives one grouped notification containing only their own changes.
+    """
+    data = _setup_timetable_data(client, db_session)
+    coord1_headers = _bearer(client, "partb_coord1@acadflow.edu")
+
+    # 1. Publish Initial Version: Course 1 taught by Faculty 1
+    draft_res = client.post(f"{BASE}/timetable/versions", json={
+        "department_id": data["dept1"].id,
+        "semester_id": data["sem"].id,
+        "name": "Version 1 Initial",
+        "effective_from": "2026-09-01",
+    }, headers=coord1_headers)
+    assert draft_res.status_code == 201
+    v1_id = draft_res.json()["id"]
+
+    client.put(f"{BASE}/timetable/draft", json={
+        "version_id": v1_id,
+        "slots": [{
+            "course_id": data["c1"].id,
+            "teacher_id": data["fac1"].id,
+            "room_id": data["r1"].id,
+            "day": 0,
+            "period_label": "P1",
+            "start_time": "09:00",
+            "end_time": "10:00",
+            "section": "A",
+            "kind": "lecture",
+        }],
+    }, headers=coord1_headers)
+
+    pub1 = client.post(f"{BASE}/timetable/publish", json={"version_id": v1_id}, headers=coord1_headers)
+    assert pub1.status_code == 200
+
+    # Clear notifications from initial publish
+    db_session.query(NotificationModel).delete()
+    db_session.commit()
+
+    # 2. Create Version 2: Replaces Faculty 1 with Faculty 2 on Course 1
+    draft2_res = client.post(f"{BASE}/timetable/versions", json={
+        "department_id": data["dept1"].id,
+        "semester_id": data["sem"].id,
+        "name": "Version 2 Replaced Teacher",
+        "effective_from": "2026-10-01",
+    }, headers=coord1_headers)
+    assert draft2_res.status_code == 201
+    v2_id = draft2_res.json()["id"]
+
+    client.put(f"{BASE}/timetable/draft", json={
+        "version_id": v2_id,
+        "slots": [{
+            "course_id": data["c1"].id,
+            "teacher_id": data["fac2"].id,  # Replaced fac1 with fac2
+            "room_id": data["r1"].id,
+            "day": 0,
+            "period_label": "P1",
+            "start_time": "09:00",
+            "end_time": "10:00",
+            "section": "A",
+            "kind": "lecture",
+        }],
+    }, headers=coord1_headers)
+
+    pub2 = client.post(f"{BASE}/timetable/publish", json={"version_id": v2_id}, headers=coord1_headers)
+    assert pub2.status_code == 200
+
+    # 3. Verify notifications
+    fac1_notifs = db_session.scalars(
+        select(NotificationModel).where(NotificationModel.recipient_id == data["fac1"].id)
+    ).all()
+    assert len(fac1_notifs) == 1
+    assert "reassigned" in fac1_notifs[0].message.lower()
+
+    fac2_notifs = db_session.scalars(
+        select(NotificationModel).where(NotificationModel.recipient_id == data["fac2"].id)
+    ).all()
+    assert len(fac2_notifs) == 1
+    assert "assigned to you" in fac2_notifs[0].message.lower()
+
+    stu1_notifs = db_session.scalars(
+        select(NotificationModel).where(NotificationModel.recipient_id == data["stu1"].id)
+    ).all()
+    assert len(stu1_notifs) == 1
+    assert "instructor changed to" in stu1_notifs[0].message
+
+
+def test_no_diff_means_zero_notifications(client: TestClient, db_session: Session):
+    """
+    When publishing a new timetable version with zero slot changes vs published,
+    zero notifications are created.
+    """
+    data = _setup_timetable_data(client, db_session)
+    coord1_headers = _bearer(client, "partb_coord1@acadflow.edu")
+
+    # Version A
+    v_a = client.post(f"{BASE}/timetable/versions", json={
+        "department_id": data["dept1"].id,
+        "semester_id": data["sem"].id,
+        "name": "Version A",
+    }, headers=coord1_headers).json()["id"]
+
+    client.put(f"{BASE}/timetable/draft", json={
+        "version_id": v_a,
+        "slots": [{
+            "course_id": data["c1"].id,
+            "teacher_id": data["fac1"].id,
+            "room_id": data["r1"].id,
+            "day": 2,
+            "period_label": "P2",
+            "start_time": "10:00",
+            "end_time": "11:00",
+            "section": "A",
+            "kind": "lecture",
+        }],
+    }, headers=coord1_headers)
+    client.post(f"{BASE}/timetable/publish", json={"version_id": v_a}, headers=coord1_headers)
+
+    # Clear notifications
+    db_session.query(NotificationModel).delete()
+    db_session.commit()
+
+    # Version B: identical slot
+    v_b = client.post(f"{BASE}/timetable/versions", json={
+        "department_id": data["dept1"].id,
+        "semester_id": data["sem"].id,
+        "name": "Version B Identical",
+    }, headers=coord1_headers).json()["id"]
+
+    client.put(f"{BASE}/timetable/draft", json={
+        "version_id": v_b,
+        "slots": [{
+            "course_id": data["c1"].id,
+            "teacher_id": data["fac1"].id,
+            "room_id": data["r1"].id,
+            "day": 2,
+            "period_label": "P2",
+            "start_time": "10:00",
+            "end_time": "11:00",
+            "section": "A",
+            "kind": "lecture",
+        }],
+    }, headers=coord1_headers)
+
+    pub_b = client.post(f"{BASE}/timetable/publish", json={"version_id": v_b}, headers=coord1_headers)
+    assert pub_b.status_code == 200
+
+    # Assert exactly 0 notifications created
+    notifs_count = db_session.scalar(select(NotificationModel))
+    assert notifs_count is None
+
+
+def test_multi_period_lab_clash_detection_and_back_to_back(client: TestClient, db_session: Session):
+    """
+    Test multi-period lab clash behavior:
+    - Lab spanning multiple periods (14:00 - 16:00) clashes with another class in the same room (15:00 - 16:00).
+    - Lab does NOT clash with back-to-back classes (13:00 - 14:00 or 16:00 - 17:00).
+    """
+    from app.api.v1.endpoints.timetable import detect_clashes
+
+    data = _setup_timetable_data(client, db_session)
+    room = data["r1"]
+
+    # Slot 1: 2-period lab spanning 14:00 to 16:00
+    lab_slot = TimetableSlotModel(
+        version_id=1,
+        course_id=data["c1"].id,
+        teacher_id=data["fac1"].id,
+        room_id=room.id,
+        day=0,
+        period_label="P5-P6",
+        start_time="14:00",
+        end_time="16:00",
+        section="A",
+        kind="lab",
+    )
+
+    # Slot 2: Overlapping lecture in same room during 15:00 to 16:00
+    overlap_slot = TimetableSlotModel(
+        version_id=1,
+        course_id=data["c2"].id,
+        teacher_id=data["fac2"].id,
+        room_id=room.id,
+        day=0,
+        period_label="P6",
+        start_time="15:00",
+        end_time="16:00",
+        section="B",
+        kind="lecture",
+    )
+
+    # Slot 3: Back-to-back lecture right before the lab (13:00 - 14:00)
+    before_slot = TimetableSlotModel(
+        version_id=1,
+        course_id=data["c2"].id,
+        teacher_id=data["fac2"].id,
+        room_id=room.id,
+        day=0,
+        period_label="P4",
+        start_time="13:00",
+        end_time="14:00",
+        section="B",
+        kind="lecture",
+    )
+
+    # Slot 4: Back-to-back lecture right after the lab (16:00 - 17:00)
+    after_slot = TimetableSlotModel(
+        version_id=1,
+        course_id=data["c2"].id,
+        teacher_id=data["fac2"].id,
+        room_id=room.id,
+        day=0,
+        period_label="P7",
+        start_time="16:00",
+        end_time="17:00",
+        section="B",
+        kind="lecture",
+    )
+
+    # 1. Lab + Overlapping slot -> MUST CLASH
+    clashes_with_overlap = detect_clashes([lab_slot, overlap_slot], db=db_session)
+    assert len(clashes_with_overlap) == 1
+    assert clashes_with_overlap[0]["type"] in ("room", "room_overlap")
+
+    # 2. Lab + Back-to-back before + Back-to-back after -> MUST NOT CLASH
+    clashes_back_to_back = detect_clashes([lab_slot, before_slot, after_slot], db=db_session)
+    assert len(clashes_back_to_back) == 0
+
+
+def test_restoring_version_leaves_past_attendance_and_sessions_untouched(client: TestClient, db_session: Session):
+    """
+    Restoring a timetable version creates a fresh draft but guarantees that
+    all past sessions and student attendance records are completely untouched.
+    """
+    data = _setup_timetable_data(client, db_session)
+    coord1_headers = _bearer(client, "partb_coord1@acadflow.edu")
+
+    # Create past session and attendance record
+    past_date = date.today() - timedelta(days=14)
+    past_sess = ClassSessionModel(
+        course_id=data["c1"].id,
+        held_on=past_date,
+        is_cancelled=False,
+    )
+    db_session.add(past_sess)
+    db_session.flush()
+
+    past_att = AttendanceRecordModel(
+        student_id=data["stu1"].id,
+        session_id=past_sess.id,
+        status="present",
+        marked_by=data["fac1"].id,
+        marked_at=datetime.now(timezone.utc),
+    )
+    db_session.add(past_att)
+    db_session.commit()
+
+    saved_sess_id = past_sess.id
+    saved_att_id = past_att.id
+
+    # Create and publish a version
+    v_orig = client.post(f"{BASE}/timetable/versions", json={
+        "department_id": data["dept1"].id,
+        "semester_id": data["sem"].id,
+        "name": "Version for Past Test",
+    }, headers=coord1_headers).json()["id"]
+
+    client.put(f"{BASE}/timetable/draft", json={
+        "version_id": v_orig,
+        "slots": [{
+            "course_id": data["c1"].id,
+            "teacher_id": data["fac1"].id,
+            "room_id": data["r1"].id,
+            "day": 1,
+            "period_label": "P1",
+            "start_time": "09:00",
+            "end_time": "10:00",
+            "section": "A",
+            "kind": "lecture",
+        }],
+    }, headers=coord1_headers)
+    client.post(f"{BASE}/timetable/publish", json={"version_id": v_orig}, headers=coord1_headers)
+
+    # Restore the version
+    res_restore = client.post(f"{BASE}/timetable/versions/{v_orig}/restore", headers=coord1_headers)
+    assert res_restore.status_code == 200
+
+    # Verify past session and attendance record are 100% intact
+    sess_check = db_session.get(ClassSessionModel, saved_sess_id)
+    assert sess_check is not None
+    assert sess_check.held_on == past_date
+    assert sess_check.is_cancelled is False
+
+    att_check = db_session.get(AttendanceRecordModel, saved_att_id)
+    assert att_check is not None
+    assert att_check.status == "present"
+    assert att_check.student_id == data["stu1"].id
+
+
+def test_teacher_own_timetable_shows_both_classes_in_clashing_slot_with_conflict_marker(client: TestClient, db_session: Session):
+    """
+    Teacher own schedule (/timetable/me) must return both classes in a clashing slot
+    with conflict markers (is_clash=True and clash_reason).
+    """
+    data = _setup_timetable_data(client, db_session)
+    coord1_headers = _bearer(client, "partb_coord1@acadflow.edu")
+    fac1_headers = _bearer(client, "partb_faculty1@acadflow.edu")
+
+    # Publish timetable with teacher clash: fac1 assigned to two courses at Tue 10:00-11:00
+    v_clash = client.post(f"{BASE}/timetable/versions", json={
+        "department_id": data["dept1"].id,
+        "semester_id": data["sem"].id,
+        "name": "Version Teacher Clash",
+    }, headers=coord1_headers).json()["id"]
+
+    client.put(f"{BASE}/timetable/draft", json={
+        "version_id": v_clash,
+        "slots": [
+            {
+                "course_id": data["c1"].id,
+                "teacher_id": data["fac1"].id,
+                "room_id": data["r1"].id,
+                "day": 1,
+                "period_label": "P2",
+                "start_time": "10:00",
+                "end_time": "11:00",
+                "section": "A",
+                "kind": "lecture",
+            },
+            {
+                "course_id": data["c2"].id,
+                "teacher_id": data["fac1"].id,
+                "room_id": data["r2"].id,
+                "day": 1,
+                "period_label": "P2",
+                "start_time": "10:00",
+                "end_time": "11:00",
+                "section": "B",
+                "kind": "lecture",
+            },
+        ],
+    }, headers=coord1_headers)
+
+    # Publish with conflicts confirmed
+    pub_res = client.post(f"{BASE}/timetable/publish", json={
+        "version_id": v_clash,
+        "publish_with_conflicts": True,
+    }, headers=coord1_headers)
+    assert pub_res.status_code == 200
+
+    # Query teacher's own timetable
+    me_res = client.get(f"{BASE}/timetable/me", headers=fac1_headers)
+    assert me_res.status_code == 200
+    slots = me_res.json()
+
+    # Find the slots on Day 1, P2
+    clashing_slots = [s for s in slots if s["day"] == 1 and s["period_label"] == "P2"]
+    assert len(clashing_slots) == 2, "Teacher schedule must return both classes in the clashing slot"
+    for s in clashing_slots:
+        assert s["is_clash"] is True, "Slot must be flagged with is_clash=True"
+        assert s["clash_reason"] is not None, "Slot must include clash_reason"
+

@@ -67,14 +67,23 @@ def upgrade() -> None:
     op.create_index("ix_users_email", "users", ["email"], unique=True)
 
     # Add circular foreign key for organizations.head_user_id
-    op.create_foreign_key(
-        "fk_organizations_head_user_id",
-        "organizations",
-        "users",
-        ["head_user_id"],
-        ["id"],
-        use_alter=True,
-    )
+    if op.get_bind().dialect.name == "sqlite":
+        with op.batch_alter_table("organizations") as batch_op:
+            batch_op.create_foreign_key(
+                "fk_organizations_head_user_id",
+                "users",
+                ["head_user_id"],
+                ["id"],
+            )
+    else:
+        op.create_foreign_key(
+            "fk_organizations_head_user_id",
+            "organizations",
+            "users",
+            ["head_user_id"],
+            ["id"],
+            use_alter=True,
+        )
 
     # 4. students
     op.create_table(

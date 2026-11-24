@@ -166,3 +166,35 @@
     - Backend integration tests in `backend/tests/integration/test_partB_timetable.py` (10 tests covering 403 RBAC, non-blocking drafts, back-to-back non-clashes vs overlap clashes, 422 publish guard, publish-with-conflicts audit log, diff preview, version restore, room master CRUD). Full backend suite passing: **247/247 passed**.
     - Frontend Vitest tests in `frontend/src/pages/__tests__/TimetableManager.test.jsx` (5 tests covering entry screen, 5-step wizard progression, publish dialog with impact preview & conflict confirmation, Room Master management, visual grid editor). Full frontend suite passing: **43/43 passed across 10 test files**.
     - Synthetic seed data extended in `scripts/seed_data.py` with rooms, sections, published timetable with conflicts, and draft timetable with warnings.
+
+### Hardening Pass (No New Features)
+- [x] **Done**:
+  - 1. Test mapping and edge cases added:
+    - Mapped all Part A (12 tests in `test_partA_notices.py`) and Part B (15 tests in `test_partB_timetable.py`) tests to specifications.
+    - Added comprehensive edge-case tests:
+      - `test_replaced_teacher_is_notified_and_grouped_notifications_per_person`: ensures replaced teachers receive notification of reassignment and each recipient receives exactly one grouped notification containing only their personal slot changes.
+      - `test_no_diff_means_zero_notifications`: verifies publishing identical timetable creates zero notifications.
+      - `test_multi_period_lab_clash_detection_and_back_to_back`: verifies back-to-back classes (e.g. 09:00-10:00 and 10:00-11:00) do NOT clash, while multi-period lab spanning periods overlaps properly flag clashes.
+      - `test_restoring_version_leaves_past_attendance_and_sessions_untouched`: verifies restoring an older timetable version does not delete or alter historical class sessions or attendance records.
+      - `test_teacher_own_timetable_shows_both_classes_in_clashing_slot_with_conflict_marker`: verifies teacher timetable returns both classes in overlapping slot.
+  - 2. Teacher's own timetable clashing slot view:
+    - Updated `FacultyTimetable.jsx` to render both classes in a clashing slot with an overlapping marker (`AlertTriangle` icon + "Overlapping class") and a "Conflict (2 Classes)" badge.
+    - Added frontend test in `TimetableManager.test.jsx`.
+  - 3. Publish with conflicts UI confirmation dialog:
+    - Confirmed and verified that `CoordinatorTimetable.jsx` and `CoordinatorTimetableEditor.jsx` open the confirmation modal with the "Publish with N conflict(s)" checkbox and do not block with an error message.
+  - 4. Duplicate Phase 5 routes cleanup:
+    - Kept canonical routes `/courses/{id}/attendance/preview`, `/courses/{id}/attendance/undo`, `/faculty/needs-attention`, and `/courses/{id}/needs-attention`.
+    - Removed redundant route aliases `/attendance/preview`, `/attendance/undo`, and duplicate `/courses/needs-attention`.
+    - Updated `frontend/src/api/endpoints.js` and added test `test_removed_phase5_duplicate_routes_return_404_or_405`.
+  - 5. Attendance undo restricted to most recent non-undone batch:
+    - Updated `csv_ingest.py` and `courses.py` to enforce that only the latest non-undone batch per course can be undone; attempting to undo an older batch returns HTTP 409 Conflict with a clear message.
+    - Added test `test_attendance_undo_only_most_recent_batch_otherwise_409`.
+  - 6. Configuration and migration safety:
+    - Confirmed `.env.example` lists all new settings (`MISSED_SUB_INTERVAL_HOURS`, `CONDONATION_FLOOR_PCT`, `REQUIRE_CONDONATION_RECOMMENDATION`, `COLLISION_WARNING_THRESHOLD`, `NOTICE_REACH_THRESHOLD`, `NOTICE_DAILY_RATE_LIMIT`).
+    - Hardened Alembic migrations (`001_initial_schema.py`, `002_new_features.py`, `008_partA_notices.py`, `009_partB_timetable.py`) to safely apply cleanly on a completely empty fresh database from scratch as well as incrementally.
+    - Fixed `scripts/seed_data.py` to ensure all foreign keys (such as `risk_snapshots.config_id`) are populated deterministically.
+    - Verified migrations 001-009 apply cleanly and `seed_data.py` completes with zero errors on a fresh database.
+  - 7. Full test suite execution:
+    - Full backend pytest suite: **254/254 passed** in 24.27s (100%).
+    - Full frontend Vitest suite: **44/44 passed across 10 test files** in 10.22s (100%).
+

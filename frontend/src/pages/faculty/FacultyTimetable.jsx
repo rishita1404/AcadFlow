@@ -3,6 +3,7 @@ import { timetableApi } from '../../api/endpoints.js';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '../../components/ui/Skeleton.jsx';
 import { useAuth } from '../../app/AuthContext.jsx';
+import { AlertTriangle } from 'lucide-react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERIODS = ['P1 (09:00 - 10:00)', 'P2 (10:00 - 11:00)', 'P3 (11:15 - 12:15)', 'P4 (12:15 - 13:15)', 'P5 (14:00 - 15:00)', 'P6 (15:00 - 16:00)'];
@@ -152,7 +153,7 @@ export default function FacultyTimetable() {
                     </td>
                     {PERIOD_KEYS.map(periodKey => {
                       const cellSlots = slotGrid[dayIdx]?.[periodKey] || [];
-                      const isClash = cellSlots.length > 1;
+                      const isClash = cellSlots.length > 1 || cellSlots.some(s => s.is_clash);
 
                       return (
                         <td
@@ -171,10 +172,12 @@ export default function FacultyTimetable() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               {isClash && (
                                 <div style={{
-                                  background: 'var(--crit-fg)', color: 'var(--surface)', fontSize: 10, fontWeight: 800,
-                                  padding: '2px 6px', borderRadius: 'var(--radius-pill)', textAlign: 'center', textTransform: 'uppercase',
+                                  background: 'var(--crit-bg)', border: '1px solid var(--crit-fg)', color: 'var(--crit-fg)',
+                                  fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--radius-pill)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                                  textAlign: 'center', textTransform: 'uppercase',
                                 }}>
-                                  ⚠️ Clash ({cellSlots.length} Classes)
+                                  <AlertTriangle size={12} /> Conflict ({cellSlots.length} Classes)
                                 </div>
                               )}
                               {cellSlots.map((s, sIdx) => {
@@ -202,6 +205,14 @@ export default function FacultyTimetable() {
                                       <span>Sec: {s.section || 'A'}</span>
                                       <span>📍 {s.room_name || 'Room 101'}</span>
                                     </div>
+                                    {s.is_clash && (
+                                      <div style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4,
+                                        fontSize: 10, fontWeight: 700, color: 'var(--crit-fg)',
+                                      }}>
+                                        <AlertTriangle size={11} /> Overlapping class
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}

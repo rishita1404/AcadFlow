@@ -561,22 +561,29 @@ def undo_attendance_upload(
     and logging an audit record.
     """
     from app.core.audit import AuditAction, AuditLogger
+    from app.core.errors import ConflictError
     from app.models.attendance import AttendanceRecordModel, AttendanceUploadBatchModel, ClassSessionModel
     from app.models.enrollment import EnrolmentModel
     from app.services.risk_data import persist_risk_snapshot
 
-    query = select(AttendanceUploadBatchModel).where(
-        AttendanceUploadBatchModel.course_id == course_id,
-        AttendanceUploadBatchModel.is_undone == False,
+    latest_batch = db.scalar(
+        select(AttendanceUploadBatchModel)
+        .where(
+            AttendanceUploadBatchModel.course_id == course_id,
+            AttendanceUploadBatchModel.is_undone == False,
+        )
+        .order_by(AttendanceUploadBatchModel.uploaded_at.desc(), AttendanceUploadBatchModel.id.desc())
     )
-    if batch_id:
-        query = query.where(AttendanceUploadBatchModel.id == batch_id)
-    else:
-        query = query.order_by(AttendanceUploadBatchModel.uploaded_at.desc())
-
-    batch = db.scalar(query)
-    if not batch:
+    if not latest_batch:
         raise ValueError("No active attendance upload found to undo.")
+
+    if batch_id is not None and batch_id != latest_batch.id:
+        raise ConflictError(
+            f"Only the most recent attendance upload batch (batch #{latest_batch.id}) can be undone. "
+            f"Batch #{batch_id} is an older batch and cannot be undone out of order."
+        )
+
+    batch = latest_batch
 
     backup = {}
     if batch.backup_data:

@@ -18,8 +18,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Drop the old stub notifications table (only id column)
-    op.drop_table("notifications")
+    # Drop the old stub notifications table (only id column) if it exists
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "notifications" in inspector.get_table_names():
+        op.drop_table("notifications")
 
     # 1. Full notifications table
     op.create_table(

@@ -95,7 +95,6 @@ def create_course(
     return CourseOut.model_validate(course)
 
 
-@router.get("/needs-attention", summary="Students needing attention this week across courses (faculty)")
 def get_needs_attention(
     course_id: Optional[int] = Query(None, description="Optional course filter"),
     db: Session = Depends(get_db),
@@ -342,6 +341,7 @@ def undo_attendance(
             raise ForbiddenError("You are not assigned to instruct or undo attendance for this course.")
 
     from app.services.csv_ingest import undo_attendance_upload
+    from app.core.errors import ConflictError
     try:
         return undo_attendance_upload(
             db=db,
@@ -349,6 +349,8 @@ def undo_attendance(
             user_id=actor_id,
             batch_id=batch_id,
         )
+    except ConflictError:
+        raise
     except ValueError as exc:
         from fastapi import HTTPException
         raise HTTPException(

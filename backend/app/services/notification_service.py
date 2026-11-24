@@ -71,6 +71,32 @@ def _upsert_notification(
     return notif
 
 
+def create_in_app_notification(
+    db: Session,
+    user_id: int,
+    title: str,
+    message: str,
+    notif_type: str = "info",
+    dedup_key: Optional[str] = None,
+) -> Optional[NotificationModel]:
+    """
+    Create an in-app notification directly for any user.
+    """
+    import uuid
+    valid_kinds = ('warning', 'reminder', 'alert', 'info', 'critical')
+    kind = notif_type if notif_type in valid_kinds else 'info'
+    if not dedup_key:
+        dedup_key = f"inapp:{user_id}:{datetime.now(timezone.utc).isoformat()}:{uuid.uuid4().hex[:8]}"
+    return _upsert_notification(
+        db=db,
+        recipient_id=user_id,
+        title=title,
+        message=message,
+        kind=kind,
+        dedup_key=dedup_key,
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Auto-trigger: Attendance Buffer Warnings
 # ─────────────────────────────────────────────────────────────────────────────

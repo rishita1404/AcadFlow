@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import CoordinatorTimetable from '../coordinator/CoordinatorTimetable.jsx';
 import CoordinatorTimetableEditor from '../coordinator/CoordinatorTimetableEditor.jsx';
+import FacultyTimetable from '../faculty/FacultyTimetable.jsx';
 
 vi.mock('../../app/AuthContext.jsx', () => ({
   useAuth: () => ({
@@ -133,6 +134,42 @@ vi.mock('../../api/endpoints.js', () => ({
     }),
     deleteRoom: vi.fn().mockResolvedValue({ data: { deleted: true } }),
     copyDay: vi.fn().mockResolvedValue({ data: { copied: true, created_count: 3 } }),
+    getMyTimetable: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: 201,
+          course_id: 10,
+          course_code: 'CS101',
+          course_name: 'Data Structures',
+          course_short_name: 'DSA',
+          section: 'A',
+          teacher_id: 5,
+          teacher_name: 'Prof. Rao',
+          room_name: 'Room B-204',
+          day: 0,
+          period_label: 'P1',
+          kind: 'lecture',
+          is_clash: true,
+          clash_reason: 'Teacher assigned to multiple classes on Monday P1',
+        },
+        {
+          id: 202,
+          course_id: 11,
+          course_code: 'CS102',
+          course_name: 'Algorithms',
+          course_short_name: 'Algo',
+          section: 'B',
+          teacher_id: 5,
+          teacher_name: 'Prof. Rao',
+          room_name: 'Lab 2',
+          day: 0,
+          period_label: 'P1',
+          kind: 'lecture',
+          is_clash: true,
+          clash_reason: 'Teacher assigned to multiple classes on Monday P1',
+        },
+      ],
+    }),
   },
 }));
 
@@ -239,5 +276,23 @@ describe('Timetable Manager Component Suite (Part B)', () => {
       expect(screen.getByText(/Changes vs Published Timetable/i)).toBeInTheDocument();
       expect(screen.getByText(/Tue 11:15 CS101 Sec A moved from Mon 09:00/i)).toBeInTheDocument();
     });
+  });
+
+  it('renders FacultyTimetable showing both classes in a clashing slot with conflict markers', async () => {
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <FacultyTimetable />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByText(/Department Timetable Grid Editor|My Weekly Teaching Schedule/i)).toBeInTheDocument();
+    // Both classes should be rendered in the same Monday P1 cell
+    expect(screen.getByText('DSA')).toBeInTheDocument();
+    expect(screen.getByText('Algo')).toBeInTheDocument();
+    // Conflict marker header and badge
+    expect(screen.getByText(/Conflict \(2 Classes\)/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Overlapping class/i).length).toBe(2);
   });
 });

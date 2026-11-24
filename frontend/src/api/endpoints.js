@@ -48,7 +48,7 @@ export const attendanceApi = {
     });
   },
   undo: (courseId, batchId = null) =>
-    apiClient.post(`/attendance/undo?course_id=${courseId}${batchId ? `&batch_id=${batchId}` : ''}`),
+    apiClient.post(`/courses/${courseId}/attendance/undo${batchId ? `?batch_id=${batchId}` : ''}`),
   getDateAttendance: (courseId, sessionDate) =>
     apiClient.get(`/attendance/courses/${courseId}/date/${sessionDate}`),
   directMark: (payload) =>

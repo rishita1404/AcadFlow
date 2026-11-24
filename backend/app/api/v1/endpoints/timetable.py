@@ -394,17 +394,21 @@ def calculate_slot_diff(
     previous_slots: List[TimetableSlotModel],
     new_slots: List[TimetableSlotModel],
     db: Session,
-) -> Tuple[List[str], Set[int], Set[int]]:
+) -> Tuple[List[str], Set[int], Set[int], Dict[int, List[str]], Dict[int, List[str]]]:
     """
     Compare new slots against previous published slots.
     Returns:
     - diff_summary_list: list of readable strings e.g. "Tue 11:00 DSA moved from Mon 10:00, Room B-204"
-    - affected_teacher_ids: set of user IDs
+    - affected_teacher_ids: set of user IDs (includes newly assigned and replaced teachers)
     - affected_student_ids: set of user IDs (enrolled in modified courses & sections)
+    - teacher_diff_map: user_id -> list of specific changes affecting this teacher
+    - student_diff_map: user_id -> list of specific changes affecting this student
     """
     diff_summaries: List[str] = []
     affected_teachers: Set[int] = set()
     affected_courses_sections: Set[Tuple[int, Optional[str]]] = set()
+    teacher_diff_map: Dict[int, List[str]] = {}
+    course_diff_map: Dict[Tuple[int, Optional[str]], List[str]] = {}
 
     # Build signatures for previous slots:
     # key: (course_id, section) -> list of slots
@@ -461,42 +465,55 @@ def calculate_slot_diff(
                 old_room_str = f", {old_room.name}" if old_room else ""
 
                 if p_s.day != n_s.day or p_s.period_label != n_s.period_label:
-                    diff_summaries.append(
-                        f"{day_str} {n_s.period_label} {course_name}{sec_str} moved from {old_day_str} {p_s.period_label}{room_str}"
-                    )
+                    msg = f"{day_str} {n_s.period_label} {course_name}{sec_str} moved from {old_day_str} {p_s.period_label}{room_str}"
+                    diff_summaries.append(msg)
+                    teacher_diff_map.setdefault(n_s.teacher_id, []).append(msg)
+                    if p_s.teacher_id != n_s.teacher_id:
+                        teacher_diff_map.setdefault(p_s.teacher_id, []).append(msg)
+                    course_diff_map.setdefault(cs, []).append(msg)
                 elif p_s.room_id != n_s.room_id:
-                    diff_summaries.append(
-                        f"{day_str} {n_s.period_label} {course_name}{sec_str} room changed to {room.name if room else 'TBD'}"
-                    )
+                    msg = f"{day_str} {n_s.period_label} {course_name}{sec_str} room changed to {room.name if room else 'TBD'}"
+                    diff_summaries.append(msg)
+                    teacher_diff_map.setdefault(n_s.teacher_id, []).append(msg)
+                    course_diff_map.setdefault(cs, []).append(msg)
                 elif p_s.teacher_id != n_s.teacher_id:
                     new_t = db.get(UserModel, n_s.teacher_id)
-                    diff_summaries.append(
-                        f"{day_str} {n_s.period_label} {course_name}{sec_str} instructor changed to {new_t.name if new_t else 'Faculty'}"
-                    )
+                    old_t = db.get(UserModel, p_s.teacher_id)
+                    msg = f"{day_str} {n_s.period_label} {course_name}{sec_str} instructor changed to {new_t.name if new_t else 'Faculty'}"
+                    diff_summaries.append(msg)
+                    # Specific notifications for replaced and newly assigned teachers
+                    msg_old = f"{day_str} {n_s.period_label} {course_name}{sec_str}: instructor reassigned from you to {new_t.name if new_t else 'Faculty'}"
+                    msg_new = f"{day_str} {n_s.period_label} {course_name}{sec_str}: assigned to you (previously {old_t.name if old_t else 'Faculty'})"
+                    teacher_diff_map.setdefault(p_s.teacher_id, []).append(msg_old)
+                    teacher_diff_map.setdefault(n_s.teacher_id, []).append(msg_new)
+                    course_diff_map.setdefault(cs, []).append(msg)
 
                 affected_teachers.add(p_s.teacher_id)
                 affected_teachers.add(n_s.teacher_id)
                 affected_courses_sections.add(cs)
             else:
                 # Newly added slot
-                diff_summaries.append(
-                    f"Added {day_str} {n_s.period_label} {course_name}{sec_str}{room_str}"
-                )
+                msg = f"Added {day_str} {n_s.period_label} {course_name}{sec_str}{room_str}"
+                diff_summaries.append(msg)
+                teacher_diff_map.setdefault(n_s.teacher_id, []).append(msg)
+                course_diff_map.setdefault(cs, []).append(msg)
                 affected_teachers.add(n_s.teacher_id)
                 affected_courses_sections.add(cs)
 
         # Any remaining in unmatched_prev were removed
         for p_s in unmatched_prev:
             old_day_str = DAY_NAMES[p_s.day] if 0 <= p_s.day < 7 else f"Day {p_s.day}"
-            diff_summaries.append(
-                f"Removed {old_day_str} {p_s.period_label} {course_name}{sec_str}"
-            )
+            msg = f"Removed {old_day_str} {p_s.period_label} {course_name}{sec_str}"
+            diff_summaries.append(msg)
+            teacher_diff_map.setdefault(p_s.teacher_id, []).append(msg)
+            course_diff_map.setdefault(cs, []).append(msg)
             affected_teachers.add(p_s.teacher_id)
             affected_courses_sections.add(cs)
 
     # Find affected student IDs based on enrolled courses and sections
     affected_students: Set[int] = set()
-    for cid, sec in affected_courses_sections:
+    student_diff_map: Dict[int, List[str]] = {}
+    for (cid, sec), c_diffs in course_diff_map.items():
         enrolments = db.scalars(
             select(EnrolmentModel).where(EnrolmentModel.course_id == cid)
         ).all()
@@ -506,8 +523,9 @@ def calculate_slot_diff(
                 if stu and stu.section and stu.section != sec:
                     continue
             affected_students.add(e.student_id)
+            student_diff_map.setdefault(e.student_id, []).extend(c_diffs)
 
-    return diff_summaries, affected_teachers, affected_students
+    return diff_summaries, affected_teachers, affected_students, teacher_diff_map, student_diff_map
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -976,7 +994,7 @@ def get_draft(
         pub_slots = db.scalars(
             select(TimetableSlotModel).where(TimetableSlotModel.version_id == latest_published.id)
         ).all()
-        diff_summaries, _, _ = calculate_slot_diff(pub_slots, slots, db)
+        diff_summaries, _, _, _, _ = calculate_slot_diff(pub_slots, slots, db)
 
     return {
         "version_id": draft.id,
@@ -1144,7 +1162,7 @@ def publish_preview(
         prev_slots = db.scalars(
             select(TimetableSlotModel).where(TimetableSlotModel.version_id == prev_published.id)
         ).all()
-        diff_summaries, affected_teachers, affected_students = calculate_slot_diff(prev_slots, slots, db)
+        diff_summaries, affected_teachers, affected_students, _, _ = calculate_slot_diff(prev_slots, slots, db)
     else:
         # First time publish: all teachers and students in these slots are affected
         diff_summaries.append(f"Initial publication with {len(slots)} class slots.")
@@ -1212,12 +1230,14 @@ def publish_timetable(
     diff_summaries: List[str] = []
     affected_teachers: Set[int] = set()
     affected_students: Set[int] = set()
+    teacher_diff_map: Dict[int, List[str]] = {}
+    student_diff_map: Dict[int, List[str]] = {}
 
     if prev_published:
         prev_slots = db.scalars(
             select(TimetableSlotModel).where(TimetableSlotModel.version_id == prev_published.id)
         ).all()
-        diff_summaries, affected_teachers, affected_students = calculate_slot_diff(prev_slots, slots, db)
+        diff_summaries, affected_teachers, affected_students, teacher_diff_map, student_diff_map = calculate_slot_diff(prev_slots, slots, db)
         prev_published.status = "archived"
     else:
         diff_summaries.append(f"Initial publication of {len(slots)} slots.")
@@ -1225,6 +1245,8 @@ def publish_timetable(
         c_ids = {s.course_id for s in slots}
         enrolments = db.scalars(select(EnrolmentModel).where(EnrolmentModel.course_id.in_(c_ids))).all()
         affected_students = {e.student_id for e in enrolments}
+        teacher_diff_map = {uid: [f"Initial timetable schedule published with {len([s for s in slots if s.teacher_id == uid])} assigned class(es)."] for uid in affected_teachers}
+        student_diff_map = {uid: ["Initial timetable schedule published for your enrolled courses."] for uid in affected_students}
 
     # Transition version to published
     version.status = "published"
@@ -1258,28 +1280,38 @@ def publish_timetable(
     db.refresh(version)
 
     # Targeted notifications ONLY if diff exists
+    # One grouped notification per person with only their own changes
     if diff_summaries:
         try:
             from app.services.notification_service import create_in_app_notification
 
-            summary_bullet = "\n".join(diff_summaries[:3])
-            if len(diff_summaries) > 3:
-                summary_bullet += f"\n...and {len(diff_summaries) - 3} more updates."
+            for uid, t_changes in teacher_diff_map.items():
+                if not t_changes:
+                    continue
+                t_bullets = "\n".join(t_changes[:5])
+                if len(t_changes) > 5:
+                    t_bullets += f"\n...and {len(t_changes) - 5} more updates."
 
-            for uid in affected_teachers:
                 create_in_app_notification(
                     db=db,
                     user_id=uid,
                     title="Teaching Schedule Updated",
-                    message=f"Timetable version {version.id} has been published with updates to your classes:\n{summary_bullet}",
+                    message=f"Timetable version {version.id} has been published with updates to your classes:\n{t_bullets}",
                     notif_type="timetable_updated",
                 )
-            for uid in affected_students:
+
+            for uid, s_changes in student_diff_map.items():
+                if not s_changes:
+                    continue
+                s_bullets = "\n".join(s_changes[:5])
+                if len(s_changes) > 5:
+                    s_bullets += f"\n...and {len(s_changes) - 5} more updates."
+
                 create_in_app_notification(
                     db=db,
                     user_id=uid,
                     title="Class Timetable Updated",
-                    message=f"Timetable for your courses has changed (effective {version.effective_from or 'now'}):\n{summary_bullet}",
+                    message=f"Timetable for your courses has changed (effective {version.effective_from or 'now'}):\n{s_bullets}",
                     notif_type="timetable_updated",
                 )
         except Exception:

@@ -47,7 +47,10 @@ else:
 if not is_connected:
     from sqlalchemy import event
 
-    db_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "acadflow.db"))
+    db_file = os.environ.get(
+        "ACADFLOW_DB_PATH",
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "acadflow.db"))
+    )
     engine = create_engine(
         f"sqlite:///{db_file}",
         connect_args={"check_same_thread": False, "timeout": 30},
