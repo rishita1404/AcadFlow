@@ -11,31 +11,34 @@ const ProductScene = lazy(() => import('./ProductScene.jsx'));
 export default function WelcomePanel() {
   return (
     <div className="auth-welcome-col" aria-hidden="true" tabIndex={-1}>
-      {/* Main heading area */}
-      <div className="auth-welcome-heading-block">
-        <h1 className="auth-welcome-h1">
-          Support <em>every student</em> before it's too late.
-        </h1>
-        <p className="auth-welcome-subline">
-          Attendance, support signals, targeted notices and timetable — for your department.
-        </p>
-      </div>
+      {/* Inner wrapper — provides consistent horizontal padding (Fix 1) */}
+      <div className="auth-welcome-inner">
+        {/* Main heading area */}
+        <div className="auth-welcome-heading-block">
+          <h1 className="auth-welcome-h1">
+            Support <em>every student</em> before it's too late.
+          </h1>
+          <p className="auth-welcome-subline">
+            Attendance, support signals, targeted notices and timetable — for your department.
+          </p>
+        </div>
 
-      {/* 3D product scene — lazy, decorative, aria-hidden */}
-      <div className="auth-scene-wrap">
-        <Suspense fallback={<div className="auth-scene-placeholder" />}>
-          <ProductScene />
-        </Suspense>
-      </div>
+        {/* 3D product scene — lazy, decorative, aria-hidden */}
+        <div className="auth-scene-wrap">
+          <Suspense fallback={<div className="auth-scene-placeholder" />}>
+            <ProductScene />
+          </Suspense>
+        </div>
 
-      {/* Bottom grid rule + metadata */}
-      <div className="auth-welcome-footer-meta">
-        <div className="auth-thin-rule" />
-        <div className="auth-meta-row">
-          <span className="auth-meta-pill">Notices</span>
-          <span className="auth-meta-pill">Timetable</span>
-          <span className="auth-meta-pill">Attendance buffer</span>
-          <span className="auth-meta-pill">Early warnings</span>
+        {/* Bottom grid rule + metadata pills */}
+        <div className="auth-welcome-footer-meta">
+          <div className="auth-thin-rule" />
+          <div className="auth-meta-row">
+            <span className="auth-meta-pill">Notices</span>
+            <span className="auth-meta-pill">Timetable</span>
+            <span className="auth-meta-pill">Attendance buffer</span>
+            <span className="auth-meta-pill">Early warnings</span>
+          </div>
         </div>
       </div>
     </div>

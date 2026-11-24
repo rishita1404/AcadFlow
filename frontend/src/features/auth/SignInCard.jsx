@@ -293,9 +293,6 @@ export default function SignInCard({
               <div className="auth-demo-title">
                 Demo accounts
               </div>
-              <div className="auth-demo-note">
-                Demo data only. No real student records.
-              </div>
               <div className="auth-demo-chips">
                 {DEMO_ACCOUNTS.map(({ email: demoEmail, label, password: demoPassword }) => (
                   <button
