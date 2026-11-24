@@ -157,6 +157,18 @@ export default function StudentNotices() {
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 'var(--space-4)' }}>
               Issued by <strong style={{ color: 'var(--text)' }}>{selectedNotice.sender_name}</strong> on {selectedNotice.created_at?.slice(0, 10)}
             </p>
+            {selectedNotice.audience_summary && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 'var(--space-3)' }}>
+                Sent to: <strong style={{ color: 'var(--ink-900)' }}>{selectedNotice.audience_summary}</strong>{selectedNotice.reason ?  () : ''}
+              </div>
+            )}
+            {selectedNotice.link && (
+              <div style={{ marginBottom: 'var(--space-3)' }}>
+                <a href={selectedNotice.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'underline' }}>
+                  🔗 Open Link: {selectedNotice.link}
+                </a>
+              </div>
+            )}
             <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
               {selectedNotice.body}
             </div>

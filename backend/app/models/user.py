@@ -68,6 +68,7 @@ class StudentModel(Base):
     )
     roll_no: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     batch: Mapped[str] = mapped_column(String(50))
+    section: Mapped[Optional[str]] = mapped_column(String(20), default="A", nullable=True)
 
 
 class DeanAssignmentModel(Base):

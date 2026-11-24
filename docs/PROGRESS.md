@@ -90,3 +90,50 @@
     - 9 backend pytest integration tests in `backend/tests/integration/test_phase5_enhancements.py` covering consecutive absence detection, band drop detection, preview warnings, undo restoration, audit logs, and 403 out-of-scope permissions. Full backend pytest suite passing: **227/227 passed**.
     - 5 frontend vitest tests across `NeedsAttention.test.jsx` and `AttendanceUploadPreview.test.jsx`. Full frontend vitest suite passing: **35/35 passed**.
   - No teacher ranking or per-teacher compliance views added. Supportive vocabulary maintained. Strict LOCAL-ONLY MODE maintained.
+
+### Part A: Notices with Targeted Audience
+- [x] **Done**:
+  - A1. 3-step compose flow (`Message`, `Audience`, `Review and send`):
+    - Message step: Title, body, category (`form`, `hackathon`, `exam`, `circular`, `event`, `other`), priority (`normal`, `important`), optional link (links only, no file uploads).
+    - Rule-based deadline detection on notice body with editable chips and "Add to deadlines" opt-in checkbox (nothing added to deadlines tab unless ticked), plus manual deadline input.
+  - A2. Targeted audience builder:
+    - Recipient types: `students`, `teachers`, `both`.
+    - Student filters combined with AND: `department_id` (locked to sender's scope), `batch`/`programme`, `semester_id`, `section`, `course_id`, `my_mentees`, `pending_assignment_id`, and `attendance_band` (Needs support / Watch / Safe; strictly scoped to faculty's own courses or mentees).
+    - Teacher filters: `department_id`, `course_id`, and `duty` (`instructor`, `mentor`, `course_coordinator`, `trainer`).
+    - One-click presets: `"My course sections"`, `"My mentees"`, `"My course, needs support"`, `"Whole department"` (Dean only).
+    - Roll number search and paste with out-of-scope IDs reported as `excluded`.
+    - Live recipient counter and preview sample list.
+    - "Save as preset" and recent audiences support (`/notices/presets`, `/notices/recent-audiences`).
+  - A3. Guardrails:
+    - Faculty scoped to own course sections and mentees. Dean scoped to own department. Admin unconstrained.
+    - "Everyone" broadcast restricted to Dean and Admin behind count confirmation dialog (others receive 403).
+    - Cross-scope attendance band filtering returns 403.
+    - Large audience reach warning when count > threshold (default 100, configurable in `risk_config`).
+    - Empty audience blocked (422).
+    - Daily send rate limiting (default 20, returns 429 when exceeded).
+    - Resolved audience snapshot stored at send time (`NoticeRecipientModel`: `notice_id`, `user_id`, `reason`, `delivered_at`, `read_at`) with filter spec.
+  - A4. Delivery and tracking:
+    - In-app notification and feed notice with `"Sent to: <audience summary> (reason)"`.
+    - Opted-in confirmed deadlines added to student tasks/deadlines tab.
+    - Sent notices view with audience summary, total count, and read count.
+    - Unread list endpoint (`GET /notices/{id}/unread`) scoped to sender permissions.
+    - "Send correction" endpoint (`POST /notices/{id}/correction`) notifying the original recipient snapshot with audit logging.
+  - Database & Migration:
+    - Added columns to `notices` (`link`, `priority`, `audience_summary`, `is_correction_for_id`), `notice_recipients` (`reason`, `read_at`), `students` (`section`), and `risk_config` (`notice_reach_threshold`, `notice_daily_rate_limit`).
+    - Created `audience_presets` table.
+    - Alembic migration `008_partA_notices.py` applied.
+  - Seed Script: Extended `scripts/seed_data.py` with synthetic circular, exam, and hackathon notices, presets, and delivery reasons.
+  - Testing:
+    - 12 integration tests in `backend/tests/integration/test_partA_notices.py` (237/237 backend tests passing).
+    - 3 Vitest tests in `frontend/src/pages/__tests__/ComposeNotice.test.jsx` (38/38 frontend tests passing).
+
+### Part B: Timetable Manager
+- [ ] **In Progress**:
+  - B1. Non-blocking clash behavior (warn never block, conflicts stored with draft, publish with conflicts tick + audit log, conflict badges and panel).
+  - B2. Entry screen ("Edit current timetable" and "Create new from scratch").
+  - B3. Edit mode (section scope, load published to draft, changes vs published panel, effective-from date).
+  - B4. From-scratch wizard (5 steps: scope, time structure, grid fill with multi-period labs and presets, review, publish) + Room master management.
+  - B5. Versioning (draft vs published, version history, restore version as new draft, past sessions/attendance untouched).
+  - B6. Diff notifications (slot-level diff calculation, notify only affected students & teachers, formatted changes summary, no diff -> no notif).
+  - B7. Permissions (Dean own dept & Admin edit/publish, cross-dept 403, others read-only).
+  - B8. Tests & verification.

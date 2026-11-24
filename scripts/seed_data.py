@@ -601,10 +601,12 @@ def seed_all(session=None, engine=None) -> dict:
                         "Attendance regularization requests must be submitted within 48 hours "
                         "of the missed class. Minimum attendance requirement remains 75%."
                     ),
-                    category="general",
+                    category="circular",
+                    priority="normal",
                     urgent=False,
                     status="sent",
                     audience_spec='{"type":"department","department_id":1}',
+                    audience_summary="Whole Department (CSE)",
                     created_at=datetime(2026, 7, 15, 8, 0, 0, tzinfo=timezone.utc),
                 )
                 _session.add(general_notice)
@@ -614,8 +616,10 @@ def seed_all(session=None, engine=None) -> dict:
                     _session.add(NoticeRecipientModel(
                         notice_id=general_notice.id,
                         user_id=st.user_id,
+                        reason="Student in Department (CSE)",
                         delivered_at=datetime(2026, 7, 15, 8, 0, 0, tzinfo=timezone.utc),
                         seen_at=datetime(2026, 7, 15, 10, 0, 0, tzinfo=timezone.utc),
+                        read_at=datetime(2026, 7, 15, 10, 0, 0, tzinfo=timezone.utc),
                     ))
 
             # 2) Hackathon / exam notice WITH confirmed deadline

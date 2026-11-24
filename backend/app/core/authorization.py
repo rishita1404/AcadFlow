@@ -62,6 +62,11 @@ class Action(str, Enum):
     VIEW_NEEDS_ATTENTION = "view_needs_attention"
     UNDO_ATTENDANCE = "undo_attendance"
 
+    # Notice actions (Part A)
+    VIEW_NOTICES = "view_notices"
+    PUBLISH_NOTICE = "publish_notice"
+    MANAGE_NOTICES = "manage_notices"
+
 
 # Base role capabilities mapping (Role -> Allowed Actions)
 ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
@@ -73,6 +78,7 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.SUBMIT_LEAVE,
         Action.VIEW_LEAVE,
         Action.VIEW_CONDONATION,
+        Action.VIEW_NOTICES,
         # Note: Students CANNOT see interventions
     },
     Role.FACULTY.value: {
@@ -96,6 +102,9 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_MENTOR_LOAD,
         Action.VIEW_NEEDS_ATTENTION,
         Action.UNDO_ATTENDANCE,
+        Action.VIEW_NOTICES,
+        Action.PUBLISH_NOTICE,
+        Action.MANAGE_NOTICES,
     },
     Role.TRAINER.value: {
         Action.VIEW_COURSE,
@@ -113,6 +122,8 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.UPDATE_INTERVENTION,
         Action.VIEW_NEEDS_ATTENTION,
         Action.UNDO_ATTENDANCE,
+        Action.VIEW_NOTICES,
+        Action.PUBLISH_NOTICE,
     },
     Role.MENTOR.value: {
         Action.VIEW_COURSE,
@@ -127,6 +138,8 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_INTERVENTIONS,
         Action.UPDATE_INTERVENTION,
         Action.VIEW_NEEDS_ATTENTION,
+        Action.VIEW_NOTICES,
+        Action.PUBLISH_NOTICE,
     },
     Role.COORDINATOR.value: {
         Action.VIEW_COURSE,
@@ -145,6 +158,9 @@ ROLE_CAPABILITIES: Dict[str, Set[Action]] = {
         Action.VIEW_MENTOR_LOAD,
         Action.VIEW_NEEDS_ATTENTION,
         Action.UNDO_ATTENDANCE,
+        Action.VIEW_NOTICES,
+        Action.PUBLISH_NOTICE,
+        Action.MANAGE_NOTICES,
     },
     Role.ADMIN.value: set(Action),  # Admin has full capabilities across all actions
 }

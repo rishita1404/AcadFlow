@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Bell, Send, CheckCircle2, Clock, Trash2, AlertTriangle, X, Eye, RotateCw } from 'lucide-react';
+import { Bell, Send, CheckCircle2, Clock, Trash2, AlertTriangle, X, Eye, RotateCw, Edit3, UserX } from 'lucide-react';
+import Dialog from '../../components/ui/Dialog.jsx';
+import Button from '../../components/ui/Button.jsx';
 import { noticeApi } from '../../api/endpoints.js';
 import Skeleton from '../../components/Skeleton.jsx';
 
@@ -20,6 +22,30 @@ export default function StaffNotices() {
   const [selectedNoticeId, setSelectedNoticeId] = useState(null);
   const [receiptFilter, setReceiptFilter] = useState('all'); // 'all' | 'unseen' | 'seen' | 'done'
   const [nudgeMessage, setNudgeMessage] = useState(null);
+  const [unreadNoticeId, setUnreadNoticeId] = useState(null);
+  const [correctionNotice, setCorrectionNotice] = useState(null);
+  const [correctionTitle, setCorrectionTitle] = useState('');
+  const [correctionBody, setCorrectionBody] = useState('');
+
+  // Unread recipients query
+  const { data: unreadData = { unread_recipients: [] }, isLoading: isLoadingUnread } = useQuery({
+    queryKey: ['notice-unread', unreadNoticeId],
+    queryFn: () => unreadNoticeId ? noticeApi.getUnread(unreadNoticeId).then(r => r.data) : Promise.resolve({ unread_recipients: [] }),
+    enabled: !!unreadNoticeId,
+  });
+
+  // Correction mutation
+  const correctionMutation = useMutation({
+    mutationFn: ({ id, payload }) => noticeApi.sendCorrection(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['staff-notices'] });
+      setCorrectionNotice(null);
+      setCorrectionTitle('');
+      setCorrectionBody('');
+      setNudgeMessage('Correction notice published to original recipient snapshot!');
+      setTimeout(() => setNudgeMessage(null), 4000);
+    },
+  });
 
   // Fetch sent notices
   const { data: notices = [], isLoading, isError, refetch } = useQuery({
@@ -269,11 +295,25 @@ export default function StaffNotices() {
                     {n.title}
                   </h3>
                   <p style={{
-                    fontSize: 14, color: 'var(--text)', margin: '0 0 18px 0', lineHeight: 1.5,
+                    fontSize: 14, color: 'var(--text)', margin: '0 0 10px 0', lineHeight: 1.5,
                     display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                   }}>
                     {n.body}
                   </p>
+
+                  {n.audience_summary && (
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 10 }}>
+                      Sent to: <strong style={{ color: 'var(--ink-900)' }}>{n.audience_summary}</strong>
+                    </div>
+                  )}
+
+                  {n.link && (
+                    <div style={{ marginBottom: 12 }}>
+                      <a href={n.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--accent)', textDecoration: 'underline' }}>
+                        🔗 {n.link}
+                      </a>
+                    </div>
+                  )}
 
                   {/* Delivery Stats Bar */}
                   <div style={{
@@ -325,6 +365,30 @@ export default function StaffNotices() {
                       >
                         {isSelected ? <X size={14} /> : <Eye size={14} />}
                         {isSelected ? 'Close Receipts' : 'View Receipts & Roster'}
+                      </button>
+                      <button
+                        onClick={() => setUnreadNoticeId(n.id)}
+                        style={{
+                          padding: '8px 16px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600,
+                          background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                        }}
+                      >
+                        <UserX size={14} /> View Unread ({n.total_recipients - (n.read_count || n.seen_count)})
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCorrectionNotice(n);
+                          setCorrectionTitle([Correction] );
+                          setCorrectionBody('');
+                        }}
+                        style={{
+                          padding: '8px 16px', borderRadius: 'var(--radius-pill)', fontSize: 13, fontWeight: 600,
+                          background: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--border)',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                        }}
+                      >
+                        <Edit3 size={14} /> Send Correction
                       </button>
                       <button
                         onClick={() => nudgeMutation.mutate(n.id)}
@@ -509,6 +573,103 @@ export default function StaffNotices() {
           </div>
         </div>
       )}
+      {/* View Unread Recipients Modal */}
+      <Dialog
+        open={!!unreadNoticeId}
+        onClose={() => setUnreadNoticeId(null)}
+        title="Unread Recipients (Within Scope)"
+        footer={<Button variant="secondary" onClick={() => setUnreadNoticeId(null)}>Close</Button>}
+      >
+        {isLoadingUnread ? (
+          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading unread recipients...</p>
+        ) : unreadData.unread_recipients?.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--ok-fg)', fontWeight: 600 }}>All targeted recipients have read this notice!</p>
+        ) : (
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                  <th style={{ padding: '6px 8px' }}>Name</th>
+                  <th style={{ padding: '6px 8px' }}>Roll / Role</th>
+                  <th style={{ padding: '6px 8px' }}>Email</th>
+                  <th style={{ padding: '6px 8px' }}>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unreadData.unread_recipients?.map((u) => (
+                  <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '6px 8px', fontWeight: 600 }}>{u.name}</td>
+                    <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{u.roll_no || u.role}</td>
+                    <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{u.email}</td>
+                    <td style={{ padding: '6px 8px', color: 'var(--accent)', fontStyle: 'italic' }}>{u.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Dialog>
+
+      {/* Send Correction Modal */}
+      <Dialog
+        open={!!correctionNotice}
+        onClose={() => setCorrectionNotice(null)}
+        title="Send Correction Notice"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCorrectionNotice(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              loading={correctionMutation.isPending}
+              onClick={() => {
+                if (correctionNotice && correctionTitle.trim() && correctionBody.trim()) {
+                  correctionMutation.mutate({
+                    id: correctionNotice.id,
+                    payload: {
+                      title: correctionTitle.trim(),
+                      body: correctionBody.trim(),
+                      priority: 'important',
+                    },
+                  });
+                }
+              }}
+            >
+              Send Correction
+            </Button>
+          </>
+        }
+      >
+        {correctionNotice && (
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+              This will notify the exact same recipient snapshot ({correctionNotice.total_recipients} recipients) who received Notice #{correctionNotice.id}.
+            </p>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Correction Title
+              </label>
+              <input
+                type="text"
+                value={correctionTitle}
+                onChange={e => setCorrectionTitle(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 'var(--radius-input)', border: '1px solid var(--border)' }}
+              />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>
+                Correction Details / Body
+              </label>
+              <textarea
+                rows={4}
+                value={correctionBody}
+                onChange={e => setCorrectionBody(e.target.value)}
+                placeholder="Explain what was corrected or updated..."
+                style={{ width: '100%', padding: '8px 12px', fontSize: 13, borderRadius: 'var(--radius-input)', border: '1px solid var(--border)' }}
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

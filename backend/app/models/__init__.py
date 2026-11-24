@@ -7,6 +7,7 @@ from app.models.enrollment import EnrolmentModel
 from app.models.intervention import InterventionModel
 from app.models.leave import CondonationRequestModel, LeaveRequestModel
 from app.models.notice import (
+    AudiencePresetModel,
     NoticeDeadlineModel,
     NoticeModel,
     NoticeRecipientModel,
@@ -59,6 +60,7 @@ __all__ = [
     "TimetableSlotModel",
     "NoticeModel",
     "NoticeRecipientModel",
+    "AudiencePresetModel",
     "NoticeDeadlineModel",
     "LeaveRequestModel",
     "CondonationRequestModel",

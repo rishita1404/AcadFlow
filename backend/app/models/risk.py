@@ -29,6 +29,12 @@ class RiskConfigModel(Base):
     collision_warning_threshold: Mapped[int] = mapped_column(
         Integer, default=3, nullable=True
     )
+    notice_reach_threshold: Mapped[int] = mapped_column(
+        Integer, default=100, nullable=True
+    )
+    notice_daily_rate_limit: Mapped[int] = mapped_column(
+        Integer, default=20, nullable=True
+    )
     version: Mapped[str] = mapped_column(String(50))
 
 
