@@ -344,11 +344,12 @@
   background-color: var(--surface);
   border: none;
   border-radius: 0;
-  padding: var(--space-12) var(--space-8) var(--space-8);
+  padding: var(--space-8);
   box-shadow: none;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
+  gap: var(--space-5);
   animation: authFadeIn 0.4s ease-out 0.1s both;
   overflow-y: auto;
 }

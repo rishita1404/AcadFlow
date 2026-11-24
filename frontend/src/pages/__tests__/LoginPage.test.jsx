@@ -335,16 +335,15 @@ describe('LoginPage & Auth Features', () => {
     window.matchMedia = originalMatchMedia;
   });
 
-  it('shows "Demo data only" note when VITE_DEMO_MODE chips are visible in DEV mode', () => {
-    // In DEV mode (which vitest sets), demo chips should be in the DOM
+  it('shows demo account chips when VITE_DEMO_MODE is true', () => {
+    // VITE_DEMO_MODE=true is set in vite.config.js test.env, so IS_DEMO=true
     render(
       <MemoryRouter>
         <LoginPage />
       </MemoryRouter>
     );
-    // DEV mode shows demo chips (import.meta.env.DEV is true in vitest)
     const chips = screen.queryAllByRole('button', { name: /Fill credentials for/i });
-    // Chips are present in DEV mode
+    // 6 demo accounts should render (Student, Faculty, Mentor and coordinator, Trainer, Dean, Admin)
     expect(chips.length).toBeGreaterThan(0);
   });
 });

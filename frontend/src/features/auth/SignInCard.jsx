@@ -311,29 +311,6 @@ export default function SignInCard({
             </div>
           )}
 
-          {/* Also show chips in DEV mode regardless of VITE_DEMO_MODE for development convenience */}
-          {!IS_DEMO && import.meta.env.DEV && (
-            <div className="auth-demo-wrap" aria-label="Development Demo Accounts">
-              <div className="auth-demo-title">
-                Demo accounts (development only)
-              </div>
-              <div className="auth-demo-chips">
-                {DEMO_ACCOUNTS.map(({ email: demoEmail, label, password: demoPassword }) => (
-                  <button
-                    key={demoEmail}
-                    type="button"
-                    onClick={() => fillDemoAccount(demoEmail, demoPassword)}
-                    className={`auth-demo-chip ${email === demoEmail ? 'is-active' : ''}`}
-                    aria-label={`Fill credentials for ${label}`}
-                    title={`Fill ${demoEmail}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="auth-quiet-line">
             Demo data only. No real student records.
           </div>

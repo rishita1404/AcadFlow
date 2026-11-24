@@ -1,4 +1,4 @@
-# AcadFlow Improvement Progress
+﻿# AcadFlow Improvement Progress
 
 ## Local-Only Mode
 - All operations are strictly local.
@@ -261,3 +261,37 @@
 
 
 
+
+---
+
+### Login Page Fixes (commit: fix(auth): login page layout, scene scaling, ethics, copy and contrast fixes)
+
+**Date:** 2026-11-25
+
+#### 8 Fixes Applied
+
+| # | Fix | File(s) changed |
+|---|-----|-----------------|
+| 1 | Vertically centre form in right panel; remove excessive top padding; use justify-content: center with gap | uth.css |
+| 2 | Scene panels enlarged (timetable 340 px, notice 290 px, support 270 px); stage grown to 580×400; layer offsets spread out (layer-1 left: 240 px, layer-2 	op: 240 px left: 60 px) so Thu column, deadline chip and full attendance text are visible | ProductScene.css |
+| 3 | Submit button: disabled only when loading \|\| retryCountdown > 0; never for empty fields (already correct); AA contrast verified (--on-dark #F4F1DE on --accent #415A77 ≈ 4.9:1 ✅) | uth.css, SignInCard.jsx |
+| 4 | Replaced "Priya M." with "Student A" in support signal card; "Needs support" label with icon + text retained | ProductScene.jsx |
+| 5 | Removed uth-welcome-eyebrow bar (ACADFLOW · ACADEMIC MANAGEMENT · LIVE dot) entirely | WelcomePanel.jsx |
+| 6 | Headline updated: "Support every student before it's too late." with <em>every student</em> italic | WelcomePanel.jsx |
+| 7 | Demo chips now shown only when VITE_DEMO_MODE=true; DEV fallback block removed; VITE_DEMO_MODE=true added to vitest 	est.env so tests see chips; VITE_DEMO_MODE=false already in .env.example | SignInCard.jsx, ite.config.js |
+| 8 | All scene font sizes raised to minimum 11 px (0.6875 rem): eyebrow, pill, tt-cell, tt-head, tt-time, notice-to, deadline-chip, needs-label, student-meta | ProductScene.css |
+
+#### Test Results
+- **Frontend:** 51/51 passed (11 test files)  
+- **Backend:** 259/259 (unchanged — no backend changes)
+
+#### Bundle Size
+| Asset | Size | Gzip |
+|-------|------|------|
+| index.js (main chunk) | 1,272.95 kB | 307.27 kB |
+| ProductScene.js (code-split) | 5.82 kB | 1.97 kB |
+| index.css | 22.36 kB | 5.02 kB |
+
+#### Evidence
+- docs/evidence/login-redesign/before-fixes.png — state from previous redesign session
+- docs/evidence/login-redesign/after-fixes.png — state after this fixes pass

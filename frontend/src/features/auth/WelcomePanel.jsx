@@ -11,25 +11,10 @@ const ProductScene = lazy(() => import('./ProductScene.jsx'));
 export default function WelcomePanel() {
   return (
     <div className="auth-welcome-col" aria-hidden="true" tabIndex={-1}>
-      {/* Top metadata bar */}
-      <div className="auth-welcome-eyebrow">
-        <span className="auth-eyebrow-mono">AcadFlow</span>
-        <span className="auth-eyebrow-sep" aria-hidden="true">·</span>
-        <span className="auth-eyebrow-mono">Academic management</span>
-        <span className="auth-eyebrow-status">
-          <span className="auth-status-dot" aria-hidden="true" />
-          Live
-        </span>
-      </div>
-
       {/* Main heading area */}
       <div className="auth-welcome-heading-block">
         <h1 className="auth-welcome-h1">
-          Know where
-          <br />
-          <em>every student</em>
-          <br />
-          stands.
+          Support <em>every student</em> before it's too late.
         </h1>
         <p className="auth-welcome-subline">
           Attendance, support signals, targeted notices and timetable — for your department.

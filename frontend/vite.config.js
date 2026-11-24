@@ -18,5 +18,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
+    // Expose VITE_ env vars to the test environment so IS_DEMO resolves correctly
+    env: {
+      VITE_DEMO_MODE: 'true',
+    },
   },
 });

@@ -140,7 +140,7 @@ function SupportPanel({ lifted, label }) {
             <AlertTriangle size={11} aria-hidden="true" />
             Needs support
           </span>
-          <p className="pscene-student-name">Priya M. — CS501</p>
+          <p className="pscene-student-name">Student A — CS501</p>
           <p className="pscene-student-meta">3 consecutive absences · Band dropped</p>
         </div>
       </div>
