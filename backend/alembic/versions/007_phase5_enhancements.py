@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column("records_updated", sa.Integer(), server_default="0", nullable=False),
         sa.Column("sessions_created", sa.Integer(), server_default="0", nullable=False),
         sa.Column("backup_data", sa.Text(), nullable=True),
-        sa.Column("is_undone", sa.Boolean(), server_default=sa.text("0"), nullable=False),
+        sa.Column("is_undone", sa.Boolean(), server_default=sa.text("false"), nullable=False),
         sa.Column("undone_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("undone_by", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["course_id"], ["courses.id"]),

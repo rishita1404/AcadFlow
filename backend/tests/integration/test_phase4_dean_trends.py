@@ -105,6 +105,7 @@ def phase4_setup(db_session: Session):
     # Student profiles
     db_session.add(StudentModel(user_id=student1.id, roll_no="P4-001", batch="2026"))
     db_session.add(StudentModel(user_id=student2.id, roll_no="P4-002", batch="2026"))
+    db_session.flush()
 
     # Mentor assignment
     db_session.add(MentorAssignmentModel(mentor_id=mentor_user.id, student_id=student1.id))

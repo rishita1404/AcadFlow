@@ -451,6 +451,7 @@ def seed_all(session=None, engine=None) -> dict:
                     batch=batch_val,
                 )
                 _session.add(st)
+                _session.flush()
 
                 # Enrol in CS501 and another departmental course
                 _session.add(EnrolmentModel(student_id=u.id, course_id=cs501.id, enrolled_on=semester_start))
@@ -953,8 +954,8 @@ def seed_all(session=None, engine=None) -> dict:
             # ── Phase 4: Synthetic Multi-Week Risk Snapshots for Trends ─────────
             from app.models.risk import RiskConfigModel, RiskSnapshotModel
             now_dt = datetime.now(timezone.utc)
-            course_obj = _session.scalar(select(CourseModel).where(CourseModel.code == "CS101"))
-            c_snap_id = course_obj.id if course_obj else 1
+            course_obj = courses_map.get("CS501") or _session.scalar(select(CourseModel).where(CourseModel.code == "CS501")) or _session.scalar(select(CourseModel))
+            c_snap_id = course_obj.id if course_obj else None
             risk_cfg = _session.scalar(select(RiskConfigModel))
             cfg_id = risk_cfg.id if risk_cfg else 1
 
@@ -966,7 +967,7 @@ def seed_all(session=None, engine=None) -> dict:
                 (dev_id, [("Critical", Decimal("85.0"))] * 2 + [("At risk", Decimal("65.0"))] * 3 + [("Watch", Decimal("48.0"))] * 3),
             ]
             for stu_id, band_series in students_bands:
-                if not stu_id:
+                if not stu_id or not c_snap_id:
                     continue
                 for w_idx, (b_name, b_score) in enumerate(band_series):
                     snap_time = now_dt - timedelta(days=(7 - w_idx) * 7 + 2)
@@ -992,12 +993,13 @@ def seed_all(session=None, engine=None) -> dict:
             # ── Phase 5: Synthetic Needs Attention & Upload Batches ─────────────
             from app.models.attendance import AttendanceUploadBatchModel
             batch_exists = _session.scalar(select(AttendanceUploadBatchModel).limit(1))
-            if not batch_exists and course_obj:
+            faculty_user = core_users.get("faculty@acadflow.edu") or _session.scalar(select(UserModel).where(UserModel.role == "faculty"))
+            if not batch_exists and course_obj and faculty_user:
                 _session.add(AttendanceUploadBatchModel(
                     course_id=course_obj.id,
-                    uploaded_by=prof_gupta.id,
+                    uploaded_by=faculty_user.id,
                     uploaded_at=now_dt - timedelta(days=2),
-                    filename="cs101_attendance_week10.xlsx",
+                    filename="cs501_attendance_week10.xlsx",
                     records_created=25,
                     records_updated=2,
                     sessions_created=1,

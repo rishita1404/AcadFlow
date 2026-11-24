@@ -241,6 +241,20 @@ def _resolve_targeted_audience(
 
         sec_val = spec.get("section")
         if sec_val:
+            if sender_role in (Role.FACULTY.value, Role.TRAINER.value) and not spec.get("my_mentees"):
+                from app.models.timetable import TimetableSlotModel
+                taught_sections = set(
+                    db.scalars(
+                        select(TimetableSlotModel.section).where(
+                            TimetableSlotModel.teacher_id == sender_id,
+                        )
+                    ).all()
+                )
+                if taught_sections and str(sec_val) not in taught_sections:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail={"code": "PERM_403", "message": f"Faculty cannot target section {sec_val} they do not teach"},
+                    )
             q = q.where(StudentModel.section == str(sec_val))
 
         if target_course_id:
@@ -492,7 +506,7 @@ def preview_audience(
     risk_cfg = db.scalar(select(RiskConfigModel))
     threshold = (
         risk_cfg.notice_reach_threshold
-        if (risk_cfg and risk_cfg.notice_reach_threshold)
+        if (risk_cfg and risk_cfg.notice_reach_threshold is not None)
         else 100
     )
 
@@ -655,6 +669,14 @@ def create_notice(
     except Exception:
         pass
 
+    risk_cfg = db.scalar(select(RiskConfigModel))
+    threshold = (
+        risk_cfg.notice_reach_threshold
+        if (risk_cfg and risk_cfg.notice_reach_threshold is not None)
+        else 100
+    )
+    warning = f"This reaches {len(recipients)} people. Narrow it?" if len(recipients) > threshold else None
+
     return {
         "id": notice.id,
         "title": notice.title,
@@ -666,6 +688,7 @@ def create_notice(
         "audience_summary": notice.audience_summary,
         "recipient_count": len(recipients),
         "deadlines_count": len(deadlines_created),
+        "warning": warning,
         "created_at": notice.created_at.isoformat(),
     }
 
@@ -1061,12 +1084,23 @@ def get_notice_detail(
     )
 
     user_id = int(current_user["sub"]) if current_user and "sub" in current_user else 1
+    user_role = current_user.get("role", "student") if current_user else "student"
     user_rec = db.scalar(
         select(NoticeRecipientModel).where(
             NoticeRecipientModel.notice_id == notice.id,
             NoticeRecipientModel.user_id == user_id,
         )
     )
+
+    if (
+        user_rec is None
+        and notice.sender_id != user_id
+        and user_role != Role.ADMIN.value
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "PERM_403", "message": "You are outside the audience for this notice"},
+        )
 
     return {
         "id": notice.id,

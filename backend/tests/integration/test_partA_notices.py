@@ -460,3 +460,135 @@ def test_send_correction_notifies_snapshot_and_audits(client: TestClient, db_ses
     )
     assert audit is not None
     assert str(orig_id) in audit.old_value
+
+
+def test_faculty_targeting_unassigned_section_returns_403(client: TestClient, db_session: Session):
+    data = _setup_partA_data(client, db_session)
+    fac_headers = _bearer(client, data["fac1_email"])
+    from app.models.timetable import TimetableSlotModel, TimetableVersionModel
+
+    v = db_session.scalar(select(TimetableVersionModel).where(TimetableVersionModel.department_id == data["dept1"].id))
+    if not v:
+        v = TimetableVersionModel(department_id=data["dept1"].id, semester_id=1, created_by=data["dean"].id, status="published")
+        db_session.add(v)
+        db_session.flush()
+    slot = db_session.scalar(select(TimetableSlotModel).where(TimetableSlotModel.version_id == v.id, TimetableSlotModel.teacher_id == data["fac1"].id))
+    if not slot:
+        slot = TimetableSlotModel(version_id=v.id, course_id=data["course1"].id, teacher_id=data["fac1"].id, day=0, period_label="P1", section="A")
+        db_session.add(slot)
+        db_session.commit()
+
+    # Faculty 1 teaches Section A. Targeting Section B must return 403.
+    res = client.post(f"{BASE}/notices", json={
+        "title": "Unassigned Section Notice",
+        "body": "Notice to Section B",
+        "audience_spec": json.dumps({"recipient_type": "students", "course_id": data["course1"].id, "section": "B"}),
+    }, headers=fac_headers)
+    assert res.status_code == 403
+    assert "PERM_403" in res.text
+
+
+def test_dean_targeting_another_department_returns_403(client: TestClient, db_session: Session):
+    data = _setup_partA_data(client, db_session)
+    dean_headers = _bearer(client, data["dean_email"])
+
+    res = client.post(f"{BASE}/notices", json={
+        "title": "Cross Department Notice",
+        "body": "Dean targeting another department",
+        "audience_spec": json.dumps({"type": "department", "department_id": data["dept2"].id}),
+    }, headers=dean_headers)
+    assert res.status_code == 403
+    assert "PERM_403" in res.text
+
+
+def test_user_outside_audience_cannot_read_notice_or_recipient_list_403(client: TestClient, db_session: Session):
+    data = _setup_partA_data(client, db_session)
+    fac1_headers = _bearer(client, data["fac1_email"])
+    stu2_headers = _bearer(client, data["stu2_email"])
+
+    res = client.post(f"{BASE}/notices", json={
+        "title": "Private Section A Notice",
+        "body": "Confidential to course 1 section A",
+        "audience_spec": json.dumps({"recipient_type": "students", "course_id": data["course1"].id}),
+    }, headers=fac1_headers)
+    assert res.status_code == 201
+    nid = res.json()["id"]
+
+    # Student 2 is in Dept 2 and not enrolled in course 1 -> outside audience -> 403
+    read_res = client.get(f"{BASE}/notices/{nid}", headers=stu2_headers)
+    assert read_res.status_code == 403
+    assert "PERM_403" in read_res.text
+
+    # Student 2 accessing unread recipient list -> 403
+    unread_res = client.get(f"{BASE}/notices/{nid}/unread", headers=stu2_headers)
+    assert unread_res.status_code == 403
+    assert "PERM_403" in unread_res.text
+
+
+def test_pasted_roll_numbers_outside_scope_excluded_and_not_sent(client: TestClient, db_session: Session):
+    data = _setup_partA_data(client, db_session)
+    fac1_headers = _bearer(client, data["fac1_email"])
+
+    res = client.post(f"{BASE}/notices", json={
+        "title": "Targeted Roll Numbers Notice",
+        "body": "Pasted roll numbers send",
+        "audience_spec": json.dumps({
+            "recipient_type": "students",
+            "roll_numbers": ["PA001", "PA002", "INVALID999"],
+        }),
+    }, headers=fac1_headers)
+    assert res.status_code == 201
+    nid = res.json()["id"]
+
+    # PA001 is stu1 (in scope). PA002 is stu2 (outside scope). INVALID999 does not exist.
+    assert res.json()["recipient_count"] == 1
+
+    recipients = db_session.scalars(select(NoticeRecipientModel).where(NoticeRecipientModel.notice_id == nid)).all()
+    assert len(recipients) == 1
+    assert recipients[0].user_id == data["stu1"].id
+
+
+def test_large_audience_warning_appears_above_threshold(client: TestClient, db_session: Session):
+    data = _setup_partA_data(client, db_session)
+    fac1_headers = _bearer(client, data["fac1_email"])
+
+    cfg = db_session.scalar(select(RiskConfigModel))
+    old_thresh = cfg.notice_reach_threshold if cfg else 100
+    if not cfg:
+        cfg = RiskConfigModel(
+            w_margin=Decimal("0.4"),
+            w_trend=Decimal("0.3"),
+            w_deadline=Decimal("0.2"),
+            w_missed=Decimal("0.1"),
+            t_watch=Decimal("60"),
+            t_risk=Decimal("40"),
+            t_critical=Decimal("20"),
+            version="v1",
+            notice_reach_threshold=0,
+        )
+        db_session.add(cfg)
+    else:
+        cfg.notice_reach_threshold = 0
+    db_session.commit()
+
+    try:
+        prev = client.post(f"{BASE}/notices/audience/preview", json={
+            "recipient_type": "students",
+            "course_id": data["course1"].id,
+        }, headers=fac1_headers)
+        assert prev.status_code == 200
+        assert prev.json()["warning"] is not None
+        assert "Narrow it?" in prev.json()["warning"]
+
+        send_res = client.post(f"{BASE}/notices", json={
+            "title": "Large Audience Notice",
+            "body": "Body text",
+            "audience_spec": json.dumps({"recipient_type": "students", "course_id": data["course1"].id}),
+        }, headers=fac1_headers)
+        assert send_res.status_code == 201
+        assert send_res.json()["warning"] is not None
+        assert "Narrow it?" in send_res.json()["warning"]
+    finally:
+        if cfg:
+            cfg.notice_reach_threshold = old_thresh
+            db_session.commit()

@@ -7,7 +7,8 @@ from typing import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+import os
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -30,14 +31,35 @@ def pytest_pyfunc_call(pyfuncitem):
         return True
 
 
-# Separate isolated in-memory test database
-TEST_DATABASE_URL = "sqlite:///:memory:"
+# Test database URL configuration
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
+if not TEST_DATABASE_URL:
+    if os.environ.get("USE_POSTGRES", "").lower() in ("true", "1", "yes"):
+        TEST_DATABASE_URL = os.environ.get(
+            "DATABASE_URL",
+            "postgresql+psycopg://postgres@127.0.0.1:5433/acadflow_db",
+        )
+    else:
+        TEST_DATABASE_URL = "sqlite:///:memory:"
 
-engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+if "sqlite" in TEST_DATABASE_URL:
+    engine = create_engine(
+        TEST_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+else:
+    engine = create_engine(
+        TEST_DATABASE_URL,
+        pool_pre_ping=True,
+    )
+
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

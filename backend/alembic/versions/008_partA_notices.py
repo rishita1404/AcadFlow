@@ -30,7 +30,7 @@ def upgrade() -> None:
             sa.Column("body", sa.Text(), nullable=False),
             sa.Column("category", sa.String(length=50), nullable=False, server_default="general"),
             sa.Column("priority", sa.String(length=20), nullable=False, server_default="normal"),
-            sa.Column("urgent", sa.Boolean(), nullable=False, server_default="0"),
+            sa.Column("urgent", sa.Boolean(), nullable=False, server_default=sa.text("false")),
             sa.Column("link", sa.String(length=500), nullable=True),
             sa.Column("status", sa.String(length=20), nullable=False, server_default="sent"),
             sa.Column("audience_spec", sa.Text(), nullable=True),

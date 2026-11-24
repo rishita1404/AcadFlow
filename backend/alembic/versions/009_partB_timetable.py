@@ -53,7 +53,7 @@ def upgrade() -> None:
             sa.Column("created_by", sa.Integer(), nullable=False),
             sa.Column("published_at", sa.String(length=100), nullable=True),
             sa.Column("conflicts_json", sa.Text(), nullable=True),
-            sa.Column("is_published_with_conflicts", sa.Boolean(), nullable=False, server_default="0"),
+            sa.Column("is_published_with_conflicts", sa.Boolean(), nullable=False, server_default=sa.text("false")),
             sa.Column("restored_from_id", sa.Integer(), nullable=True),
             sa.ForeignKeyConstraint(["department_id"], ["departments.id"], ondelete="CASCADE"),
             sa.ForeignKeyConstraint(["semester_id"], ["semesters.id"], ondelete="CASCADE"),
@@ -69,7 +69,7 @@ def upgrade() -> None:
             if "conflicts_json" not in columns:
                 batch_op.add_column(sa.Column("conflicts_json", sa.Text(), nullable=True))
             if "is_published_with_conflicts" not in columns:
-                batch_op.add_column(sa.Column("is_published_with_conflicts", sa.Boolean(), server_default="0", nullable=False))
+                batch_op.add_column(sa.Column("is_published_with_conflicts", sa.Boolean(), server_default=sa.text("false"), nullable=False))
             if "restored_from_id" not in columns:
                 batch_op.add_column(sa.Column("restored_from_id", sa.Integer(), nullable=True))
                 batch_op.create_foreign_key("fk_timetable_versions_restored", "timetable_versions", ["restored_from_id"], ["id"])
@@ -84,7 +84,7 @@ def upgrade() -> None:
             sa.Column("start_time", sa.String(length=10), nullable=False),
             sa.Column("end_time", sa.String(length=10), nullable=False),
             sa.Column("label", sa.String(length=30), nullable=False),
-            sa.Column("is_break", sa.Boolean(), nullable=False, server_default="0"),
+            sa.Column("is_break", sa.Boolean(), nullable=False, server_default=sa.text("false")),
             sa.ForeignKeyConstraint(["version_id"], ["timetable_versions.id"], ondelete="CASCADE"),
             sa.PrimaryKeyConstraint("id"),
         )

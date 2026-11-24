@@ -198,3 +198,48 @@
     - Full backend pytest suite: **254/254 passed** in 24.27s (100%).
     - Full frontend Vitest suite: **44/44 passed across 10 test files** in 10.22s (100%).
 
+### Verification Pass (No New Features)
+- [x] **Done**:
+  - 1. Fresh Local PostgreSQL Instance:
+    - Initialized clean local PostgreSQL 18 instance cluster (`backend/.pgdata.local`) on port 5433 with trust authentication.
+    - Fixed Alembic migration column size limit: enlarged `alembic_version.version_num` to `VARCHAR(128)` via `version_table_column_type` in `backend/alembic/env.py` to support longer revision IDs (e.g. `005_phase3_interventions_collision`).
+    - Standardized boolean column `server_default` values across revisions `007`, `008`, and `009` to use `sa.text("false")` instead of integer literals for PostgreSQL strict type compatibility.
+    - Applied all 9 Alembic migrations (`alembic upgrade head`) cleanly from scratch with zero errors.
+    - Fixed foreign key insertion ordering in `scripts/seed_data.py` (explicit `StudentModel` session flushes, valid course references for snapshots). Ran `scripts/seed_data.py` on PostgreSQL: all 35 synthetic entities populated with zero errors.
+  - 2. SQLite Foreign Key Enforcement:
+    - Enabled `PRAGMA foreign_keys=ON` via SQLAlchemy connect listeners across both production engine configuration (`backend/app/db/postgres.py`) and test session fixtures (`backend/tests/conftest.py`).
+    - Resolved SQLite FK constraint ordering issues in test fixtures (e.g., `test_phase4_dean_trends.py`).
+  - 3. Part A Comprehensive Test Suite Audit & Coverage:
+    - Audited every Part A test by name; expanded `backend/tests/integration/test_partA_notices.py` to 17 tests covering all required specification scenarios:
+      - `test_student_cannot_preview_or_create_notice_403`: student sending or previewing notice returns 403.
+      - `test_faculty_cannot_broadcast_to_everyone_403`: faculty attempting "everyone" broadcast returns 403.
+      - `test_faculty_cannot_target_outside_department_403`: faculty targeting another department returns 403.
+      - `test_faculty_cannot_target_unassigned_course_403`: faculty targeting course they do not teach returns 403.
+      - `test_faculty_targeting_unassigned_section_returns_403`: faculty targeting section they do not teach returns 403.
+      - `test_dean_targeting_another_department_returns_403`: dean targeting cross-department returns 403.
+      - `test_faculty_attendance_band_unscoped_403`: faculty filtering attendance band outside assigned students returns 403.
+      - `test_empty_audience_returns_422`: empty audience returns 422 Unprocessable Content.
+      - `test_daily_rate_limiting_429`: exceeding per-sender daily limit returns 429.
+      - `test_audience_preview_and_presets`: live audience preview and preset save/load.
+      - `test_roll_numbers_with_out_of_scope_exclusion`: pasted roll numbers outside scope listed as excluded.
+      - `test_pasted_roll_numbers_outside_scope_excluded_and_not_sent`: confirmed out-of-scope roll numbers are not delivered to.
+      - `test_deadlines_opt_in`: deadlines only added to tasks when sender explicitly opts in.
+      - `test_unread_recipients_and_scoping_403`: unread recipient listing permissions and scoping.
+      - `test_user_outside_audience_cannot_read_notice_or_recipient_list_403`: user outside target audience cannot read notice details or recipient list (403).
+      - `test_large_audience_warning_appears_above_threshold`: returns warning when recipient count exceeds threshold.
+      - `test_send_correction_notifies_snapshot_and_audits`: sending notice correction notifies original snapshot and writes audit log.
+  - 4. Environment Settings Configuration:
+    - Verified `.env.example` documents every setting added across all phases and parts with safe defaults:
+      - `NOTICE_REACH_THRESHOLD=100`
+      - `NOTICE_DAILY_RATE_LIMIT=20`
+      - `CONDONATION_FLOOR_PCT=65.0`
+      - `REQUIRE_CONDONATION_RECOMMENDATION=True`
+      - `COLLISION_WARNING_THRESHOLD=3`
+      - `MIN_CLASSES=8`
+      - `TIMETABLE_PERIOD_LENGTH_MINUTES=50`
+      - `TIMETABLE_DEFAULT_PERIODS=8`
+  - 5. Full Test Suite Execution:
+    - Full backend pytest suite: **259/259 passed** (100%) with SQLite `PRAGMA foreign_keys=ON`.
+    - Full frontend Vitest suite: **44/44 passed across 10 test files** (100%).
+
+

@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from sqlalchemy import engine_from_config, pool
+import sqlalchemy as sa
 
 from alembic import context
 
@@ -37,6 +38,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        version_table_column_type=sa.String(128),
     )
 
     with context.begin_transaction():
@@ -49,11 +51,17 @@ def run_migrations_online() -> None:
     connectable = app_engine
 
     with connectable.connect() as connection:
+        if connection.dialect.name == "postgresql":
+            connection.execute(sa.text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(128) NOT NULL PRIMARY KEY);"))
+            connection.execute(sa.text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128);"))
+            connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
             render_as_batch=True,
+            version_table_column_type=sa.String(128),
         )
 
         with context.begin_transaction():
