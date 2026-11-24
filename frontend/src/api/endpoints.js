@@ -144,14 +144,22 @@ export const tasksApi = {
 
 // Timetable
 export const timetableApi = {
-  getMyTimetable: () => apiClient.get('/me/timetable'),
+  getMyTimetable: () => apiClient.get('/timetable/me'),
   getVersions: (department_id = null) => apiClient.get('/timetable/versions', { params: department_id ? { department_id } : {} }),
+  getVersionDetails: (version_id) => apiClient.get(`/timetable/versions/${version_id}`),
+  createVersion: (payload) => apiClient.post('/timetable/versions', payload),
+  restoreVersion: (version_id) => apiClient.post(`/timetable/versions/${version_id}/restore`),
   getSlots: (version_id) => apiClient.get('/timetable/slots', { params: { version_id } }),
-  getRooms: () => apiClient.get('/timetable/rooms'),
-  getDraft: (department_id) => apiClient.get('/timetable/draft', { params: { department_id } }),
-  saveDraft: ({ version_id, slots }) => apiClient.put('/timetable/draft', slots, { params: { version_id } }),
-  validateDraft: ({ version_id }) => apiClient.post('/timetable/draft/validate', null, { params: { version_id } }),
+  getRooms: (department_id = null) => apiClient.get('/timetable/rooms', { params: department_id ? { department_id } : {} }),
+  createRoom: (payload) => apiClient.post('/timetable/rooms', payload),
+  updateRoom: (room_id, payload) => apiClient.patch(`/timetable/rooms/${room_id}`, payload),
+  deleteRoom: (room_id) => apiClient.delete(`/timetable/rooms/${room_id}`),
+  getDraft: (department_id = null, semester_id = null) => apiClient.get('/timetable/draft', { params: { ...(department_id ? { department_id } : {}), ...(semester_id ? { semester_id } : {}) } }),
+  saveDraft: (payload) => apiClient.put('/timetable/draft', payload),
+  validateDraft: (payload) => apiClient.post('/timetable/draft/validate', payload),
+  publishPreview: (payload) => apiClient.post('/timetable/publish-preview', payload),
   publish: (payload) => apiClient.post('/timetable/publish', payload),
+  copyDay: (payload) => apiClient.post('/timetable/slots/copy-day', payload),
 };
 
 // Notices

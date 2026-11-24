@@ -18,6 +18,7 @@ Features:
 
 from __future__ import annotations
 
+import json
 import os
 import random
 import sys
@@ -472,14 +473,18 @@ def seed_all(session=None, engine=None) -> dict:
                 ("Room 101", 60, "classroom"),
                 ("Lab 201",  30, "lab"),
                 ("Seminar 301", 40, "seminar"),
+                ("Room 102", 60, "classroom"),
+                ("Lab 202",  30, "lab"),
             ]
             room_map: dict[str, RoomModel] = {}
             for rname, cap, rtype in rooms_def:
                 rm = _get_or_create(
                     _session, RoomModel,
                     {"name": rname},
-                    {"capacity": cap, "room_type": rtype},
+                    {"capacity": cap, "room_type": rtype, "department_id": primary_dept.id},
                 )
+                if rm.department_id is None:
+                    rm.department_id = primary_dept.id
                 room_map[rname] = rm
 
             counts.setdefault("rooms", 0)
@@ -497,15 +502,66 @@ def seed_all(session=None, engine=None) -> dict:
                 tv = TimetableVersionModel(
                     department_id=primary_dept.id,
                     semester_id=sem.id,
+                    name="Autumn 2026 Production",
                     status="published",
                     effective_from=str(semester_start),
                     created_by=core_users["coordinator@acadflow.edu"].id,
                     published_at=str(datetime.now(timezone.utc)),
+                    is_published_with_conflicts=True,
+                    conflicts_json=json.dumps([{
+                        "type": "room_overlap",
+                        "message": "Room 101 has multiple classes scheduled on Thu P2: CS502 (OS) and CS503 (DBMS)",
+                        "severity": "high",
+                        "day": 3,
+                        "period": "P2"
+                    }]),
                 )
                 _session.add(tv)
                 _session.flush()
+            else:
+                if not tv.name:
+                    tv.name = "Autumn 2026 Production"
+                if tv.is_published_with_conflicts is None:
+                    tv.is_published_with_conflicts = True
+                if not tv.conflicts_json:
+                    tv.conflicts_json = json.dumps([{
+                        "type": "room_overlap",
+                        "message": "Room 101 has multiple classes scheduled on Thu P2: CS502 (OS) and CS503 (DBMS)",
+                        "severity": "high",
+                        "day": 3,
+                        "period": "P2"
+                    }])
             counts.setdefault("timetable_versions", 0)
             counts["timetable_versions"] += 1
+
+            # Draft Timetable version for testing editing and non-blocking clashes
+            draft_tv = _session.scalar(
+                select(TimetableVersionModel).where(
+                    TimetableVersionModel.department_id == primary_dept.id,
+                    TimetableVersionModel.semester_id == sem.id,
+                    TimetableVersionModel.status == "draft",
+                )
+            )
+            if draft_tv is None:
+                draft_tv = TimetableVersionModel(
+                    department_id=primary_dept.id,
+                    semester_id=sem.id,
+                    name="Spring 2027 Draft",
+                    status="draft",
+                    effective_from=str(date(2027, 1, 15)),
+                    created_by=core_users["coordinator@acadflow.edu"].id,
+                    is_published_with_conflicts=False,
+                    conflicts_json=json.dumps([{
+                        "type": "teacher_overlap",
+                        "message": "Dr. Priya Sharma is assigned to multiple classes on Tue P2: CS501 and CS502",
+                        "severity": "high",
+                        "day": 1,
+                        "period": "P2"
+                    }]),
+                )
+                _session.add(draft_tv)
+                _session.flush()
+                counts["timetable_versions"] += 1
 
             # Period configs: Mon-Fri (days 0-4)
             PERIODS = [
@@ -536,32 +592,52 @@ def seed_all(session=None, engine=None) -> dict:
                             label=label,
                             is_break=is_brk,
                         ))
+                    if draft_tv:
+                        draft_pc = _session.scalar(
+                            select(PeriodConfigModel).where(
+                                PeriodConfigModel.version_id == draft_tv.id,
+                                PeriodConfigModel.day == day_offset,
+                                PeriodConfigModel.label == label,
+                            )
+                        )
+                        if draft_pc is None:
+                            _session.add(PeriodConfigModel(
+                                version_id=draft_tv.id,
+                                day=day_offset,
+                                start_time=start,
+                                end_time=end,
+                                label=label,
+                                is_break=is_brk,
+                            ))
             _session.flush()
             counts.setdefault("period_configs", 0)
             counts["period_configs"] += 40  # 5 days × 8 periods
 
             # Timetable slots
-            # CS501 (DSA) — Dr. Priya, Mon P1, Wed P1, Fri P1 — Room 101
-            # CS502 (OS)  — Dr. Priya, Tue P2, Thu P2          — Room 101 (deliberate clash with CS503 on Thu P2)
-            # CS503 (DBMS)— Meera Mentor, Mon P3, Thu P2       — Lab 201  (Thu P2 clashes with CS502)
-            # AI501       — Raj Trainer, Tue P1                 — Seminar 301
+            # CS501 (DSA) — Dr. Priya, Mon P1, Wed P1, Fri P1 — Room 101 (Sec A)
+            # CS501 (DSA) — Dr. Priya, Mon P2                 — Room 102 (Sec B)
+            # CS502 (OS)  — Dr. Priya, Tue P2, Thu P2          — Room 101 (Sec A, deliberate clash with CS503 on Thu P2)
+            # CS503 (DBMS)— Meera Mentor, Mon P3, Thu P2       — Lab 201 / Room 101 (Sec A, Thu P2 clashes with CS502)
+            # AI501       — Raj Trainer, Tue P1                 — Seminar 301 (Sec A)
             slots_def = [
-                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 0, "P1", "A", "lecture"),
-                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 2, "P1", "A", "lecture"),
-                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 4, "P1", "A", "lecture"),
-                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 1, "P2", "A", "lecture"),
-                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture"),  # clash: Dr Priya Thu P2 vs Mentor Thu P2 same room
-                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Lab 201"].id, 0, "P3", "A", "lecture"),
-                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture"),  # same room as CS502 on Thu P2 = room clash
-                (courses_map["AI501"].id, core_users["trainer@acadflow.edu"].id, room_map["Seminar 301"].id, 1, "P1", "A", "lecture"),
+                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 0, "P1", "A", "lecture", "09:00", "10:00"),
+                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 2, "P1", "A", "lecture", "09:00", "10:00"),
+                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 4, "P1", "A", "lecture", "09:00", "10:00"),
+                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 0, "P2", "B", "lecture", "10:00", "11:00"),
+                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 1, "P2", "A", "lecture", "10:00", "11:00"),
+                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture", "10:00", "11:00"),  # clash: Dr Priya Thu P2 vs Mentor Thu P2 same room
+                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Lab 201"].id, 0, "P3", "A", "lecture", "11:15", "12:15"),
+                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture", "10:00", "11:00"),  # same room as CS502 on Thu P2 = room clash
+                (courses_map["AI501"].id, core_users["trainer@acadflow.edu"].id, room_map["Seminar 301"].id, 1, "P1", "A", "lecture", "09:00", "10:00"),
             ]
-            for course_id, teacher_id, room_id, day, period, section, kind in slots_def:
+            for course_id, teacher_id, room_id, day, period, section, kind, s_time, e_time in slots_def:
                 existing_slot = _session.scalar(
                     select(TimetableSlotModel).where(
                         TimetableSlotModel.version_id == tv.id,
                         TimetableSlotModel.course_id == course_id,
                         TimetableSlotModel.day == day,
                         TimetableSlotModel.period_label == period,
+                        TimetableSlotModel.section == section,
                     )
                 )
                 if existing_slot is None:
@@ -574,7 +650,46 @@ def seed_all(session=None, engine=None) -> dict:
                         day=day,
                         period_label=period,
                         kind=kind,
+                        start_time=s_time,
+                        end_time=e_time,
                     ))
+                else:
+                    if not existing_slot.start_time:
+                        existing_slot.start_time = s_time
+                    if not existing_slot.end_time:
+                        existing_slot.end_time = e_time
+
+            # Slots for draft version
+            if draft_tv:
+                draft_slots_def = [
+                    (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 0, "P1", "A", "lecture", "09:00", "10:00"),
+                    (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 1, "P2", "A", "lecture", "10:00", "11:00"),  # teacher overlap clash with CS502
+                    (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 1, "P2", "A", "lecture", "10:00", "11:00"),  # teacher overlap clash with CS501
+                    (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Lab 201"].id, 2, "P3", "B", "lab", "11:15", "12:15"),
+                ]
+                for course_id, teacher_id, room_id, day, period, section, kind, s_time, e_time in draft_slots_def:
+                    existing_dslot = _session.scalar(
+                        select(TimetableSlotModel).where(
+                            TimetableSlotModel.version_id == draft_tv.id,
+                            TimetableSlotModel.course_id == course_id,
+                            TimetableSlotModel.day == day,
+                            TimetableSlotModel.period_label == period,
+                            TimetableSlotModel.section == section,
+                        )
+                    )
+                    if existing_dslot is None:
+                        _session.add(TimetableSlotModel(
+                            version_id=draft_tv.id,
+                            course_id=course_id,
+                            section=section,
+                            teacher_id=teacher_id,
+                            room_id=room_id,
+                            day=day,
+                            period_label=period,
+                            kind=kind,
+                            start_time=s_time,
+                            end_time=e_time,
+                        ))
             _session.flush()
             counts.setdefault("timetable_slots", 0)
             counts["timetable_slots"] += len(slots_def)

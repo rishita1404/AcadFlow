@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -12,7 +12,8 @@ class RoomModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), unique=True)
     capacity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    room_type: Mapped[str] = mapped_column(String(30), default="classroom")
+    room_type: Mapped[str] = mapped_column(String(30), default="classroom")  # classroom, lab, seminar
+    department_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("departments.id"), nullable=True)
 
 
 class TimetableVersionModel(Base):
@@ -21,10 +22,14 @@ class TimetableVersionModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     department_id: Mapped[int] = mapped_column(Integer, ForeignKey("departments.id"))
     semester_id: Mapped[int] = mapped_column(Integer, ForeignKey("semesters.id"))
+    name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="draft")  # draft / published / archived
     effective_from: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     created_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     published_at: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    conflicts_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_published_with_conflicts: Mapped[bool] = mapped_column(Boolean, default=False)
+    restored_from_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("timetable_versions.id"), nullable=True)
 
 
 class PeriodConfigModel(Base):
@@ -50,4 +55,6 @@ class TimetableSlotModel(Base):
     room_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("rooms.id"), nullable=True)
     day: Mapped[int] = mapped_column(Integer)  # 0=Mon .. 5=Sat
     period_label: Mapped[str] = mapped_column(String(30))
+    start_time: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    end_time: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     kind: Mapped[str] = mapped_column(String(20), default="lecture")  # lecture / lab / tutorial

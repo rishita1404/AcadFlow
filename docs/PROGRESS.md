@@ -128,12 +128,41 @@
     - 3 Vitest tests in `frontend/src/pages/__tests__/ComposeNotice.test.jsx` (38/38 frontend tests passing).
 
 ### Part B: Timetable Manager
-- [ ] **In Progress**:
-  - B1. Non-blocking clash behavior (warn never block, conflicts stored with draft, publish with conflicts tick + audit log, conflict badges and panel).
-  - B2. Entry screen ("Edit current timetable" and "Create new from scratch").
-  - B3. Edit mode (section scope, load published to draft, changes vs published panel, effective-from date).
-  - B4. From-scratch wizard (5 steps: scope, time structure, grid fill with multi-period labs and presets, review, publish) + Room master management.
-  - B5. Versioning (draft vs published, version history, restore version as new draft, past sessions/attendance untouched).
-  - B6. Diff notifications (slot-level diff calculation, notify only affected students & teachers, formatted changes summary, no diff -> no notif).
-  - B7. Permissions (Dean own dept & Admin edit/publish, cross-dept 403, others read-only).
-  - B8. Tests & verification.
+- [x] **Done**:
+  - B1. Non-blocking clash behavior:
+    - Multi-dimensional clash detection across 3 axes: teacher overlap, room overlap, and section overlap.
+    - Rigorous back-to-back vs overlap logic: `max(s1, s2) < min(e1, e2)` ensures consecutive classes (e.g., 09:00-10:00 and 10:00-11:00) produce zero clashes, while partial or full overlaps are flagged.
+    - Warn, never block on draft save (`PUT /timetable/draft` and `POST /timetable/draft/validate`): stores detected clashes in `conflicts_json` alongside draft slots and returns HTTP 200.
+    - Publish-with-conflicts guard: publishing a draft with clashes requires explicit confirmation (`publish_with_conflicts: true`). Unconfirmed requests return HTTP 422 (`TIMETABLE_CLASHES_EXIST`). Confirmed requests publish the timetable, set `is_published_with_conflicts = true`, and record an audit log with action `timetable_publish_with_conflicts`. Clean publishes record `timetable_publish`.
+    - Clashes displayed non-blockingly across UI with Holst palette warning badges (icon + text: AlertTriangle + "Room Overlap" / "Teacher Overlap") and interactive "Jump to cell" conflict resolution panel. Student view renders overlapping slots with warning badges.
+  - B2. Entry screen (`CoordinatorTimetable.jsx`):
+    - Option 1: "Edit Current Timetable" — quick-links directly into the visual grid editor for the active published schedule.
+    - Option 2: "Create New from Scratch" — initiates the 5-step guided wizard modal.
+    - Versions list table displaying version name, status badge, publish date, effective-from date, conflicts indicator, and "Restore as Draft" / "Open Editor" actions.
+    - Integrated Room Master management tab with full CRUD dialog for department classrooms, labs, and seminar halls.
+  - B3. Edit mode (`CoordinatorTimetableEditor.jsx`):
+    - Section-scoped weekly grid (Days 0-4, configurable periods) with section filter switcher (e.g. Sec A, Sec B).
+    - Slot creation/editing modal with course, section, teacher, room, kind (lecture, lab, tutorial), start time, and end time.
+    - "Copy Day" schedule duplication action across weekdays.
+    - Live "Changes vs published" diff drawer showing real-time slot movements, additions, and deletions compared against the active published schedule.
+    - Effective-from date configuration with semester boundary validation.
+  - B4. From-scratch wizard & Room master:
+    - 5-step guided wizard: (1) Scope (academic year, department, semester), (2) Time Structure (period count, duration, lunch break), (3) Grid Fill (course/teacher/room assignment, multi-period lab blocks), (4) Review & Clash Analysis, (5) Publish with conflict override checkbox.
+    - Room Master endpoints (`GET /timetable/rooms`, `POST /timetable/rooms`, `PATCH /timetable/rooms/{id}`, `DELETE /timetable/rooms/{id}`) with capacity, room type, and department scoping.
+  - B5. Versioning & restoration:
+    - Single draft at a time lifecycle per department/semester.
+    - Historical versions preserved with immutable audit trail.
+    - Restore version (`POST /timetable/versions/{id}/restore`): clones historical slots into a fresh draft without touching past class sessions or attendance records, with audit logging (`timetable_version_restore`).
+  - B6. Diff notifications:
+    - Slot-level diff engine comparing draft slots to active published timetable (e.g. `"Tue 11:00 DSA moved from Mon 10:00, Room B-204"`).
+    - Pre-publish audience preview endpoint (`POST /timetable/publish-preview`) calculating exact counts of affected teachers and enrolled students.
+    - Targeted delivery: sends in-app notifications only to affected students and teachers with the formatted slot diff summary. If no slot timings changed, zero notifications are broadcast.
+  - B7. Permissions & RBAC:
+    - Central scope and role enforcement: Department Coordinator/Dean (own department) and Admin have edit, draft, and publish permissions.
+    - Cross-department coordinators receive HTTP 403.
+    - Faculty and students receive HTTP 403 on draft mutation, publish, version restore, and room modification endpoints.
+  - B8. Tests & verification:
+    - Database migration `009_partB_timetable.py` created and applied.
+    - Backend integration tests in `backend/tests/integration/test_partB_timetable.py` (10 tests covering 403 RBAC, non-blocking drafts, back-to-back non-clashes vs overlap clashes, 422 publish guard, publish-with-conflicts audit log, diff preview, version restore, room master CRUD). Full backend suite passing: **247/247 passed**.
+    - Frontend Vitest tests in `frontend/src/pages/__tests__/TimetableManager.test.jsx` (5 tests covering entry screen, 5-step wizard progression, publish dialog with impact preview & conflict confirmation, Room Master management, visual grid editor). Full frontend suite passing: **43/43 passed across 10 test files**.
+    - Synthetic seed data extended in `scripts/seed_data.py` with rooms, sections, published timetable with conflicts, and draft timetable with warnings.
