@@ -10,6 +10,8 @@ import {
   Briefcase,
   Info,
   Send,
+  Paperclip,
+  X as XIcon,
 } from 'lucide-react';
 
 // ── Shared micro-components ──────────────────────────────────────────────────
@@ -233,11 +235,19 @@ function fmtDate(iso) {
 export default function StudentLeave() {
   const qc = useQueryClient();
   const uid = useId();
+  const fileInputRef = useRef(null);
 
   const [leaveType, setLeaveType]   = useState('medical');
   const [dateFrom, setDateFrom]     = useState('');
   const [dateTo, setDateTo]         = useState('');
   const [reason, setReason]         = useState('');
+  // Medical-only
+  const [medicalFile, setMedicalFile] = useState(null);
+  // Duty-only
+  const [eventName, setEventName]   = useState('');
+  const [clubOrg, setClubOrg]       = useState('');
+  const [dutyDetail, setDutyDetail] = useState('');
+
   const [submitted, setSubmitted]   = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formSuccess, setFormSuccess] = useState('');
@@ -256,6 +266,10 @@ export default function StudentLeave() {
       setReason('');
       setDateFrom('');
       setDateTo('');
+      setMedicalFile(null);
+      setEventName('');
+      setClubOrg('');
+      setDutyDetail('');
       setFieldErrors({});
       setSubmitted(false);
       qc.invalidateQueries({ queryKey: ['my-leave-requests'] });
@@ -276,6 +290,10 @@ export default function StudentLeave() {
     if (dateFrom && dateTo && dateFrom > dateTo)
       errs.dateTo = 'End date cannot be before start date.';
     if (!reason.trim()) errs.reason = 'Please describe the reason for your request.';
+    if (leaveType === 'medical' && !medicalFile)
+      errs.medicalFile = 'A medical document is required for medical leave.';
+    if (leaveType === 'duty' && !eventName.trim())
+      errs.eventName = 'Please enter the event or duty name.';
     return errs;
   };
 
@@ -287,7 +305,18 @@ export default function StudentLeave() {
     const errs = validate();
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
-    submitMutation.mutate({ type: leaveType, date_from: dateFrom, date_to: dateTo, reason: reason.trim() });
+    submitMutation.mutate({
+      type: leaveType,
+      date_from: dateFrom,
+      date_to: dateTo,
+      reason: reason.trim(),
+      // medical-only
+      medical_file: leaveType === 'medical' ? medicalFile : undefined,
+      // duty-only
+      event_name:   leaveType === 'duty' ? eventName.trim()   : undefined,
+      club_org:     leaveType === 'duty' ? clubOrg.trim()     : undefined,
+      duty_detail:  leaveType === 'duty' ? dutyDetail.trim()  : undefined,
+    });
   };
 
   const days = daysBetween(dateFrom, dateTo);
@@ -353,11 +382,148 @@ export default function StudentLeave() {
                 <FieldLabel>Category</FieldLabel>
                 <SegmentedControl
                   value={leaveType}
-                  onChange={setLeaveType}
+                  onChange={(v) => { setLeaveType(v); setFieldErrors({}); setMedicalFile(null); setEventName(''); setClubOrg(''); setDutyDetail(''); }}
                   error={submitted && fieldErrors.leaveType}
                   errorId={`${uid}-cat-err`}
                 />
               </div>
+
+              {/* ── Medical: file upload ─────────────────────────── */}
+              {leaveType === 'medical' && (
+                <div>
+                  <FieldLabel htmlFor={`${uid}-file`}>
+                    Medical document <span style={{ color: 'var(--crit-fg)' }}>*</span>
+                  </FieldLabel>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+                    Upload a prescription, hospital note, or medical certificate (PDF, JPG, PNG — max 5 MB).
+                  </p>
+
+                  {/* Hidden input */}
+                  <input
+                    id={`${uid}-file`}
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    style={{ display: 'none' }}
+                    aria-required="true"
+                    aria-invalid={!!(submitted && fieldErrors.medicalFile)}
+                    aria-describedby={submitted && fieldErrors.medicalFile ? `${uid}-file-err` : undefined}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      if (f.size > 5 * 1024 * 1024) {
+                        setFieldErrors(prev => ({ ...prev, medicalFile: 'File must be under 5 MB.' }));
+                        e.target.value = '';
+                        return;
+                      }
+                      setMedicalFile(f);
+                      setFieldErrors(prev => ({ ...prev, medicalFile: '' }));
+                    }}
+                  />
+
+                  {/* Drop zone / trigger */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => fileInputRef.current?.click()}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+                    style={{
+                      border: `2px dashed ${submitted && fieldErrors.medicalFile ? 'var(--crit-fg)' : medicalFile ? 'var(--accent)' : 'var(--border)'}`,
+                      borderRadius: 'var(--radius-input)',
+                      background: medicalFile ? 'var(--bg)' : 'var(--surface)',
+                      padding: 'var(--space-5)',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}
+                  >
+                    {medicalFile ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                        <Paperclip size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', wordBreak: 'break-all' }}>
+                          {medicalFile.name}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
+                          ({(medicalFile.size / 1024).toFixed(0)} KB)
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Remove file"
+                          onClick={(e) => { e.stopPropagation(); setMedicalFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                          style={{
+                            marginLeft: 4, background: 'none', border: 'none',
+                            cursor: 'pointer', color: 'var(--crit-fg)', display: 'flex',
+                          }}
+                        >
+                          <XIcon size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <Paperclip size={20} style={{ color: 'var(--text-muted)', margin: '0 auto 6px' }} />
+                        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+                          Click to attach a file
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--border)', marginTop: 4 }}>
+                          PDF · JPG · PNG up to 5 MB
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <FieldError id={`${uid}-file-err`}>{submitted && fieldErrors.medicalFile}</FieldError>
+                </div>
+              )}
+
+              {/* ── Duty: event details ──────────────────────────── */}
+              {leaveType === 'duty' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                  <div>
+                    <FieldLabel htmlFor={`${uid}-event`}>
+                      Event / duty name <span style={{ color: 'var(--crit-fg)' }}>*</span>
+                    </FieldLabel>
+                    <input
+                      id={`${uid}-event`}
+                      type="text"
+                      value={eventName}
+                      onChange={(e) => setEventName(e.target.value)}
+                      placeholder="e.g. Inter-college Hackathon 2026"
+                      maxLength={120}
+                      aria-required="true"
+                      aria-invalid={!!(submitted && fieldErrors.eventName)}
+                      aria-describedby={submitted && fieldErrors.eventName ? `${uid}-event-err` : undefined}
+                      style={inputStyle(submitted && fieldErrors.eventName)}
+                    />
+                    <FieldError id={`${uid}-event-err`}>{submitted && fieldErrors.eventName}</FieldError>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                    <div>
+                      <FieldLabel htmlFor={`${uid}-club`}>Club / organisation</FieldLabel>
+                      <input
+                        id={`${uid}-club`}
+                        type="text"
+                        value={clubOrg}
+                        onChange={(e) => setClubOrg(e.target.value)}
+                        placeholder="e.g. IEEE Student Branch"
+                        maxLength={80}
+                        style={inputStyle(false)}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor={`${uid}-duty`}>Role / duty</FieldLabel>
+                      <input
+                        id={`${uid}-duty`}
+                        type="text"
+                        value={dutyDetail}
+                        onChange={(e) => setDutyDetail(e.target.value)}
+                        placeholder="e.g. Team lead, participant"
+                        maxLength={80}
+                        style={inputStyle(false)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Date range */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>

@@ -259,7 +259,15 @@ export const adminApi = {
 
 // Phase 2: Leave & Condonation
 export const leaveApi = {
-  submit: (data) => apiClient.post('/leave/requests', data),
+  submit: ({ medical_file, ...fields }) => {
+    // Always use FormData so the backend receives the file when present
+    const form = new FormData();
+    Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') form.append(k, v); });
+    if (medical_file) form.append('medical_file', medical_file);
+    return apiClient.post('/leave/requests', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   getMyRequests: () => apiClient.get('/leave/my-requests'),
   getInbox: (params = {}) => apiClient.get('/leave/inbox', { params }),
   getDetail: (id) => apiClient.get(`/leave/requests/${id}`),

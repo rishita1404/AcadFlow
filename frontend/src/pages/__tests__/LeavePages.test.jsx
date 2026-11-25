@@ -126,14 +126,39 @@ describe('StudentLeave page', () => {
     });
   });
 
-  it('shows reason validation error on empty reason', async () => {
+  it('shows error when medical file is missing on submit', async () => {
     wrap(<StudentLeave />);
     const inputs = document.querySelectorAll('input[type="date"]');
     fireEvent.change(inputs[0], { target: { value: '2026-10-10' } });
     fireEvent.change(inputs[1], { target: { value: '2026-10-12' } });
+    // fill reason
+    fireEvent.change(document.querySelector('textarea'), { target: { value: 'Viral fever' } });
     fireEvent.click(screen.getByRole('button', { name: /submit request/i }));
     await waitFor(() => {
-      expect(screen.getByText('Please describe the reason for your request.')).toBeDefined();
+      expect(screen.getByText('A medical document is required for medical leave.')).toBeDefined();
+    });
+  });
+
+  it('shows duty fields (event name, club, role) when Duty is selected', () => {
+    wrap(<StudentLeave />);
+    const [, dutyBtn] = screen.getAllByRole('radio');
+    fireEvent.click(dutyBtn);
+    expect(screen.getByLabelText(/event \/ duty name/i)).toBeDefined();
+    expect(screen.getByLabelText(/club \/ organisation/i)).toBeDefined();
+    expect(screen.getByLabelText(/role \/ duty/i)).toBeDefined();
+  });
+
+  it('requires event name for duty leave', async () => {
+    wrap(<StudentLeave />);
+    const [, dutyBtn] = screen.getAllByRole('radio');
+    fireEvent.click(dutyBtn);
+    const inputs = document.querySelectorAll('input[type="date"]');
+    fireEvent.change(inputs[0], { target: { value: '2026-10-10' } });
+    fireEvent.change(inputs[1], { target: { value: '2026-10-12' } });
+    fireEvent.change(document.querySelector('textarea'), { target: { value: 'Attending hackathon' } });
+    fireEvent.click(screen.getByRole('button', { name: /submit request/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Please enter the event or duty name.')).toBeDefined();
     });
   });
 
