@@ -1705,30 +1705,59 @@ export default function StudentCalendar() {
                             border: '1px solid var(--border)',
                           }}
                         >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <strong style={{ color: 'var(--ink-900)' }}>{c.course_code}</strong>
-                            <span
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 700,
-                                padding: '2px 8px',
-                                borderRadius: 'var(--radius-pill)',
-                                background: isPresent
-                                  ? 'var(--ok-bg)'
-                                  : isScheduled
-                                  ? 'var(--surface)'
-                                  : 'var(--crit-bg)',
-                                color: isPresent
-                                  ? 'var(--ok-fg)'
-                                  : isScheduled
-                                  ? 'var(--accent)'
-                                  : 'var(--crit-fg)',
-                                border: isScheduled ? '1px solid var(--border)' : 'none',
-                                textTransform: 'capitalize',
-                              }}
-                            >
-                              {isPresent ? 'Present' : isScheduled ? 'Scheduled' : 'Absent'}
-                            </span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                            <strong style={{ color: 'var(--ink-900)' }}>
+                              {c.course_code}
+                              {c.lecture_no ? (
+                                <span style={{ fontWeight: 500, fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>
+                                  Lec {c.lecture_no}
+                                </span>
+                              ) : null}
+                            </strong>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {c.leave_type && (
+                                <span
+                                  title={
+                                    isPresent
+                                      ? `${c.leave_type} approved (marked present)`
+                                      : `${c.leave_type} approved — counted as present`
+                                  }
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: 'var(--radius-pill)',
+                                    background: 'var(--ok-bg)',
+                                    color: 'var(--ok-fg)',
+                                    border: '1px solid var(--ok-fg)',
+                                  }}
+                                >
+                                  {c.leave_type} approved
+                                </span>
+                              )}
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: '2px 8px',
+                                  borderRadius: 'var(--radius-pill)',
+                                  background: isPresent
+                                    ? 'var(--ok-bg)'
+                                    : isScheduled
+                                    ? 'var(--surface)'
+                                    : 'var(--crit-bg)',
+                                  color: isPresent
+                                    ? 'var(--ok-fg)'
+                                    : isScheduled
+                                    ? 'var(--accent)'
+                                    : 'var(--crit-fg)',
+                                  border: isScheduled ? '1px solid var(--border)' : 'none',
+                                  textTransform: 'capitalize',
+                                }}
+                              >
+                                {isPresent ? 'Present' : isScheduled ? 'Scheduled' : 'Absent'}
+                              </span>
+                            </div>
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                             {c.course_name || 'Course Session'}
