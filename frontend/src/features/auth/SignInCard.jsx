@@ -5,12 +5,10 @@ import AuthDivider from './AuthDivider.jsx';
 // All seeded demo accounts per spec.
 // Visible only when VITE_DEMO_MODE=true in the environment.
 const DEMO_ACCOUNTS = [
-  { email: 'student@acadflow.edu',     label: 'Student',                 password: 'AcadFlow@123' },
-  { email: 'faculty@acadflow.edu',     label: 'Faculty',                 password: 'AcadFlow@123' },
-  { email: 'mentor@acadflow.edu',      label: 'Mentor and coordinator',  password: 'AcadFlow@123' },
-  { email: 'trainer@acadflow.edu',     label: 'Trainer',                 password: 'AcadFlow@123' },
-  { email: 'coordinator@acadflow.edu', label: 'Dean',                    password: 'AcadFlow@123' },
-  { email: 'admin@acadflow.edu',       label: 'Admin',                   password: 'AcadFlow@123' },
+  { email: 'student@acadflow.edu',     label: 'Student',            password: 'AcadFlow@123' },
+  { email: 'faculty@acadflow.edu',     label: 'Faculty / Mentor',   password: 'AcadFlow@123' },
+  { email: 'coordinator@acadflow.edu', label: 'Dean / Coordinator', password: 'AcadFlow@123' },
+  { email: 'admin@acadflow.edu',       label: 'Admin',              password: 'AcadFlow@123' },
 ];
 
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === 'true';

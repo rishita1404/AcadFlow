@@ -343,7 +343,7 @@ describe('LoginPage & Auth Features', () => {
       </MemoryRouter>
     );
     const chips = screen.queryAllByRole('button', { name: /Fill credentials for/i });
-    // 6 demo accounts should render (Student, Faculty, Mentor and coordinator, Trainer, Dean, Admin)
-    expect(chips.length).toBeGreaterThan(0);
+    // 4 demo accounts should render (Student, Faculty / Mentor, Dean / Coordinator, Admin)
+    expect(chips).toHaveLength(4);
   });
 });
