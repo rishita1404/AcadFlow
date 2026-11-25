@@ -461,3 +461,16 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 - Updated `frontend/src/pages/student/StudentLeave.jsx` with a **Full day(s)** vs **Specific lectures** selector, dynamic `Lecture 1..N` checkboxes enriched with subject and time from the published timetable, `reason` textarea, updated rule callout, and lecture-aware history labels (e.g. `DL, 12 Dec, Lectures 2 to 4`).
 - Updated `frontend/src/pages/faculty/FacultyLeaveInbox.jsx` to display lecture scope on leave requests.
 - Added lecture validation test in `frontend/src/pages/__tests__/LeavePages.test.jsx`.
+
+---
+
+## Leave-Lectures & Leave-Present — Step 3: Calculation & Config
+
+**Branch:** `feature/leave-lectures`
+
+### Changes
+- Added `LEAVE_DL_COUNTS_AS_PRESENT=true` and `LEAVE_ML_COUNTS_AS_PRESENT=true` to `backend/app/core/config.py`, `.env.example`, `RiskConfigModel`, `RiskConfigOut`/`RiskConfigUpdate` (`backend/app/schemas/risk.py`).
+- Implemented `compute_leave_counts_for_course`, `_leave_covers_session`, and `derive_lecture_no_from_timetable` in `backend/app/services/attendance_stats.py` and reused them in `backend/app/services/risk_data.py` and `get_needs_attention`.
+- Held and total classes no longer shrink on approved leave; `attended = present + late + leave_counted` (only for sessions marked `absent` covered by an approved DL/ML).
+- Wired `derive_lecture_no_from_timetable` into `attendance.py` (`create_session`, `direct_mark`) and `csv_ingest.py`; ensured `leave.py` recomputes risk & invalidates caches on both approve and reject.
+- Deliberately updated `test_leave_neutral_attendance_arithmetic` and added `test_leave_required_fixtures_dl_and_lectures_mode` in `backend/tests/integration/test_phase2_leave_condonation.py` (10/10 passed).

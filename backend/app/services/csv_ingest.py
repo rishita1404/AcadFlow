@@ -387,9 +387,13 @@ def ingest_attendance_file(
 
         # ── Get or create ClassSession for this date ──────────────────────
         if parsed_date not in session_date_map:
+            from app.services.attendance_stats import derive_lecture_no_from_timetable
+
+            lec_no = derive_lecture_no_from_timetable(db, course_id, parsed_date)
             new_session = ClassSessionModel(
                 course_id=course_id,
                 held_on=parsed_date,
+                lecture_no=lec_no,
                 is_cancelled=False,
             )
             db.add(new_session)

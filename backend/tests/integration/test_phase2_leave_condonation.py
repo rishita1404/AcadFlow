@@ -3,7 +3,7 @@ Phase 2 Integration Tests: Leave Requests, Neutral Attendance Arithmetic,
 Condonation Flow, 403 Scope Enforcement, and Audit Logging.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -270,9 +270,9 @@ def test_leave_decision_dean_when_no_mentor(client: TestClient, db_session: Sess
 
 def test_leave_neutral_attendance_arithmetic(client: TestClient, db_session: Session, phase2_setup: dict):
     """
-    Verify arithmetic requirement:
-    On approval, sessions in the leave range are excluded from student's held, total,
-    and attended counts (neutral excusal).
+    Verify leave-present arithmetic:
+    An approved ML/DL counts as present ONLY for sessions where the student was marked absent.
+    Held and total_classes do not change.
     """
     student = phase2_setup["student"]
     mentor = phase2_setup["mentor"]
@@ -284,6 +284,7 @@ def test_leave_neutral_attendance_arithmetic(client: TestClient, db_session: Ses
         sess = ClassSessionModel(
             course_id=course.id,
             held_on=date(2026, 10, day),
+            lecture_no=1,
             is_cancelled=False,
         )
         db_session.add(sess)
@@ -304,12 +305,6 @@ def test_leave_neutral_attendance_arithmetic(client: TestClient, db_session: Ses
         )
     db_session.commit()
 
-    # Before leave:
-    # held = 10, attended = 8, total_classes = 60
-    # required = ceil(0.75 * 60) = 45
-    # remaining = 60 - 10 = 50
-    # still_need = 45 - 8 = 37
-    # buffer = 50 - 37 = 13
     stats_before = get_student_course_attendance(db_session, student.id, course.id, min_classes=5)
     assert stats_before["held"] == 10
     assert stats_before["attended"] == 8
@@ -319,10 +314,11 @@ def test_leave_neutral_attendance_arithmetic(client: TestClient, db_session: Ses
     assert stats_before["still_need"] == 37
     assert stats_before["buffer"] == 13
 
-    # Submit and approve medical leave covering Oct 9 to Oct 10 (2 sessions)
+    # Submit and approve medical leave covering Oct 9 to Oct 10 (2 absent sessions)
     leave_req = LeaveRequestModel(
         student_id=student.id,
         type="medical",
+        mode="full_day",
         date_from=date(2026, 10, 9),
         date_to=date(2026, 10, 10),
         reason="Dengue fever recovery",
@@ -341,22 +337,103 @@ def test_leave_neutral_attendance_arithmetic(client: TestClient, db_session: Ses
     assert decide_res.status_code == 200
 
     # After approval:
-    # 2 sessions excluded from student's held and total!
-    # held = 10 - 2 = 8
-    # attended = 8 (unchanged since they were absent in those 2)
-    # total_classes = 60 - 2 = 58
-    # required = ceil(0.75 * 58) = 44
-    # remaining = 58 - 8 = 50
-    # still_need = 44 - 8 = 36
-    # buffer = 50 - 36 = 14
+    # held = 10 (unchanged), total_classes = 60 (unchanged)
+    # attended = 8 present + 2 ML = 10
+    # required = 45, remaining = 50, still_need = 35, buffer = 15
     stats_after = get_student_course_attendance(db_session, student.id, course.id, min_classes=5)
-    assert stats_after["held"] == 8
-    assert stats_after["attended"] == 8
-    assert stats_after["total_classes"] == 58
-    assert stats_after["required"] == 44
+    assert stats_after["held"] == 10
+    assert stats_after["total_classes"] == 60
+    assert stats_after["present_count"] == 8
+    assert stats_after["ml_counted"] == 2
+    assert stats_after["leave_counted"] == 2
+    assert stats_after["attended"] == 10
+    assert stats_after["required"] == 45
     assert stats_after["remaining"] == 50
-    assert stats_after["still_need"] == 36
-    assert stats_after["buffer"] == 14
+    assert stats_after["still_need"] == 35
+    assert stats_after["buffer"] == 15
+
+
+def test_leave_required_fixtures_dl_and_lectures_mode(client: TestClient, db_session: Session, phase2_setup: dict):
+    """
+    Required fixtures:
+    Case 1: 60-class course, held 40, 28 present, 12 absent, 2 covered by approved DL -> attended=30, still_need=15, buffer=5.
+    Case 2: DL covers lectures 3 and 4 on a single date; student is present at lecture 3 and absent at lecture 4 -> leave_counted=1.
+    """
+    student = phase2_setup["student"]
+    mentor = phase2_setup["mentor"]
+    course = phase2_setup["course"]  # total_classes = 60
+
+    base_date = date(2026, 9, 1)
+    sessions = []
+    # 38 sessions on consecutive days (lec 1) + 2 sessions on Oct 20 (lectures 3 and 4) = 40 held
+    for i in range(38):
+        s = ClassSessionModel(
+            course_id=course.id,
+            held_on=base_date + timedelta(days=i),
+            lecture_no=1,
+            is_cancelled=False,
+        )
+        db_session.add(s)
+        sessions.append(s)
+    lec3 = ClassSessionModel(course_id=course.id, held_on=date(2026, 10, 20), lecture_no=3, is_cancelled=False)
+    lec4 = ClassSessionModel(course_id=course.id, held_on=date(2026, 10, 20), lecture_no=4, is_cancelled=False)
+    db_session.add_all([lec3, lec4])
+    db_session.flush()
+    sessions.extend([lec3, lec4])
+
+    # 27 present + lec3 present = 28 present; 11 absent + lec4 absent = 12 absent
+    for idx, s in enumerate(sessions[:38]):
+        st = "present" if idx < 27 else "absent"
+        db_session.add(AttendanceRecordModel(session_id=s.id, student_id=student.id, status=st, marked_by=mentor.id, marked_at=datetime.now(timezone.utc)))
+    db_session.add(AttendanceRecordModel(session_id=lec3.id, student_id=student.id, status="present", marked_by=mentor.id, marked_at=datetime.now(timezone.utc)))
+    db_session.add(AttendanceRecordModel(session_id=lec4.id, student_id=student.id, status="absent", marked_by=mentor.id, marked_at=datetime.now(timezone.utc)))
+
+    # Approved DL covering 2 absent sessions (sessions[27] and sessions[28])
+    dl_full = LeaveRequestModel(
+        student_id=student.id,
+        type="duty",
+        mode="full_day",
+        date_from=sessions[27].held_on,
+        date_to=sessions[28].held_on,
+        reason="Hackathon DL",
+        status="approved",
+        decided_by=mentor.id,
+        decided_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(dl_full)
+    db_session.commit()
+
+    stats = get_student_course_attendance(db_session, student.id, course.id, min_classes=5)
+    assert stats["held"] == 40
+    assert stats["present_count"] == 28
+    assert stats["dl_counted"] == 2
+    assert stats["attended"] == 30
+    assert stats["still_need"] == 15
+    assert stats["buffer"] == 5
+
+    # Now replace with Case 2: DL covers lectures 3 and 4 on Oct 20 (lec3=present, lec4=absent)
+    db_session.delete(dl_full)
+    dl_lec = LeaveRequestModel(
+        student_id=student.id,
+        type="duty",
+        mode="lectures",
+        date_from=date(2026, 10, 20),
+        date_to=date(2026, 10, 20),
+        lecture_nos="[3, 4]",
+        reason="Department seminar",
+        status="approved",
+        decided_by=mentor.id,
+        decided_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(dl_lec)
+    db_session.commit()
+
+    stats_lec = get_student_course_attendance(db_session, student.id, course.id, min_classes=5)
+    assert stats_lec["leave_counted"] == 1
+    assert stats_lec["dl_counted"] == 1
+    assert stats_lec["attended"] == 29
     # Buffer is preserved/neutral and not penalized!
 
 

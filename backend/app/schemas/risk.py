@@ -142,6 +142,8 @@ class RiskConfigOut(BaseModel):
     condonation_floor_pct: Optional[float] = 65.0
     require_recommendation: Optional[bool] = True
     collision_warning_threshold: Optional[int] = 3
+    leave_dl_counts_as_present: Optional[bool] = True
+    leave_ml_counts_as_present: Optional[bool] = True
     version: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -159,4 +161,6 @@ class RiskConfigUpdate(BaseModel):
     condonation_floor_pct: Optional[float] = Field(None, ge=0, le=100)
     require_recommendation: Optional[bool] = None
     collision_warning_threshold: Optional[int] = Field(None, ge=1, le=50)
+    leave_dl_counts_as_present: Optional[bool] = None
+    leave_ml_counts_as_present: Optional[bool] = None
     version: Optional[str] = None

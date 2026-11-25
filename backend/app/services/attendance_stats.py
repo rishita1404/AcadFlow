@@ -16,6 +16,7 @@ Rounding & No-Data Rule:
 from __future__ import annotations
 
 import math
+from datetime import date
 from typing import Dict, List, Optional
 
 from sqlalchemy import func, select
@@ -42,6 +43,169 @@ def _get_min_classes(db: Session, override: Optional[int] = None) -> int:
     return int(cfg.min_classes) if cfg and cfg.min_classes is not None else DEFAULT_MIN_CLASSES
 
 
+def derive_lecture_no_from_timetable(
+    db: Session,
+    course_id: int,
+    held_on: date,
+    section: Optional[str] = None,
+) -> int:
+    """Derive 1-based lecture_no from the latest published timetable slot for (course, weekday)."""
+    from app.models.timetable import TimetableSlotModel, TimetableVersionModel
+
+    q = (
+        select(TimetableSlotModel.period_label)
+        .join(TimetableVersionModel, TimetableSlotModel.version_id == TimetableVersionModel.id)
+        .where(
+            TimetableVersionModel.status == "published",
+            TimetableSlotModel.course_id == course_id,
+            TimetableSlotModel.day == held_on.weekday(),
+        )
+        .order_by(TimetableVersionModel.id.desc())
+    )
+    if section:
+        q = q.where(TimetableSlotModel.section == section)
+    lbl = db.scalar(q)
+    if lbl:
+        digits = "".join(ch for ch in str(lbl) if ch.isdigit())
+        if digits:
+            return int(digits)
+    return 1
+
+
+def _parse_leave_lectures(raw_val) -> set[int]:
+    if not raw_val:
+        return set()
+    if isinstance(raw_val, list):
+        return {int(x) for x in raw_val if str(x).strip().isdigit()}
+    import json
+    try:
+        parsed = json.loads(str(raw_val))
+        if isinstance(parsed, list):
+            return {int(x) for x in parsed if str(x).strip().isdigit()}
+    except Exception:
+        pass
+    return {int(p.strip()) for p in str(raw_val).split(",") if p.strip().isdigit()}
+
+
+def _leave_covers_session(leave_row, held_on: date, lecture_no: int) -> bool:
+    mode = getattr(leave_row, "mode", None) or "full_day"
+    if mode == "lectures":
+        if leave_row.date_from != held_on:
+            return False
+        lectures = _parse_leave_lectures(getattr(leave_row, "lecture_nos", None))
+        return int(lecture_no or 1) in lectures
+    return leave_row.date_from <= held_on <= leave_row.date_to
+
+
+def _get_leave_count_flags(db: Session) -> tuple[bool, bool]:
+    from app.core.config import settings
+    from app.models.risk import RiskConfigModel
+
+    cfg = db.scalar(select(RiskConfigModel).order_by(RiskConfigModel.id.desc()))
+    dl_enabled = settings.LEAVE_DL_COUNTS_AS_PRESENT
+    ml_enabled = settings.LEAVE_ML_COUNTS_AS_PRESENT
+    if cfg is not None:
+        if getattr(cfg, "leave_dl_counts_as_present", None) is not None:
+            dl_enabled = bool(cfg.leave_dl_counts_as_present)
+        if getattr(cfg, "leave_ml_counts_as_present", None) is not None:
+            ml_enabled = bool(cfg.leave_ml_counts_as_present)
+    return dl_enabled, ml_enabled
+
+
+def compute_leave_counts_for_course(
+    db: Session,
+    student_id: int,
+    course_id: int,
+    enrolled_on: Optional[date] = None,
+) -> dict:
+    """
+    Compute approved DL/ML sessions that count as present for a student in a course.
+    Rule: A session counts as leave-present ONLY when the student's attendance
+    record for that session is 'absent' AND an approved leave covers that date
+    (and lecture_no in 'lectures' mode). Held and total_classes never change.
+    """
+    from app.models.leave import LeaveRequestModel
+
+    dl_enabled, ml_enabled = _get_leave_count_flags(db)
+    if not dl_enabled and not ml_enabled:
+        return {
+            "dl_counted": 0,
+            "ml_counted": 0,
+            "leave_counted": 0,
+            "dl_session_ids": set(),
+            "ml_session_ids": set(),
+            "session_leave_type": {},
+        }
+
+    approved_leaves = db.scalars(
+        select(LeaveRequestModel).where(
+            LeaveRequestModel.student_id == student_id,
+            LeaveRequestModel.status == "approved",
+        )
+    ).all()
+    if not approved_leaves:
+        return {
+            "dl_counted": 0,
+            "ml_counted": 0,
+            "leave_counted": 0,
+            "dl_session_ids": set(),
+            "ml_session_ids": set(),
+            "session_leave_type": {},
+        }
+
+    absent_q = (
+        select(
+            ClassSessionModel.id,
+            ClassSessionModel.held_on,
+            ClassSessionModel.lecture_no,
+        )
+        .join(
+            AttendanceRecordModel,
+            AttendanceRecordModel.session_id == ClassSessionModel.id,
+        )
+        .where(
+            ClassSessionModel.course_id == course_id,
+            ClassSessionModel.is_cancelled.is_(False),
+            AttendanceRecordModel.student_id == student_id,
+            AttendanceRecordModel.status == "absent",
+        )
+    )
+    if enrolled_on:
+        absent_q = absent_q.where(ClassSessionModel.held_on >= enrolled_on)
+
+    dl_session_ids: set[int] = set()
+    ml_session_ids: set[int] = set()
+    session_leave_type: dict[int, str] = {}
+
+    for sid, held_on, lecture_no in db.execute(absent_q).all():
+        lec = int(lecture_no or 1)
+        matched_type = None
+        for lv in approved_leaves:
+            if lv.type == "duty" and not dl_enabled:
+                continue
+            if lv.type == "medical" and not ml_enabled:
+                continue
+            if _leave_covers_session(lv, held_on, lec):
+                matched_type = lv.type
+                if lv.type == "duty":
+                    break
+        if matched_type == "duty":
+            dl_session_ids.add(sid)
+            session_leave_type[sid] = "DL"
+        elif matched_type == "medical":
+            ml_session_ids.add(sid)
+            session_leave_type[sid] = "ML"
+
+    return {
+        "dl_counted": len(dl_session_ids),
+        "ml_counted": len(ml_session_ids),
+        "leave_counted": len(dl_session_ids) + len(ml_session_ids),
+        "dl_session_ids": dl_session_ids,
+        "ml_session_ids": ml_session_ids,
+        "session_leave_type": session_leave_type,
+    }
+
+
 def get_student_course_attendance(
     db: Session,
     student_id: int,
@@ -51,10 +215,8 @@ def get_student_course_attendance(
     """
     Compute authoritative attendance and buffer statistics for one student in one course.
 
-    Reads ONLY from class_sessions and attendance_records tables.
-    Returns:
-        held, attended, attendance_pct, buffer, required, still_need,
-        remaining, insufficient_data, total_classes, status_message
+    Approved DL/ML counts as present only for sessions where the student was marked absent.
+    Held and total_classes do not change.
     """
     course = db.get(CourseModel, course_id)
     total_classes = course.total_classes if course and course.total_classes else 45
@@ -67,39 +229,13 @@ def get_student_course_attendance(
     )
     enrolled_on = enrolment.enrolled_on if enrolment else None
 
-    # Exclude sessions in approved leave ranges for this student (neutral excusal)
-    from app.models.leave import LeaveRequestModel
-
-    approved_leaves = db.scalars(
-        select(LeaveRequestModel).where(
-            LeaveRequestModel.student_id == student_id,
-            LeaveRequestModel.status == "approved",
-        )
-    ).all()
-
-    excused_session_ids: set[int] = set()
-    if approved_leaves:
-        for al in approved_leaves:
-            q = select(ClassSessionModel.id).where(
-                ClassSessionModel.course_id == course_id,
-                ClassSessionModel.is_cancelled.is_(False),
-                ClassSessionModel.held_on >= al.date_from,
-                ClassSessionModel.held_on <= al.date_to,
-            )
-            if enrolled_on:
-                q = q.where(ClassSessionModel.held_on >= enrolled_on)
-            for sid in db.scalars(q).all():
-                excused_session_ids.add(sid)
-
-    # Count conducted, non-cancelled sessions
+    # Count conducted, non-cancelled sessions (held does NOT change with leave)
     held_query = select(func.count(ClassSessionModel.id)).where(
         ClassSessionModel.course_id == course_id,
-        ClassSessionModel.is_cancelled == False,  # noqa: E712
+        ClassSessionModel.is_cancelled.is_(False),
     )
     if enrolled_on:
         held_query = held_query.where(ClassSessionModel.held_on >= enrolled_on)
-    if excused_session_ids:
-        held_query = held_query.where(~ClassSessionModel.id.in_(excused_session_ids))
     held: int = db.scalar(held_query) or 0
 
     # Count attended sessions (present or late)
@@ -111,19 +247,22 @@ def get_student_course_attendance(
         )
         .where(
             ClassSessionModel.course_id == course_id,
-            ClassSessionModel.is_cancelled == False,  # noqa: E712
+            ClassSessionModel.is_cancelled.is_(False),
             AttendanceRecordModel.student_id == student_id,
             AttendanceRecordModel.status.in_(["present", "late"]),
         )
     )
     if enrolled_on:
         attended_query = attended_query.where(ClassSessionModel.held_on >= enrolled_on)
-    if excused_session_ids:
-        attended_query = attended_query.where(~ClassSessionModel.id.in_(excused_session_ids))
-    attended: int = db.scalar(attended_query) or 0
+    present_and_late: int = db.scalar(attended_query) or 0
 
-    if excused_session_ids:
-        total_classes = max(1, total_classes - len(excused_session_ids))
+    leave_info = compute_leave_counts_for_course(
+        db=db, student_id=student_id, course_id=course_id, enrolled_on=enrolled_on
+    )
+    dl_counted = leave_info["dl_counted"]
+    ml_counted = leave_info["ml_counted"]
+    leave_counted = leave_info["leave_counted"]
+    attended = present_and_late + leave_counted
 
     min_required_sessions = _get_min_classes(db, min_classes)
 
@@ -135,6 +274,10 @@ def get_student_course_attendance(
         return {
             "held": held,
             "attended": attended,
+            "present_count": present_and_late,
+            "dl_counted": dl_counted,
+            "ml_counted": ml_counted,
+            "leave_counted": leave_counted,
             "attendance_pct": None,
             "buffer": None,
             "required": required,
@@ -159,6 +302,10 @@ def get_student_course_attendance(
     return {
         "held": held,
         "attended": attended,
+        "present_count": present_and_late,
+        "dl_counted": dl_counted,
+        "ml_counted": ml_counted,
+        "leave_counted": leave_counted,
         "attendance_pct": attendance_pct,
         "buffer": buffer,
         "required": required,
@@ -445,9 +592,9 @@ def get_needs_attention_for_faculty(
         select(LeaveRequestModel).where(LeaveRequestModel.status == "approved")
     ).all()
 
-    def _is_on_approved_leave(stu_id: int, s_date) -> bool:
+    def _is_on_approved_leave(stu_id: int, s_date, lecture_no: int = 1) -> bool:
         for lv in approved_leaves:
-            if lv.student_id == stu_id and lv.date_from <= s_date <= lv.date_to:
+            if lv.student_id == stu_id and _leave_covers_session(lv, s_date, lecture_no):
                 return True
         return False
 
@@ -516,9 +663,9 @@ def get_needs_attention_for_faculty(
             consecutive_count = 0
             missed_dates = []
             for sess in sessions:
-                # If date is covered by approved leave, skip it (neutral)
-                if _is_on_approved_leave(stu_id, sess.held_on):
-                    continue
+                # If session is covered by approved leave, it counts as present (breaks absence streak)
+                if _is_on_approved_leave(stu_id, sess.held_on, getattr(sess, "lecture_no", 1)):
+                    break
 
                 st = attendance_map.get((stu_id, sess.id))
                 if st == "absent":

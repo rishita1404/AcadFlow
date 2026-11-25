@@ -410,21 +410,20 @@ async def decide_leave_request(
         },
     )
 
+    # Recompute risk snapshot for each enrolled course and invalidate caches on both approve & reject
+    enrolled_courses = db.scalars(
+        select(EnrolmentModel.course_id).where(EnrolmentModel.student_id == req.student_id)
+    ).all()
+    for cid in enrolled_courses:
+        try:
+            persist_risk_snapshot(db, req.student_id, cid)
+        except Exception as exc:
+            import logging
+            logging.getLogger("acadflow.leave").warning("Risk recompute failed after leave decision: %s", exc)
+
+    await _invalidate_dashboard_cache(req.student_id)
+
     if payload.status == "approved":
-        # 1. Trigger worker recompute for each enrolled course of student
-        enrolled_courses = db.scalars(
-            select(EnrolmentModel.course_id).where(EnrolmentModel.student_id == req.student_id)
-        ).all()
-        for cid in enrolled_courses:
-            try:
-                persist_risk_snapshot(db, req.student_id, cid)
-            except Exception:
-                pass
-
-        # 2. Invalidate dashboard cache
-        await _invalidate_dashboard_cache(req.student_id)
-
-        # 3. Notify student
         _upsert_notification(
             db,
             recipient_id=req.student_id,
@@ -434,7 +433,6 @@ async def decide_leave_request(
             dedup_key=f"leave_appr_{req.id}",
         )
     else:
-        # Rejected notification
         _upsert_notification(
             db,
             recipient_id=req.student_id,

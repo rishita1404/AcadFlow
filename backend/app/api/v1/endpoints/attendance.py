@@ -137,20 +137,27 @@ def create_session(
     if not course:
         raise NotFoundError(f"Course {payload.course_id} not found.")
 
+    from app.services.attendance_stats import derive_lecture_no_from_timetable
+
+    lec_no = getattr(payload, "lecture_no", None) or derive_lecture_no_from_timetable(
+        db, payload.course_id, payload.held_on
+    )
     existing = db.scalar(
         select(ClassSessionModel).where(
             ClassSessionModel.course_id == payload.course_id,
             ClassSessionModel.held_on == payload.held_on,
+            ClassSessionModel.lecture_no == lec_no,
         )
     )
     if existing:
         raise ConflictError(
-            f"Session for course {payload.course_id} on {payload.held_on} already exists."
+            f"Session for course {payload.course_id} on {payload.held_on} (lecture {lec_no}) already exists."
         )
 
     session = ClassSessionModel(
         course_id=payload.course_id,
         held_on=payload.held_on,
+        lecture_no=lec_no,
         is_cancelled=payload.is_cancelled,
     )
     db.add(session)
@@ -669,17 +676,25 @@ def direct_mark_attendance(
     if not course:
         raise NotFoundError(f"Course {payload.course_id} not found.")
 
+    from app.services.attendance_stats import derive_lecture_no_from_timetable
+
+    lec_no = getattr(payload, "lecture_no", None) or derive_lecture_no_from_timetable(
+        db, payload.course_id, payload.session_date
+    )
+
     # Find or create session
     session = db.scalar(
         select(ClassSessionModel).where(
             ClassSessionModel.course_id == payload.course_id,
             ClassSessionModel.held_on == payload.session_date,
+            ClassSessionModel.lecture_no == lec_no,
         )
     )
     if not session:
         session = ClassSessionModel(
             course_id=payload.course_id,
             held_on=payload.session_date,
+            lecture_no=lec_no,
             is_cancelled=False,
         )
         db.add(session)

@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_UPLOAD_PER_MINUTE: int = int(
         os.getenv("RATE_LIMIT_UPLOAD_PER_MINUTE", "5")
     )
+    LEAVE_DL_COUNTS_AS_PRESENT: bool = os.getenv("LEAVE_DL_COUNTS_AS_PRESENT", "true").lower() in ("true", "1", "yes")
+    LEAVE_ML_COUNTS_AS_PRESENT: bool = os.getenv("LEAVE_ML_COUNTS_AS_PRESENT", "true").lower() in ("true", "1", "yes")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
