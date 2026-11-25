@@ -1851,7 +1851,7 @@ def get_my_timetable(
 
 # ── Official Leave Requests (Phase 2) ───────────────────────────────────────
 from app.schemas.leave import LeaveRequestCreate, LeaveRequestOut
-from app.api.v1.endpoints.leave import submit_leave_request as _submit_leave, get_my_leave_requests as _get_my_leaves
+from app.api.v1.endpoints.leave import _create_leave_request, get_my_leave_requests as _get_my_leaves
 
 @router.post(
     "/leave-requests",
@@ -1864,7 +1864,7 @@ async def submit_my_leave_request(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    return await _submit_leave(payload=payload, db=db, current_user=current_user)
+    return await _create_leave_request(payload=payload, db=db, current_user=current_user)
 
 
 @router.get(

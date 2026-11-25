@@ -10,7 +10,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -79,14 +80,30 @@ def _enrich_leave_out(db: Session, row: LeaveRequestModel) -> LeaveRequestOut:
     )
 
 
-@router.post("/requests", response_model=LeaveRequestOut, status_code=status.HTTP_201_CREATED, summary="Submit a leave request")
-async def submit_leave_request(
+def _build_leave_reason(payload: LeaveRequestCreate, medical_filename: Optional[str] = None) -> str:
+    if payload.reason and payload.reason.strip():
+        return payload.reason.strip()
+    if payload.type == "duty":
+        parts = []
+        if payload.event_name and payload.event_name.strip():
+            parts.append(payload.event_name.strip())
+        if payload.club_org and payload.club_org.strip():
+            parts.append(payload.club_org.strip())
+        if payload.duty_detail and payload.duty_detail.strip():
+            parts.append(f"({payload.duty_detail.strip()})")
+        return " — ".join(parts) if parts else "Duty / event leave"
+    if medical_filename:
+        return f"Medical document: {medical_filename}"
+    return "Medical leave"
+
+
+async def _create_leave_request(
     payload: LeaveRequestCreate,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
-):
+    db: Session,
+    current_user: dict,
+    medical_filename: Optional[str] = None,
+) -> LeaveRequestOut:
     user_id = int(current_user["sub"]) if "sub" in current_user else current_user.get("id")
-    user_role = current_user.get("role", "student")
 
     # Scope check: students can only submit for themselves
     verify_access(current_user, Action.SUBMIT_LEAVE, {"student_id": user_id})
@@ -102,7 +119,7 @@ async def submit_leave_request(
         type=payload.type,
         date_from=payload.date_from,
         date_to=payload.date_to,
-        reason=payload.reason.strip(),
+        reason=_build_leave_reason(payload, medical_filename=medical_filename),
         status="pending",
         created_at=datetime.now(timezone.utc),
     )
@@ -111,6 +128,54 @@ async def submit_leave_request(
     db.refresh(leave_req)
 
     return _enrich_leave_out(db, leave_req)
+
+
+@router.post("/requests", response_model=LeaveRequestOut, status_code=status.HTTP_201_CREATED, summary="Submit a leave request")
+async def submit_leave_request(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    content_type = request.headers.get("content-type", "")
+    medical_filename: Optional[str] = None
+
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        medical_file = form.get("medical_file")
+        if medical_file is not None and hasattr(medical_file, "filename"):
+            medical_filename = medical_file.filename
+        raw = {
+            "type": form.get("type"),
+            "date_from": form.get("date_from"),
+            "date_to": form.get("date_to"),
+            "reason": form.get("reason") or None,
+            "event_name": form.get("event_name") or None,
+            "club_org": form.get("club_org") or None,
+            "duty_detail": form.get("duty_detail") or None,
+        }
+    else:
+        try:
+            raw = await request.json()
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "INVALID_JSON", "message": "Invalid JSON request body."},
+            )
+
+    try:
+        payload = LeaveRequestCreate.model_validate(raw)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.errors(),
+        )
+
+    return await _create_leave_request(
+        payload=payload,
+        db=db,
+        current_user=current_user,
+        medical_filename=medical_filename,
+    )
 
 
 @router.get("/my-requests", response_model=List[LeaveRequestOut], summary="List own leave requests")

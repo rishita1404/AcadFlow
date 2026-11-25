@@ -14,7 +14,10 @@ class LeaveRequestCreate(BaseModel):
     type: str = Field(..., pattern="^(medical|duty)$", description="medical or duty")
     date_from: date
     date_to: date
-    reason: str = Field(..., min_length=3, max_length=1000, description="Reason for leave")
+    reason: Optional[str] = Field(None, max_length=1000, description="Reason for leave")
+    event_name: Optional[str] = Field(None, max_length=120)
+    club_org: Optional[str] = Field(None, max_length=80)
+    duty_detail: Optional[str] = Field(None, max_length=80)
 
 
 class LeaveRequestDecision(BaseModel):
