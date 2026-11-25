@@ -129,6 +129,13 @@ export const studentApi = {
 // ── Health ────────────────────────────────────────────────────────────────────
 export const healthApi = {
   ping: () => apiClient.get('/health/'),
+  ready: () => apiClient.get('/health/ready'),
+};
+
+// ── Preferences ───────────────────────────────────────────────────────────────
+export const preferencesApi = {
+  get: () => apiClient.get('/me/preferences'),
+  update: (payload) => apiClient.put('/me/preferences', payload),
 };
 
 // Leave Planner & Tasks

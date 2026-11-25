@@ -664,8 +664,10 @@ def create_notice(
                 message=f"{notice.body[:100]}...\nSent to: {notice.audience_summary}",
                 notif_type="notice_new",
             )
-    except Exception:
-        pass
+        db.commit()
+    except Exception as exc:
+        import logging
+        logging.getLogger("acadflow.notices").warning("Failed to dispatch notice notifications: %s", exc)
 
     risk_cfg = db.scalar(select(RiskConfigModel))
     threshold = (

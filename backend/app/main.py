@@ -69,17 +69,23 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("Database startup init notice: %s", e)
 
+        from app.api.v1.endpoints.health import worker_tasks
         from app.workers.missed_submission_worker import run_missed_submission_worker
         from app.workers.reminder_worker import run_reminder_worker
         from app.workers.risk_worker import run_risk_recalculation_worker
 
         loop = asyncio.get_event_loop()
-        loop.create_task(run_reminder_worker(), name="reminder_worker")
-        loop.create_task(run_missed_submission_worker(), name="missed_submission_worker")
-        loop.create_task(run_risk_recalculation_worker(), name="risk_worker")
+        worker_tasks["reminder_worker"] = loop.create_task(run_reminder_worker(), name="reminder_worker")
+        worker_tasks["missed_submission_worker"] = loop.create_task(run_missed_submission_worker(), name="missed_submission_worker")
+        worker_tasks["risk_worker"] = loop.create_task(run_risk_recalculation_worker(), name="risk_worker")
         logger.info("Background workers started: reminder | missed_submission | risk")
 
     # ─────────────────────────────────────────────────────────────────────────
+
+    @app.get("/ready", tags=["Health"])
+    async def root_ready():
+        from app.api.v1.endpoints.health import get_readiness
+        return await get_readiness()
 
     @app.get("/")
     async def root():

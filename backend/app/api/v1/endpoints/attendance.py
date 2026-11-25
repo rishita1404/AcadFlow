@@ -494,8 +494,11 @@ def upload_attendance_file(
                 buffer=data.get("buffer"),
                 attendance_pct=data.get("attendance_pct"),
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger("acadflow.attendance").warning(
+                "Inline risk recompute failed for student=%s course=%s: %s", sid, course_id, exc
+            )
 
     return {
         "course_id": result.course_id,
@@ -749,8 +752,11 @@ def direct_mark_attendance(
                 buffer=data.get("buffer"),
                 attendance_pct=data.get("attendance_pct"),
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger("acadflow.attendance").warning(
+                "Inline risk recompute failed for student=%s course=%s: %s", sid, payload.course_id, exc
+            )
 
     return {
         "success": True,

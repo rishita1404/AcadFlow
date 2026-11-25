@@ -397,3 +397,15 @@ Screenshots require `npx playwright install` to be run once to download Chromium
   ```bash
   (cd backend && uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload) & (cd frontend && npm run dev) & wait
   ```
+
+---
+
+## Demo Connectivity — Step 3: Connect Pages, Caches, Notices & Leave
+
+**Branch:** `fix/demo-connectivity`
+
+### Changes
+- **Readiness & Loud Warnings (`health.py`, `main.py`, `attendance.py`):** Added `GET /api/v1/health/ready` and `GET /ready` reporting database, MongoDB, Redis, and background worker status; replaced silent `except Exception: pass` on inline attendance risk recompute with structured `logger.warning`.
+- **Frontend Freshness (`providers.jsx`, `AppShell.jsx`, `SignInCard.jsx`):** Enabled `refetchOnWindowFocus: true`, tightened notification polling from `60s` to `30s`, and restored all 6 seeded demo login chips.
+- **Connected Disconnected Pages:** Wired `StudentPreferences.jsx` to `GET/PUT /me/preferences` (`UserPreferenceModel`) and `AdminML.jsx` to live `GET /admin/stats` + `GET /health/ready`.
+- **Notices & Leave Notifications/Permissions (`notices.py`, `leave.py`, `authorization.py`):** Committed in-app notifications on notice send; added approver notification on leave submit; expanded leave inbox/detail visibility to mentor, department dean (with override capability), and affected course instructors while keeping 403 for unrelated users.

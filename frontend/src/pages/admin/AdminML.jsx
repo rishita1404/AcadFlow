@@ -1,8 +1,24 @@
 
 import { Link } from 'react-router-dom';
-import { ShieldCheck, CheckCircle2, Activity, Database, ExternalLink, FileText } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ShieldCheck, CheckCircle2, AlertTriangle, Database, ExternalLink, FileText } from 'lucide-react';
+import { adminApi, healthApi } from '../../api/endpoints.js';
 
 export default function AdminML() {
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: () => adminApi.getStats().then((r) => r.data),
+  });
+  const { data: ready, isLoading: readyLoading } = useQuery({
+    queryKey: ['health-ready'],
+    queryFn: () => healthApi.ready().then((r) => r.data),
+  });
+
+  const studentCount = stats?.students ?? stats?.total_students ?? '—';
+  const dbOk = ready?.database?.ok ?? true;
+  const dbBackend = ready?.database?.backend || 'sqlite';
+  const riskWorkerRunning = ready?.workers?.risk_worker?.running ?? false;
+
   return (
     <div style={{ maxWidth: 1440, margin: '0 auto', paddingBottom: 40 }}>
       {/* Header */}
@@ -64,22 +80,26 @@ export default function AdminML() {
             THRESHOLD: &lt; 0.10
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 14 }}>
-            Evaluated on 500 recent student records. Distribution stable.
+            {statsLoading ? 'Loading student records…' : statsError ? 'Failed to fetch live telemetry.' : `Evaluated across ${studentCount} active student records.`}
           </div>
         </div>
 
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Evaluation Baseline</div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: 'var(--ink-900)', marginTop: 6 }}>Evaluation 1 Mode</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Runtime &amp; Worker Status</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 600, color: 'var(--ink-900)', marginTop: 6 }}>
+            {readyLoading ? 'Checking…' : dbOk ? `DB (${dbBackend}) Ready` : 'DB Degraded'}
+          </div>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12,
-            background: 'var(--watch-bg)', color: 'var(--watch-fg)', padding: '3px 10px',
-            borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 600,
+            background: riskWorkerRunning ? 'var(--ok-bg)' : 'var(--watch-bg)',
+            color: riskWorkerRunning ? 'var(--ok-fg)' : 'var(--watch-fg)',
+            padding: '3px 10px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 600,
           }}>
-            FALLBACK RULE ACTIVE
+            {riskWorkerRunning ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+            {riskWorkerRunning ? 'RISK WORKER RUNNING' : 'INLINE FALLBACK ACTIVE'}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 14 }}>
-            Graceful degradation enabled when offline without UI failure.
+            Rule-based risk engine stays active even if optional ML/Redis services are offline.
           </div>
         </div>
       </div>

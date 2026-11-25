@@ -20,6 +20,7 @@ from app.core.audit import AuditAction, audit_logger
 from app.core.authorization import (
     Action,
     check_can_decide_leave,
+    check_is_course_instructor,
     check_is_dean,
     check_is_mentor,
     verify_access,
@@ -27,6 +28,8 @@ from app.core.authorization import (
 from app.core.deps import get_db
 from app.core.permissions import Role
 from app.models import (
+    CourseStaffModel,
+    DeanAssignmentModel,
     EnrolmentModel,
     MentorAssignmentModel,
     StudentModel,
@@ -126,6 +129,37 @@ async def _create_leave_request(
     db.commit()
     db.refresh(leave_req)
 
+    # Notify approver (assigned mentor, or fallback dean of student's department)
+    student_user = db.get(UserModel, user_id)
+    student_name = student_user.name if student_user else f"Student #{user_id}"
+    mentor_id = db.scalar(
+        select(MentorAssignmentModel.mentor_id).where(
+            MentorAssignmentModel.student_id == user_id
+        )
+    )
+    approver_ids: list[int] = []
+    if mentor_id is not None:
+        approver_ids = [int(mentor_id)]
+    elif student_user and student_user.department_id:
+        approver_ids = list(
+            db.scalars(
+                select(DeanAssignmentModel.user_id).where(
+                    DeanAssignmentModel.department_id == student_user.department_id
+                )
+            ).all()
+        )
+    for app_id in approver_ids:
+        _upsert_notification(
+            db,
+            recipient_id=app_id,
+            title="New Leave Request Submitted",
+            message=f"{student_name} submitted a {leave_req.type} leave request ({leave_req.date_from} to {leave_req.date_to}).",
+            kind="reminder",
+            dedup_key=f"leave_submit_{leave_req.id}_{app_id}",
+        )
+    if approver_ids:
+        db.commit()
+
     return _enrich_leave_out(db, leave_req)
 
 
@@ -219,31 +253,27 @@ async def get_leave_inbox(
         select(MentorAssignmentModel.student_id).where(MentorAssignmentModel.mentor_id == user_id)
     ).all()
 
-    # For dean: students in dean's department who have NO mentor assigned
+    # For instructor: find students enrolled in courses taught by this faculty
+    instructor_student_ids = db.scalars(
+        select(EnrolmentModel.student_id)
+        .join(CourseStaffModel, CourseStaffModel.course_id == EnrolmentModel.course_id)
+        .where(CourseStaffModel.user_id == user_id)
+    ).all()
+
+    # For dean: all students in dean's department
     dean_student_ids = []
     current_db_user = db.get(UserModel, user_id)
     dept_id = current_db_user.department_id if current_db_user else None
 
-    # Check if user is dean
     if dept_id and check_is_dean(db, user_id, dept_id):
-        # find department students
-        dept_students = db.scalars(
+        dean_student_ids = db.scalars(
             select(UserModel.id).where(
                 UserModel.department_id == dept_id,
                 UserModel.role == Role.STUDENT.value,
             )
         ).all()
-        # filter those without mentors
-        assigned_with_mentor = set(
-            db.scalars(
-                select(MentorAssignmentModel.student_id).where(
-                    MentorAssignmentModel.student_id.in_(dept_students)
-                )
-            ).all()
-        )
-        dean_student_ids = [sid for sid in dept_students if sid not in assigned_with_mentor]
 
-    visible_student_ids = set(assigned_student_ids) | set(dean_student_ids)
+    visible_student_ids = set(assigned_student_ids) | set(instructor_student_ids) | set(dean_student_ids)
     if not visible_student_ids:
         return []
 
@@ -271,13 +301,14 @@ async def get_leave_request_detail(
             detail={"code": "NOT_FOUND", "message": "Leave request not found"},
         )
 
-    # Visibility check: student self, assigned mentor, dean of dept, or admin
+    # Visibility check: student self, assigned mentor, affected course instructor, dean of dept, or admin
     is_owner = (user_id == req.student_id)
     is_mentor = check_is_mentor(db, user_id, req.student_id)
+    is_instructor = check_is_course_instructor(db, user_id, req.student_id)
     student_user = db.get(UserModel, req.student_id)
     is_dean = check_is_dean(db, user_id, student_user.department_id) if student_user and student_user.department_id else False
 
-    is_authorized = is_owner or is_mentor or is_dean or (user_role == Role.ADMIN.value)
+    is_authorized = is_owner or is_mentor or is_instructor or is_dean or (user_role == Role.ADMIN.value)
     verify_access(current_user, Action.VIEW_LEAVE, {"is_authorized_viewer": is_authorized, "student_id": req.student_id})
 
     # If dean views record, record audit log per requirement

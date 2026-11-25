@@ -94,7 +94,7 @@ export default function AppShell() {
   const { data: unread = 0 } = useQuery({
     queryKey: ['unread-count'],
     queryFn: () => notificationApi.unreadCount().then(r => r.data.unread_count).catch(() => 0),
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
   });
 
   const getHomeRoute = () => {

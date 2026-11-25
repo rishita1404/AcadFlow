@@ -6,7 +6,7 @@ import { ConfirmDialogHost } from '../components/ui/ConfirmDialog.jsx';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       retry: 1,
       staleTime: 30_000,
     },

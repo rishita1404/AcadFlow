@@ -91,3 +91,12 @@ class MentorAssignmentModel(Base):
     student_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("students.user_id"), primary_key=True
     )
+
+
+class UserPreferenceModel(Base):
+    __tablename__ = "user_preferences"
+
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    preferences_json: Mapped[str] = mapped_column(String(2000), nullable=False)

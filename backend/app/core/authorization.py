@@ -422,9 +422,9 @@ def check_can_decide_leave(db, user_id: int, user_role: str, student_id: int) ->
             MentorAssignmentModel.student_id == student_id
         )
     )
-    if mentor_id is not None:
-        return int(mentor_id) == int(user_id)
-    # No mentor assigned -> approver is dean of student's department
+    if mentor_id is not None and int(mentor_id) == int(user_id):
+        return True
+    # Dean of student's department (fallback when no mentor, or department override)
     student_user = db.get(UserModel, student_id)
     if student_user and student_user.department_id:
         return check_is_dean(db, user_id, student_user.department_id)

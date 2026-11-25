@@ -1880,3 +1880,50 @@ async def list_my_leave_requests(
 ):
     return await _get_my_leaves(db=db, current_user=current_user)
 
+
+# ── Notification Preferences ─────────────────────────────────────────────────
+class PreferencesPayload(BaseModel):
+    offsets: dict = {"offset7d": True, "offset2d": True, "offset24h": True, "overdue": True}
+    channels: dict = {"inApp": True, "email": True, "push": False}
+
+
+@router.get("/preferences", summary="Get user notification preferences")
+def get_my_preferences(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    import json
+
+    from app.models.user import UserPreferenceModel
+
+    user_id = int(current_user["sub"])
+    row = db.get(UserPreferenceModel, user_id)
+    if not row:
+        return PreferencesPayload().model_dump()
+    try:
+        return json.loads(row.preferences_json)
+    except Exception:
+        return PreferencesPayload().model_dump()
+
+
+@router.put("/preferences", summary="Update user notification preferences")
+def update_my_preferences(
+    payload: PreferencesPayload,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    import json
+
+    from app.models.user import UserPreferenceModel
+
+    user_id = int(current_user["sub"])
+    data = payload.model_dump()
+    row = db.get(UserPreferenceModel, user_id)
+    if row is None:
+        row = UserPreferenceModel(user_id=user_id, preferences_json=json.dumps(data))
+        db.add(row)
+    else:
+        row.preferences_json = json.dumps(data)
+    db.commit()
+    return data
+

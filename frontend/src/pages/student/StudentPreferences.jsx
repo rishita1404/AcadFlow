@@ -1,26 +1,58 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { preferencesApi } from '../../api/endpoints.js';
+
+const DEFAULT_OFFSETS = { offset7d: true, offset2d: true, offset24h: true, overdue: true };
+const DEFAULT_CHANNELS = { inApp: true, email: true, push: false };
 
 export default function StudentPreferences() {
-  const [offsets, setOffsets] = useState({
-    offset7d: true,
-    offset2d: true,
-    offset24h: true,
-    overdue: true,
-  });
-
-  const [channels, setChannels] = useState({
-    inApp: true,
-    email: true,
-    push: false,
-  });
-
+  const qc = useQueryClient();
+  const [offsets, setOffsets] = useState(DEFAULT_OFFSETS);
+  const [channels, setChannels] = useState(DEFAULT_CHANNELS);
   const [saved, setSaved] = useState(false);
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['my-preferences'],
+    queryFn: () => preferencesApi.get().then((r) => r.data),
+  });
+
+  useEffect(() => {
+    if (data) {
+      if (data.offsets) setOffsets({ ...DEFAULT_OFFSETS, ...data.offsets });
+      if (data.channels) setChannels({ ...DEFAULT_CHANNELS, ...data.channels });
+    }
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: (payload) => preferencesApi.update(payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-preferences'] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    },
+  });
 
   const handleSave = (e) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    saveMutation.mutate({ offsets, channels });
   };
+
+  if (isLoading) {
+    return (
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: 32, color: 'var(--text-muted)' }}>
+        Loading preferences…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: 32, color: 'var(--crit-fg)' }}>
+        <p>Could not load preferences.</p>
+        <button type="button" onClick={() => refetch()}>Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', color: 'var(--text)' }}>
