@@ -359,3 +359,16 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 | index.js | 1,286.31 kB | 309.10 kB |
 | ProductScene.js | 5.82 kB | 1.97 kB |
 | index.css | 22.61 kB | 5.08 kB |
+
+---
+
+## Demo Connectivity — Step 1: Audit
+
+**Branch:** `fix/demo-connectivity`  
+**Artifact:** `docs/DEMO_CONNECTIVITY.md`
+
+### Key Audit Findings
+- Audited all 40+ routes across Student, Faculty/Mentor, Dean/Coordinator, and Admin roles.
+- Identified 2 disconnected frontend pages using local-only/hard-coded state (`StudentPreferences.jsx`, `AdminML.jsx`).
+- Identified DB selection mismatch risk (`backend/app/db/postgres.py` defaults to SQLite unless `USE_POSTGRES=true`, while `scripts/seed_data.py` tries Postgres first).
+- Identified silent fallbacks in `mongo.py` and `redis.py`, missing `/ready` health check for Postgres/SQLite/Mongo/Redis/workers, and stale frontend cache settings (`refetchOnWindowFocus: false`, 60s notification poll).
