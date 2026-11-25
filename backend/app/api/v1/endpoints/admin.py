@@ -161,9 +161,8 @@ def list_users(
         for d in db.scalars(select(DepartmentModel)).all()
     }
 
-    # Map faculty assigned courses and enrolled students
+    # Map faculty assigned courses
     faculty_courses_map = {}
-    faculty_students_map = {}
     staff_recs = db.scalars(select(CourseStaffModel)).all()
     for sr in staff_recs:
         c_obj = db.get(CourseModel, sr.course_id)
@@ -171,25 +170,29 @@ def list_users(
             continue
         if sr.user_id not in faculty_courses_map:
             faculty_courses_map[sr.user_id] = []
-            faculty_students_map[sr.user_id] = {}
         faculty_courses_map[sr.user_id].append({
             "id": c_obj.id,
             "code": c_obj.code,
             "name": c_obj.name,
             "short_name": getattr(c_obj, "short_name", None) or c_obj.code,
         })
-        enrs = db.scalars(select(EnrolmentModel).where(EnrolmentModel.course_id == c_obj.id)).all()
-        for e in enrs:
-            su = db.get(UserModel, e.student_id)
-            sp = students_map.get(e.student_id)
-            if su:
-                faculty_students_map[sr.user_id][su.id] = {
-                    "id": su.id,
-                    "name": su.name,
-                    "email": su.email,
-                    "roll_no": sp.roll_no if sp else None,
-                    "batch": sp.batch if sp else None,
-                }
+
+    # Map assigned mentees (mentor_assignments only — not all enrolled students)
+    faculty_students_map = {}
+    mentor_recs = db.scalars(select(MentorAssignmentModel)).all()
+    for mr in mentor_recs:
+        su = db.get(UserModel, mr.student_id)
+        sp = students_map.get(mr.student_id)
+        if su:
+            if mr.mentor_id not in faculty_students_map:
+                faculty_students_map[mr.mentor_id] = {}
+            faculty_students_map[mr.mentor_id][su.id] = {
+                "id": su.id,
+                "name": su.name,
+                "email": su.email,
+                "roll_no": sp.roll_no if sp else None,
+                "batch": sp.batch if sp else None,
+            }
 
     results = []
     for u in users:

@@ -510,7 +510,7 @@ def seed_all(session=None, engine=None) -> dict:
                 _session.add(sub)
                 counts["submissions"] += 1
 
-        # ── 500 Total Students: Seed 494 additional synthetic students ────────
+        # ── 20 Total Students: Seed additional synthetic students ────────
         # Batches: 2026 (first year / 5th sem), 2025, 2024
         # Departments: CSE, ECE, AIDS
         first_names = [
@@ -524,7 +524,7 @@ def seed_all(session=None, engine=None) -> dict:
         ]
 
         existing_students_count = _session.scalar(select(func.count(StudentModel.user_id))) or 0
-        students_needed = max(0, 500 - existing_students_count)
+        students_needed = max(0, 20 - existing_students_count)
 
         if students_needed > 0:
             dept_keys = ["CSE", "ECE", "AIDS"]

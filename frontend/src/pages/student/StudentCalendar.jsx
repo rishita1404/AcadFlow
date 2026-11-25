@@ -33,8 +33,8 @@ export default function StudentCalendar() {
   const courseIdParam = searchParams.get('course_id');
   const planParam = searchParams.get('plan');
 
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(10); // Default to October 2026 (active semester)
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [month, setMonth] = useState(() => new Date().getMonth() + 1); // Default to current month
   const [mode, setMode] = useState('attendance'); // 'attendance' | 'pressure'
   const [courseFilter, setCourseFilter] = useState(courseIdParam ? String(courseIdParam) : 'all');
   const [planMode, setPlanMode] = useState(planParam === '1');
