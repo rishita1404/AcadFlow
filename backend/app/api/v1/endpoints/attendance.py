@@ -586,6 +586,7 @@ class DirectMarkStudentItem(BaseModel):
 class DirectMarkRequest(BaseModel):
     course_id: int
     session_date: date
+    lecture_no: Optional[int] = None
     records: List[DirectMarkStudentItem]
     change_reason: Optional[str] = None
 

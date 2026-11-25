@@ -486,3 +486,18 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 - Enriched `/me/calendar/{year}/{month}` with `leaves` (`DL`/`ML` badges, `mode`, `lecture_nos`) and per-session `lecture_no` + `leave_type`.
 - Enriched `/attendance/students/{id}/courses/{cid}/history` with `lecture_no` and `leave_type`, and `/courses/{id}/attendance/preview` with `leave_approved_count` and per-diff `leave_type`.
 - Updated `StudentAttendance.jsx`, `StudentCourseDetail.jsx`, `StudentCalendar.jsx`, `FacultyAttendanceUpload.jsx`, and `FacultyMenteeDetail.jsx` to display the `present + DL/ML` breakdown, `"Absent, counted as DL/ML"`, calendar `DL`/`ML` badges and lecture-wise drawer list, and upload preview leave-approved counts.
+
+---
+
+## Leave-Lectures & Leave-Present — Step 5: Quality & Final Verification
+
+**Branch:** `feature/leave-lectures` (local-only, all 5 steps committed)
+
+- Extended `scripts/demo_check.py` with Flow 9 (lecture 3 DL -> mentor approve -> mark absent -> student dashboard `present + DL`, calendar `DL` badge, mentor parity).
+- Added `lecture_no: Optional[int] = None` to `DirectMarkRequest` in `backend/app/api/v1/endpoints/attendance.py`.
+- `ruff check backend/`: **All checks passed**
+- `pytest tests -q`: **260 passed** (including deliberately updated `test_leave_neutral_attendance_arithmetic` and new `test_leave_required_fixtures_dl_and_lectures_mode`)
+- `npm test -- --run`: **73 passed** (11 test files, including lecture validation & updated callout copy in `LeavePages.test.jsx`)
+- `npm run build`: **built in 5.78s**
+- `python scripts/demo_check.py`: **10/10 checks passed**
+- `docs/evidence/leave-lectures/`: created; screenshots pending `npx playwright install` (Chromium binaries not installed locally).

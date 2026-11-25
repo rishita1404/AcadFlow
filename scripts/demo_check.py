@@ -264,6 +264,52 @@ def main() -> int:
             f"revoke={r_rev.status_code} mentee_detail_after={r_after_rev.status_code}",
         )
 
+        # ── 9. Lecture-wise DL & Leave-Present Flow ────────────────────────────
+        lec_date = date.today() - timedelta(days=3)
+        r_dl_lec = client.post(
+            f"{BASE_URL}/leave/requests",
+            headers=hdr(stu_tok),
+            data={
+                "type": "duty",
+                "mode": "lectures",
+                "date_from": lec_date.isoformat(),
+                "date_to": lec_date.isoformat(),
+                "lecture_nos": "[3]",
+                "event_name": "Lecture 3 Symposium",
+            },
+        )
+        dl_lec_id = r_dl_lec.json().get("id") if r_dl_lec.status_code == 201 else None
+        r_dl_appr = client.post(
+            f"{BASE_URL}/leave/requests/{dl_lec_id}/decide",
+            headers=hdr(men_tok),
+            json={"status": "approved", "decision_note": "Approved lecture 3 DL"},
+        ) if dl_lec_id else None
+        r_mark_lec3 = client.post(
+            f"{BASE_URL}/attendance/direct-mark",
+            headers=hdr(fac_tok),
+            json={"course_id": cs501_id, "session_date": lec_date.isoformat(), "lecture_no": 3, "records": [{"student_id": stu_id, "status": "absent"}], "change_reason": "demo_check_lec3"},
+        )
+        stu_dash_lec = client.get(f"{BASE_URL}/me/dashboard", headers=hdr(stu_tok)).json()
+        cs501_card = next((c for c in stu_dash_lec.get("courses", []) if c["course_id"] == cs501_id), {})
+        stu_cal = client.get(f"{BASE_URL}/me/calendar/{lec_date.year}/{lec_date.month}", headers=hdr(stu_tok)).json()
+        cal_day = next((d for d in stu_cal.get("days", []) if d["date"] == lec_date.isoformat()), {})
+        has_dl_badge = any(lv.get("badge") == "DL" for lv in cal_day.get("leaves", []))
+        men_courses = client.get(f"{BASE_URL}/mentor/students/{stu_id}/courses", headers=hdr(men_tok)).json()
+        men_cs501 = next((c for c in men_courses if c["course_id"] == cs501_id), {})
+
+        record(
+            "9. Lecture-wise DL -> absent -> present+DL & calendar badge",
+            bool(
+                dl_lec_id
+                and r_dl_appr and r_dl_appr.status_code == 200
+                and r_mark_lec3.status_code == 200
+                and cs501_card.get("dl_counted", 0) >= 1
+                and has_dl_badge
+                and men_cs501.get("dl_counted") == cs501_card.get("dl_counted")
+            ),
+            f"dl_id={dl_lec_id} stu_dl={cs501_card.get('dl_counted')} men_dl={men_cs501.get('dl_counted')} cal_dl={has_dl_badge}",
+        )
+
     passed = sum(1 for _, ok, _ in results if ok)
     total = len(results)
     print(f"\nSummary: {passed}/{total} checks passed.")
