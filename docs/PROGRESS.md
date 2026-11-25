@@ -449,3 +449,15 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 - Added `mode` (`'full_day' | 'lectures'`, default `'full_day'`) and `lecture_nos` (`Text` JSON list) to `LeaveRequestModel`.
 - Added `leave_dl_counts_as_present` and `leave_ml_counts_as_present` (default `True`) to `RiskConfigModel`.
 - Ran `alembic upgrade head` cleanly and extended `scripts/seed_data.py` to backfill `lecture_no` from published timetable slots and seed approved DL/ML examples in both `full_day` and `lectures` modes.
+
+---
+
+## Leave-Lectures & Leave-Present — Step 2: Student Leave Form & Lecture Display
+
+**Branch:** `feature/leave-lectures`
+
+### Changes
+- Updated `LeaveRequestCreate` & `LeaveRequestOut` in `backend/app/schemas/leave.py` and `backend/app/api/v1/endpoints/leave.py` to accept/validate/return `mode` (`full_day` / `lectures`) and `lecture_nos` (`List[int]`).
+- Updated `frontend/src/pages/student/StudentLeave.jsx` with a **Full day(s)** vs **Specific lectures** selector, dynamic `Lecture 1..N` checkboxes enriched with subject and time from the published timetable, `reason` textarea, updated rule callout, and lecture-aware history labels (e.g. `DL, 12 Dec, Lectures 2 to 4`).
+- Updated `frontend/src/pages/faculty/FacultyLeaveInbox.jsx` to display lecture scope on leave requests.
+- Added lecture validation test in `frontend/src/pages/__tests__/LeavePages.test.jsx`.

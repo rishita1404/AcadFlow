@@ -5,15 +5,17 @@ Pydantic schemas for Leave Requests and Condonation.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class LeaveRequestCreate(BaseModel):
     type: str = Field(..., pattern="^(medical|duty)$", description="medical or duty")
+    mode: str = Field("full_day", pattern="^(full_day|lectures)$", description="full_day or lectures")
     date_from: date
-    date_to: date
+    date_to: Optional[date] = None
+    lecture_nos: Optional[List[int]] = None
     reason: Optional[str] = Field(None, max_length=1000, description="Reason for leave")
     event_name: Optional[str] = Field(None, max_length=120)
     club_org: Optional[str] = Field(None, max_length=80)
@@ -31,8 +33,10 @@ class LeaveRequestOut(BaseModel):
     student_name: Optional[str] = None
     student_roll_no: Optional[str] = None
     type: str
+    mode: str = "full_day"
     date_from: date
     date_to: date
+    lecture_nos: Optional[List[int]] = None
     reason: str
     status: str
     decided_by: Optional[int] = None

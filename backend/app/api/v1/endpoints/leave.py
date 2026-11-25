@@ -59,6 +59,22 @@ async def _invalidate_dashboard_cache(student_id: int):
         pass
 
 
+def _parse_lecture_nos_raw(raw_val) -> Optional[List[int]]:
+    if raw_val is None or raw_val == "":
+        return None
+    if isinstance(raw_val, list):
+        return sorted({int(x) for x in raw_val if str(x).strip().isdigit() and int(x) >= 1})
+    import json
+    try:
+        parsed = json.loads(str(raw_val))
+        if isinstance(parsed, list):
+            return sorted({int(x) for x in parsed if str(x).strip().isdigit() and int(x) >= 1})
+    except Exception:
+        pass
+    parts = [p.strip() for p in str(raw_val).split(",") if p.strip().isdigit()]
+    return sorted({int(p) for p in parts if int(p) >= 1}) or None
+
+
 def _enrich_leave_out(db: Session, row: LeaveRequestModel) -> LeaveRequestOut:
     student_user = db.get(UserModel, row.student_id)
     student_rec = db.get(StudentModel, row.student_id)
@@ -70,8 +86,10 @@ def _enrich_leave_out(db: Session, row: LeaveRequestModel) -> LeaveRequestOut:
         student_name=student_user.name if student_user else None,
         student_roll_no=student_rec.roll_no if student_rec else None,
         type=row.type,
+        mode=getattr(row, "mode", None) or "full_day",
         date_from=row.date_from,
         date_to=row.date_to,
+        lecture_nos=_parse_lecture_nos_raw(getattr(row, "lecture_nos", None)),
         reason=row.reason,
         status=row.status,
         decided_by=row.decided_by,
@@ -110,17 +128,31 @@ async def _create_leave_request(
     # Scope check: students can only submit for themselves
     verify_access(current_user, Action.SUBMIT_LEAVE, {"student_id": user_id})
 
-    if payload.date_from > payload.date_to:
+    date_to = payload.date_to or payload.date_from
+    if payload.mode == "lectures":
+        if not payload.lecture_nos:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "LECTURES_REQUIRED", "message": "Select at least one lecture for lectures mode."},
+            )
+        date_to = payload.date_from
+
+    if payload.date_from > date_to:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"code": "INVALID_DATE_RANGE", "message": "date_from cannot be after date_to"},
         )
 
+    import json
+    lec_json = json.dumps(sorted(set(payload.lecture_nos))) if (payload.mode == "lectures" and payload.lecture_nos) else None
+
     leave_req = LeaveRequestModel(
         student_id=user_id,
         type=payload.type,
+        mode=payload.mode,
         date_from=payload.date_from,
-        date_to=payload.date_to,
+        date_to=date_to,
+        lecture_nos=lec_json,
         reason=_build_leave_reason(payload, medical_filename=medical_filename),
         status="pending",
         created_at=datetime.now(timezone.utc),
@@ -179,8 +211,10 @@ async def submit_leave_request(
             medical_filename = medical_file.filename
         raw = {
             "type": form.get("type"),
+            "mode": form.get("mode") or "full_day",
             "date_from": form.get("date_from"),
-            "date_to": form.get("date_to"),
+            "date_to": form.get("date_to") or form.get("date_from"),
+            "lecture_nos": _parse_lecture_nos_raw(form.get("lecture_nos")),
             "reason": form.get("reason") or None,
             "event_name": form.get("event_name") or None,
             "club_org": form.get("club_org") or None,

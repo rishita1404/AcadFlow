@@ -269,7 +269,11 @@ export const leaveApi = {
   submit: ({ medical_file, ...fields }) => {
     // Always use FormData so the backend receives the file when present
     const form = new FormData();
-    Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') form.append(k, v); });
+    Object.entries(fields).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        form.append(k, Array.isArray(v) ? JSON.stringify(v) : v);
+      }
+    });
     if (medical_file) form.append('medical_file', medical_file);
     return apiClient.post('/leave/requests', form, {
       headers: { 'Content-Type': 'multipart/form-data' },

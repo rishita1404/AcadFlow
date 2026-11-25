@@ -1,6 +1,6 @@
-import { useState, useRef, useId } from 'react';
+import { useState, useRef, useId, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { leaveApi } from '../../api/endpoints';
+import { leaveApi, timetableApi } from '../../api/endpoints';
 import {
   CalendarDays,
   CheckCircle2,
@@ -231,6 +231,15 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function formatLecturesText(lectureNos) {
+  if (!Array.isArray(lectureNos) || lectureNos.length === 0) return '';
+  const sorted = [...lectureNos].sort((a, b) => a - b);
+  if (sorted.length === 1) return `Lecture ${sorted[0]}`;
+  const isContiguous = sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
+  if (isContiguous) return `Lectures ${sorted[0]} to ${sorted[sorted.length - 1]}`;
+  return `Lectures ${sorted.join(', ')}`;
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function StudentLeave() {
   const qc = useQueryClient();
@@ -238,8 +247,11 @@ export default function StudentLeave() {
   const fileInputRef = useRef(null);
 
   const [leaveType, setLeaveType]   = useState('medical');
+  const [leaveMode, setLeaveMode]   = useState('full_day');
   const [dateFrom, setDateFrom]     = useState('');
   const [dateTo, setDateTo]         = useState('');
+  const [selectedLectures, setSelectedLectures] = useState([]);
+  const [reason, setReason]         = useState('');
   // Medical-only
   const [medicalFile, setMedicalFile] = useState(null);
   // Duty-only
@@ -257,6 +269,37 @@ export default function StudentLeave() {
     queryFn: () => leaveApi.getMyRequests().then((r) => r.data),
   });
 
+  const { data: timetableSlots = [] } = useQuery({
+    queryKey: ['my-timetable-for-leave'],
+    queryFn: () => (timetableApi?.getMyTimetable ? timetableApi.getMyTimetable().then((r) => r.data || []) : Promise.resolve([])),
+  });
+
+  const periodSlotsForDate = useMemo(() => {
+    const slots = Array.isArray(timetableSlots) ? timetableSlots : [];
+    let maxP = 6;
+    slots.forEach((s) => {
+      const m = String(s.period_label || '').match(/\d+/);
+      if (m) maxP = Math.max(maxP, parseInt(m[0], 10));
+    });
+    let weekday = null;
+    if (dateFrom) {
+      const jsDay = new Date(`${dateFrom}T00:00:00`).getDay();
+      weekday = jsDay === 0 ? 6 : jsDay - 1; // 0=Mon..5=Sat
+    }
+    const items = [];
+    for (let p = 1; p <= maxP; p++) {
+      const match = weekday !== null
+        ? slots.find((s) => s.day === weekday && String(s.period_label || '').replace(/\D/g, '') === String(p))
+        : null;
+      items.push({
+        num: p,
+        subject: match ? (match.course_short_name || match.course_code || match.course_name) : null,
+        time: match && match.start_time && match.end_time ? `${match.start_time} to ${match.end_time}` : null,
+      });
+    }
+    return items;
+  }, [timetableSlots, dateFrom]);
+
   const submitMutation = useMutation({
     mutationFn: (payload) => leaveApi.submit(payload),
     onSuccess: () => {
@@ -264,6 +307,8 @@ export default function StudentLeave() {
       setApiError('');
       setDateFrom('');
       setDateTo('');
+      setSelectedLectures([]);
+      setReason('');
       setMedicalFile(null);
       setEventName('');
       setClubOrg('');
@@ -283,10 +328,14 @@ export default function StudentLeave() {
 
   const validate = () => {
     const errs = {};
-    if (!dateFrom) errs.dateFrom = 'Please choose a start date.';
-    if (!dateTo)   errs.dateTo   = 'Please choose an end date.';
-    if (dateFrom && dateTo && dateFrom > dateTo)
-      errs.dateTo = 'End date cannot be before start date.';
+    if (!dateFrom) errs.dateFrom = leaveMode === 'lectures' ? 'Please choose a date.' : 'Please choose a start date.';
+    if (leaveMode === 'full_day') {
+      if (!dateTo) errs.dateTo = 'Please choose an end date.';
+      if (dateFrom && dateTo && dateFrom > dateTo)
+        errs.dateTo = 'End date cannot be before start date.';
+    } else if (selectedLectures.length === 0) {
+      errs.lectures = 'Please select at least one lecture.';
+    }
     if (leaveType === 'medical' && !medicalFile)
       errs.medicalFile = 'A medical document is required for medical leave.';
     if (leaveType === 'duty' && !eventName.trim())
@@ -304,8 +353,11 @@ export default function StudentLeave() {
     if (Object.keys(errs).length) return;
     submitMutation.mutate({
       type: leaveType,
+      mode: leaveMode,
       date_from: dateFrom,
-      date_to: dateTo,
+      date_to: leaveMode === 'lectures' ? dateFrom : dateTo,
+      lecture_nos: leaveMode === 'lectures' ? selectedLectures : undefined,
+      reason: reason.trim() || undefined,
       // medical-only
       medical_file: leaveType === 'medical' ? medicalFile : undefined,
       // duty-only
@@ -313,6 +365,12 @@ export default function StudentLeave() {
       club_org:     leaveType === 'duty' ? clubOrg.trim()     : undefined,
       duty_detail:  leaveType === 'duty' ? dutyDetail.trim()  : undefined,
     });
+  };
+
+  const toggleLecture = (num) => {
+    setSelectedLectures((prev) =>
+      prev.includes(num) ? prev.filter((n) => n !== num) : [...prev, num].sort((a, b) => a - b)
+    );
   };
 
   const days = daysBetween(dateFrom, dateTo);
@@ -520,43 +578,156 @@ export default function StudentLeave() {
                 </div>
               )}
 
-              {/* Date range */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                <div>
-                  <FieldLabel htmlFor={`${uid}-from`}>From</FieldLabel>
-                  <input
-                    id={`${uid}-from`}
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    aria-invalid={!!(submitted && fieldErrors.dateFrom)}
-                    aria-describedby={submitted && fieldErrors.dateFrom ? `${uid}-from-err` : undefined}
-                    style={inputStyle(submitted && fieldErrors.dateFrom)}
-                  />
-                  <FieldError id={`${uid}-from-err`}>{submitted && fieldErrors.dateFrom}</FieldError>
-                </div>
-                <div>
-                  <FieldLabel htmlFor={`${uid}-to`}>To</FieldLabel>
-                  <input
-                    id={`${uid}-to`}
-                    type="date"
-                    value={dateTo}
-                    min={dateFrom || undefined}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    aria-invalid={!!(submitted && fieldErrors.dateTo)}
-                    aria-describedby={submitted && fieldErrors.dateTo ? `${uid}-to-err` : undefined}
-                    style={inputStyle(submitted && fieldErrors.dateTo)}
-                  />
-                  <FieldError id={`${uid}-to-err`}>{submitted && fieldErrors.dateTo}</FieldError>
+              {/* Leave mode: Full day(s) vs Specific lectures */}
+              <div>
+                <FieldLabel>Duration type</FieldLabel>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+                  {[
+                    { value: 'full_day', label: 'Full day(s)' },
+                    { value: 'lectures', label: 'Specific lectures' },
+                  ].map((opt) => {
+                    const active = leaveMode === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => {
+                          setLeaveMode(opt.value);
+                          setFieldErrors({});
+                        }}
+                        style={{
+                          padding: '9px 12px',
+                          borderRadius: 'var(--radius-input)',
+                          border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                          background: active ? 'var(--accent)' : 'var(--surface)',
+                          color: active ? 'var(--on-dark)' : 'var(--ink-900)',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-sans)',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Duration hint */}
-              {days !== null && days > 0 && (
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -12 }}>
-                  {days} {days === 1 ? 'day' : 'days'}
-                </p>
+              {/* Date range (full_day) OR single date + lecture checkboxes (lectures) */}
+              {leaveMode === 'full_day' ? (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                    <div>
+                      <FieldLabel htmlFor={`${uid}-from`}>From</FieldLabel>
+                      <input
+                        id={`${uid}-from`}
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        aria-invalid={!!(submitted && fieldErrors.dateFrom)}
+                        aria-describedby={submitted && fieldErrors.dateFrom ? `${uid}-from-err` : undefined}
+                        style={inputStyle(submitted && fieldErrors.dateFrom)}
+                      />
+                      <FieldError id={`${uid}-from-err`}>{submitted && fieldErrors.dateFrom}</FieldError>
+                    </div>
+                    <div>
+                      <FieldLabel htmlFor={`${uid}-to`}>To</FieldLabel>
+                      <input
+                        id={`${uid}-to`}
+                        type="date"
+                        value={dateTo}
+                        min={dateFrom || undefined}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        aria-invalid={!!(submitted && fieldErrors.dateTo)}
+                        aria-describedby={submitted && fieldErrors.dateTo ? `${uid}-to-err` : undefined}
+                        style={inputStyle(submitted && fieldErrors.dateTo)}
+                      />
+                      <FieldError id={`${uid}-to-err`}>{submitted && fieldErrors.dateTo}</FieldError>
+                    </div>
+                  </div>
+                  {days !== null && days > 0 && (
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -12 }}>
+                      {days} {days === 1 ? 'day' : 'days'}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  <div>
+                    <FieldLabel htmlFor={`${uid}-from`}>Date</FieldLabel>
+                    <input
+                      id={`${uid}-from`}
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      aria-invalid={!!(submitted && fieldErrors.dateFrom)}
+                      aria-describedby={submitted && fieldErrors.dateFrom ? `${uid}-from-err` : undefined}
+                      style={inputStyle(submitted && fieldErrors.dateFrom)}
+                    />
+                    <FieldError id={`${uid}-from-err`}>{submitted && fieldErrors.dateFrom}</FieldError>
+                  </div>
+
+                  <div>
+                    <FieldLabel>Select lectures</FieldLabel>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {periodSlotsForDate.map((slot) => {
+                        const checked = selectedLectures.includes(slot.num);
+                        const labelText = slot.subject && slot.time
+                          ? `Lecture ${slot.num}, ${slot.subject}, ${slot.time}`
+                          : `Lecture ${slot.num}`;
+                        return (
+                          <label
+                            key={slot.num}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              padding: '8px 12px',
+                              borderRadius: 'var(--radius-input)',
+                              border: `1px solid ${checked ? 'var(--accent)' : 'var(--border)'}`,
+                              background: checked ? 'var(--bg)' : 'var(--surface)',
+                              fontSize: 13,
+                              color: 'var(--ink-900)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleLecture(slot.num)}
+                              style={{ accentColor: 'var(--accent)' }}
+                            />
+                            <span style={{ fontWeight: checked ? 600 : 500 }}>{labelText}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <FieldError id={`${uid}-lectures-err`}>{submitted && fieldErrors.lectures}</FieldError>
+                  </div>
+                </div>
               )}
+
+              {/* Reason */}
+              <div>
+                <FieldLabel htmlFor={`${uid}-reason`}>Reason</FieldLabel>
+                <textarea
+                  id={`${uid}-reason`}
+                  value={reason}
+                  onChange={(e) => {
+                    if (e.target.value.length <= MAX_CHARS) setReason(e.target.value);
+                  }}
+                  rows={3}
+                  placeholder="Optional details for your mentor…"
+                  style={{ ...inputStyle(false), minHeight: 84, resize: 'vertical' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    {reason.length}/{MAX_CHARS}
+                  </span>
+                </div>
+              </div>
 
               {/* Submit */}
               <button
@@ -594,7 +765,7 @@ export default function StudentLeave() {
             }}>
               <Info size={16} style={{ flexShrink: 0, marginTop: 2, color: 'var(--accent)' }} />
               <span>
-                Approved leave is not counted as absence. Those sessions are left out of your attendance totals.
+                DL and ML count as present only for sessions where you were marked absent.
               </span>
             </div>
           </div>
@@ -630,10 +801,12 @@ export default function StudentLeave() {
                 }}>
                   {/* Top row: dates + category + status */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <CategoryPill type={req.type} />
                       <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>
-                        {fmtDate(req.date_from)} – {fmtDate(req.date_to)}
+                        {req.mode === 'lectures'
+                          ? `${req.type === 'duty' ? 'DL' : 'ML'}, ${fmtDate(req.date_from)}, ${formatLecturesText(req.lecture_nos)}`
+                          : `${req.type === 'duty' ? 'DL' : 'ML'}, ${fmtDate(req.date_from)} – ${fmtDate(req.date_to)}`}
                       </span>
                     </div>
                     <StatusBadge status={req.status} />

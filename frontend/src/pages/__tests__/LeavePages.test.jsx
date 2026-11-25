@@ -167,7 +167,18 @@ describe('StudentLeave page', () => {
 
   it('shows attendance callout text', () => {
     wrap(<StudentLeave />);
-    expect(screen.getByText(/Approved leave is not counted as absence/i)).toBeDefined();
+    expect(screen.getByText(/DL and ML count as present only for sessions where you were marked absent/i)).toBeDefined();
+  });
+
+  it('requires at least one lecture in Specific lectures mode', async () => {
+    wrap(<StudentLeave />);
+    fireEvent.click(screen.getByRole('button', { name: /specific lectures/i }));
+    const dateInput = document.querySelector('input[type="date"]');
+    fireEvent.change(dateInput, { target: { value: '2026-10-10' } });
+    fireEvent.click(screen.getByRole('button', { name: /submit request/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Please select at least one lecture.')).toBeDefined();
+    });
   });
 
   it('renders empty state when no history', async () => {

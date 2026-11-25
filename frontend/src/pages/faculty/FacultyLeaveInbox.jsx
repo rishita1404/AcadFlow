@@ -413,9 +413,11 @@ export default function FacultyLeaveInbox() {
                       <CategoryPill type={req.type} />
                     </div>
                     <div>
-                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 4 }}>Dates</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 4 }}>Dates / Scope</p>
                       <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>
-                        {req.date_from} – {req.date_to}
+                        {req.mode === 'lectures'
+                          ? `${req.date_from} · Lectures ${Array.isArray(req.lecture_nos) && req.lecture_nos.length ? req.lecture_nos.join(', ') : '—'}`
+                          : `${req.date_from} – ${req.date_to}`}
                       </span>
                     </div>
                     <div>
