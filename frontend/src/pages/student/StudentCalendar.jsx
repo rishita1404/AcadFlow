@@ -60,7 +60,7 @@ export default function StudentCalendar() {
 
   // Fetch student courses for the filter dropdown
   const { data: dashData } = useQuery({
-    queryKey: ['student-dashboard-courses'],
+    queryKey: ['student-dashboard'],
     queryFn: () => dashboardApi.getDashboard().then(r => r.data).catch(() => null),
   });
   const enrolledCourses = dashData?.courses || [];
@@ -149,7 +149,7 @@ export default function StudentCalendar() {
       qc.invalidateQueries({ queryKey: ['calendar-view'] });
       qc.invalidateQueries({ queryKey: ['student-holidays'] });
       qc.invalidateQueries({ queryKey: ['pressure-view'] });
-      qc.invalidateQueries({ queryKey: ['student-dashboard-courses'] });
+      qc.invalidateQueries({ queryKey: ['student-dashboard'] });
       setPlannedDates([]);
       computeProjection([]);
       flashMessage(
@@ -171,7 +171,7 @@ export default function StudentCalendar() {
         qc.invalidateQueries({ queryKey: ['calendar-view'] }),
         qc.invalidateQueries({ queryKey: ['student-holidays'] }),
         qc.invalidateQueries({ queryKey: ['pressure-view'] }),
-        qc.invalidateQueries({ queryKey: ['student-dashboard-courses'] }),
+        qc.invalidateQueries({ queryKey: ['student-dashboard'] }),
       ]);
       if (selectedDay?.date === dateStr) {
         setSelectedDay(prev =>
@@ -203,7 +203,7 @@ export default function StudentCalendar() {
         qc.invalidateQueries({ queryKey: ['calendar-view'] }),
         qc.invalidateQueries({ queryKey: ['student-holidays'] }),
         qc.invalidateQueries({ queryKey: ['pressure-view'] }),
-        qc.invalidateQueries({ queryKey: ['student-dashboard-courses'] }),
+        qc.invalidateQueries({ queryKey: ['student-dashboard'] }),
       ]);
       if (selectedDay) {
         setSelectedDay(null);

@@ -35,7 +35,7 @@ export default function StudentNotices() {
 
   if (isLoading) return <Skeleton lines={6} />;
 
-  let filtered = notices;
+  let filtered = notices.filter(n => n.status !== 'archived' && n.status !== 'withdrawn');
   if (filterCat !== 'all') filtered = filtered.filter(n => (n.category || '').toLowerCase() === filterCat);
   if (filterUnread) filtered = filtered.filter(n => !n.seen);
   const sorted = [...filtered].sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0));

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -228,6 +228,12 @@ export default function ComposeNotice() {
     },
   });
 
+  const isDeanOrAdmin = user?.role === 'coordinator' || user?.role === 'admin';
+  const needsCohortConfirmation =
+    recipientType === 'both' ||
+    audienceSummary.toLowerCase().includes('whole department') ||
+    audienceSummary.toLowerCase().includes('everyone');
+
   const handleSendNotice = () => {
     if (!title.trim() || !body.trim()) {
       setErrorMessage('Title and body are required.');
@@ -235,6 +241,10 @@ export default function ComposeNotice() {
     }
     if (audienceCount === 0) {
       setErrorMessage('Notice audience cannot be empty. Please adjust your filters.');
+      return;
+    }
+    if (needsCohortConfirmation && !confirmedEveryone) {
+      setErrorMessage('Please confirm broadcasting to the whole department cohort by checking the confirmation box.');
       return;
     }
     const spec = buildCurrentSpec();
@@ -256,7 +266,6 @@ export default function ComposeNotice() {
     };
     sendMutation.mutate(payload);
   };
-  const isDeanOrAdmin = user?.role === 'coordinator' || user?.role === 'admin';
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', paddingBottom: 60 }}>
@@ -951,7 +960,7 @@ export default function ComposeNotice() {
           )}
 
           {/* Whole Department / Everyone Confirmation Guardrail */}
-          {(recipientType === 'both' || audienceSummary.toLowerCase().includes('whole department') || audienceSummary.toLowerCase().includes('everyone')) && (
+          {needsCohortConfirmation && (
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '12px 16px', borderRadius: 'var(--radius-card)', marginBottom: 20 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', cursor: 'pointer' }}>
                 <input
@@ -1032,14 +1041,20 @@ export default function ComposeNotice() {
               disabled={
                 sendMutation.isPending ||
                 audienceCount === 0 ||
-                ((recipientType === 'both' || audienceSummary.toLowerCase().includes('whole department')) && !confirmedEveryone)
+                (needsCohortConfirmation && !confirmedEveryone)
               }
               style={{
                 padding: '12px 28px', background: 'var(--accent)', color: 'var(--on-dark)',
                 border: 'none', borderRadius: 'var(--radius-pill)', fontSize: 14, fontWeight: 700,
-                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
-                opacity: (sendMutation.isPending || audienceCount === 0) ? 0.6 : 1,
+                cursor: (sendMutation.isPending || audienceCount === 0 || (needsCohortConfirmation && !confirmedEveryone)) ? 'not-allowed' : 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                opacity: (sendMutation.isPending || audienceCount === 0 || (needsCohortConfirmation && !confirmedEveryone)) ? 0.6 : 1,
               }}
+              title={
+                needsCohortConfirmation && !confirmedEveryone
+                  ? 'Please confirm sending to the whole department cohort above'
+                  : 'Publish Notice'
+              }
             >
               <Send size={16} /> {sendMutation.isPending ? 'Publishing Notice...' : 'Publish Notice Now'}
             </button>
