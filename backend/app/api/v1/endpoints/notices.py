@@ -7,23 +7,21 @@ debounced deadline extraction with opt-in, unread tracking, and correction notic
 
 import json
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
-from app.core.authorization import Action, Role, can_access, verify_access
+from app.core.authorization import Role
 from app.core.deps import get_db
 from app.core.errors import NotFoundError
 from app.models import (
     AssignmentModel,
     CourseModel,
     CourseStaffModel,
-    DepartmentModel,
     EnrolmentModel,
     MentorAssignmentModel,
     RiskConfigModel,

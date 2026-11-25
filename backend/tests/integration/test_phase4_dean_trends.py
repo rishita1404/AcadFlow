@@ -3,9 +3,9 @@ Phase 4 Integration Tests: Dean Trends, Hotspots, Intervention Funnel,
 Mentor Load, Excel Export, Scoping & 403 Permissions, and Audit Logging.
 """
 
+import io
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-import io
 
 import openpyxl
 import pytest

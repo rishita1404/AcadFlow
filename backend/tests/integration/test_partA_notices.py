@@ -4,14 +4,13 @@ Targeted Audience Notices, Guardrails, Snapshotting, Deadlines Opt-In, Unread Tr
 """
 
 from __future__ import annotations
-from decimal import Decimal
 
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
+from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -27,9 +26,7 @@ from app.models import (
 )
 from app.models.audit import AuditLogModel
 from app.models.notice import (
-    AudiencePresetModel,
     NoticeDeadlineModel,
-    NoticeModel,
     NoticeRecipientModel,
 )
 

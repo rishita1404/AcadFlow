@@ -6,8 +6,10 @@ Create Date: 2026-11-24 17:00:00
 """
 
 from typing import Sequence, Union
-from alembic import op
+
 import sqlalchemy as sa
+
+from alembic import op
 
 revision: str = '009_partB_timetable'
 down_revision: Union[str, None] = '008_partA_notices'

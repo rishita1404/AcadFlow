@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -7,7 +8,6 @@ from typing import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool

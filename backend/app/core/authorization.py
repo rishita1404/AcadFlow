@@ -368,6 +368,7 @@ def can_access(user: Any, action: Action | str, resource: Any = None) -> bool:
 
 def check_is_mentor(db, mentor_user_id: int, student_id: int) -> bool:
     from sqlalchemy import select
+
     from app.models.user import MentorAssignmentModel
     return db.scalar(
         select(MentorAssignmentModel.mentor_id).where(
@@ -379,6 +380,7 @@ def check_is_mentor(db, mentor_user_id: int, student_id: int) -> bool:
 
 def check_is_dean(db, user_id: int, department_id: int) -> bool:
     from sqlalchemy import select
+
     from app.models.user import DeanAssignmentModel, UserModel
     if db.scalar(
         select(DeanAssignmentModel.user_id).where(
@@ -396,6 +398,7 @@ def check_is_dean(db, user_id: int, department_id: int) -> bool:
 
 def check_is_course_instructor(db, user_id: int, student_id: int) -> bool:
     from sqlalchemy import select
+
     from app.models.course import CourseStaffModel
     from app.models.enrollment import EnrolmentModel
     return db.scalar(
@@ -412,6 +415,7 @@ def check_can_decide_leave(db, user_id: int, user_role: str, student_id: int) ->
     if user_role == Role.ADMIN.value:
         return True
     from sqlalchemy import select
+
     from app.models.user import MentorAssignmentModel, UserModel
     mentor_id = db.scalar(
         select(MentorAssignmentModel.mentor_id).where(
@@ -456,6 +460,7 @@ def check_can_create_intervention(db, user_id: int, user_role: str, student_id: 
         return True
     if course_id:
         from sqlalchemy import select
+
         from app.models.course import CourseStaffModel
         if db.scalar(select(CourseStaffModel.course_id).where(CourseStaffModel.user_id == user_id, CourseStaffModel.course_id == course_id)) is not None:
             return True
@@ -495,6 +500,7 @@ def check_can_update_intervention(db, user_id: int, user_role: str, intervention
         return True
     if intervention.course_id:
         from sqlalchemy import select
+
         from app.models.course import CourseStaffModel
         if db.scalar(select(CourseStaffModel.course_id).where(CourseStaffModel.user_id == user_id, CourseStaffModel.course_id == intervention.course_id)) is not None:
             return True

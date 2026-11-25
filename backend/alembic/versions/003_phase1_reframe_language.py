@@ -7,9 +7,6 @@ Create Date: 2026-11-24 03:45:00
 
 from typing import Sequence, Union
 
-import sqlalchemy as sa
-from alembic import op
-
 revision: str = "003_phase1_reframe_language"
 down_revision: Union[str, None] = "002_new_features"
 branch_labels: Union[str, Sequence[str], None] = None

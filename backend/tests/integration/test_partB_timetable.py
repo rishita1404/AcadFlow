@@ -6,9 +6,8 @@ room master management, versioning & restore, diff preview, targeted notificatio
 
 from __future__ import annotations
 
-import json
 from datetime import date, datetime, timedelta, timezone
-import pytest
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -25,7 +24,6 @@ from app.models import (
 from app.models.attendance import AttendanceRecordModel, ClassSessionModel
 from app.models.audit import AuditLogModel
 from app.models.timetable import (
-    PeriodConfigModel,
     RoomModel,
     TimetableSlotModel,
     TimetableVersionModel,

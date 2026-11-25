@@ -36,7 +36,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
-from app.core.authorization import Action, verify_access
 from app.core.deps import can_access, get_db
 from app.core.errors import ConflictError, NotFoundError
 from app.models import (

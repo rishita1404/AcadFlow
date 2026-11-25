@@ -1850,8 +1850,10 @@ def get_my_timetable(
 
 
 # ── Official Leave Requests (Phase 2) ───────────────────────────────────────
+from app.api.v1.endpoints.leave import _create_leave_request
+from app.api.v1.endpoints.leave import get_my_leave_requests as _get_my_leaves
 from app.schemas.leave import LeaveRequestCreate, LeaveRequestOut
-from app.api.v1.endpoints.leave import _create_leave_request, get_my_leave_requests as _get_my_leaves
+
 
 @router.post(
     "/leave-requests",

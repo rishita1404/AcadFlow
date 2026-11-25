@@ -3,14 +3,13 @@ Phase 2 Integration Tests: Leave Requests, Neutral Attendance Arithmetic,
 Condonation Flow, 403 Scope Enforcement, and Audit Logging.
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.core.audit import audit_logger
 from app.core.tokens import create_access_token
 from app.models import (
     AttendanceRecordModel,
@@ -23,7 +22,6 @@ from app.models import (
     EnrolmentModel,
     MentorAssignmentModel,
     RiskConfigModel,
-    StudentModel,
     UserModel,
 )
 from app.models.leave import CondonationRequestModel, LeaveRequestModel
@@ -365,8 +363,6 @@ def test_leave_neutral_attendance_arithmetic(client: TestClient, db_session: Ses
 def test_condonation_recommendation_and_403(client: TestClient, db_session: Session, phase2_setup: dict):
     student = phase2_setup["student"]
     mentor = phase2_setup["mentor"]
-    instructor = phase2_setup["other_faculty"]
-    course = phase2_setup["course"]
 
     # Unrelated faculty user (neither mentor nor course instructor)
     dept_cse = db_session.query(DepartmentModel).filter_by(code="CSE").first()

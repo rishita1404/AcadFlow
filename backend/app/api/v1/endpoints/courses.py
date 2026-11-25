@@ -340,8 +340,8 @@ def undo_attendance(
         if not assigned:
             raise ForbiddenError("You are not assigned to instruct or undo attendance for this course.")
 
-    from app.services.csv_ingest import undo_attendance_upload
     from app.core.errors import ConflictError
+    from app.services.csv_ingest import undo_attendance_upload
     try:
         return undo_attendance_upload(
             db=db,

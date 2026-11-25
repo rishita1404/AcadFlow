@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import io
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
@@ -17,8 +17,6 @@ from app.api.deps import get_current_user
 from app.core.audit import AuditAction, audit_logger
 from app.core.authorization import (
     Action,
-    Role,
-    can_access,
     check_is_dean,
     verify_access,
 )

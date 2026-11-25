@@ -1,6 +1,5 @@
 import logging
 import os
-import socket
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

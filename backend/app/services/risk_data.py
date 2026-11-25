@@ -123,7 +123,7 @@ def get_attendance_inputs(
         for al in approved_leaves:
             q = select(ClassSessionModel.id).where(
                 ClassSessionModel.course_id == course_id,
-                ClassSessionModel.is_cancelled == False,
+                ClassSessionModel.is_cancelled.is_(False),
                 ClassSessionModel.held_on >= al.date_from,
                 ClassSessionModel.held_on <= al.date_to,
             )

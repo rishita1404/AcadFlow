@@ -10,7 +10,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.core.audit import audit_logger
 from app.core.tokens import create_access_token
 from app.models import (
     AssignmentModel,
@@ -20,9 +19,7 @@ from app.models import (
     DepartmentModel,
     EnrolmentModel,
     MentorAssignmentModel,
-    RiskConfigModel,
     RiskSnapshotModel,
-    StudentModel,
     UserModel,
 )
 from app.models.intervention import InterventionModel
@@ -313,7 +310,6 @@ def test_update_intervention_outcome_human_driven(client: TestClient, db_session
 def test_deadline_collision_preview(client: TestClient, db_session: Session, phase3_setup: dict):
     course = phase3_setup["course"]
     mentor = phase3_setup["mentor"]
-    target_date = datetime(2026, 11, 20, 18, 0, tzinfo=timezone.utc)
 
     # Create 3 assignments within 7 days of target_date (Nov 18, Nov 19, Nov 21)
     asgn1 = AssignmentModel(

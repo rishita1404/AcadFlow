@@ -82,7 +82,7 @@ def get_student_course_attendance(
         for al in approved_leaves:
             q = select(ClassSessionModel.id).where(
                 ClassSessionModel.course_id == course_id,
-                ClassSessionModel.is_cancelled == False,
+                ClassSessionModel.is_cancelled.is_(False),
                 ClassSessionModel.held_on >= al.date_from,
                 ClassSessionModel.held_on <= al.date_to,
             )
@@ -383,6 +383,7 @@ def get_needs_attention_for_faculty(
     Returns details on what changed and supportive suggested next steps.
     """
     from datetime import timedelta
+
     from app.core.errors import ForbiddenError, NotFoundError
     from app.models.course import CourseStaffModel
     from app.models.leave import LeaveRequestModel
@@ -483,7 +484,7 @@ def get_needs_attention_for_faculty(
                 select(ClassSessionModel)
                 .where(
                     ClassSessionModel.course_id == course.id,
-                    ClassSessionModel.is_cancelled == False,
+                    ClassSessionModel.is_cancelled.is_(False),
                 )
                 .order_by(ClassSessionModel.held_on.desc())
             ).all()

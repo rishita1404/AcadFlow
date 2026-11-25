@@ -181,11 +181,13 @@ def delete_assignment(
 
 # ── Deadline Collision Warning (Phase 3) ────────────────────────────────────
 from datetime import timedelta
+
+from app.models.risk import RiskConfigModel
 from app.schemas.intervention import (
     DeadlineCollisionPreviewRequest,
     DeadlineCollisionPreviewResponse,
 )
-from app.models.risk import RiskConfigModel
+
 
 @router.post(
     "/collision-preview",

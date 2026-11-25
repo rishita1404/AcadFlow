@@ -13,24 +13,22 @@ Features:
 - Strict RBAC: Central permission check, 403 on out-of-scope access.
 """
 
-from datetime import datetime, timezone
 import json
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select, and_, or_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
-from app.core.authorization import Action, verify_access, check_is_dean
+from app.core.authorization import Action, check_is_dean, verify_access
 from app.core.deps import get_db
 from app.core.errors import NotFoundError
 from app.models import (
     CourseModel,
-    DepartmentModel,
     EnrolmentModel,
-    SemesterModel,
     StudentModel,
     UserModel,
 )
@@ -461,8 +459,6 @@ def calculate_slot_diff(
             if unmatched_prev:
                 p_s = unmatched_prev.pop(0)
                 old_day_str = DAY_NAMES[p_s.day] if 0 <= p_s.day < 7 else f"Day {p_s.day}"
-                old_room = db.get(RoomModel, p_s.room_id) if p_s.room_id else None
-                old_room_str = f", {old_room.name}" if old_room else ""
 
                 if p_s.day != n_s.day or p_s.period_label != n_s.period_label:
                     msg = f"{day_str} {n_s.period_label} {course_name}{sec_str} moved from {old_day_str} {p_s.period_label}{room_str}"

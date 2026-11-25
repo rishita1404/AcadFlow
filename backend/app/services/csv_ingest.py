@@ -560,9 +560,12 @@ def undo_attendance_upload(
     cleaning up any empty sessions created by that batch, recomputing risk snapshots,
     and logging an audit record.
     """
-    from app.core.audit import AuditAction, AuditLogger
     from app.core.errors import ConflictError
-    from app.models.attendance import AttendanceRecordModel, AttendanceUploadBatchModel, ClassSessionModel
+    from app.models.attendance import (
+        AttendanceRecordModel,
+        AttendanceUploadBatchModel,
+        ClassSessionModel,
+    )
     from app.models.enrollment import EnrolmentModel
     from app.services.risk_data import persist_risk_snapshot
 
@@ -570,7 +573,7 @@ def undo_attendance_upload(
         select(AttendanceUploadBatchModel)
         .where(
             AttendanceUploadBatchModel.course_id == course_id,
-            AttendanceUploadBatchModel.is_undone == False,
+            AttendanceUploadBatchModel.is_undone.is_(False),
         )
         .order_by(AttendanceUploadBatchModel.uploaded_at.desc(), AttendanceUploadBatchModel.id.desc())
     )

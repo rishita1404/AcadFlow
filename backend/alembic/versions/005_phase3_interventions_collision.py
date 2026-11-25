@@ -8,6 +8,7 @@ Create Date: 2026-11-24 04:15:00
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "005_phase3_interventions_collision"

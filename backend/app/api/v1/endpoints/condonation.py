@@ -19,19 +19,17 @@ from app.api.deps import get_current_user
 from app.core.audit import AuditAction, audit_logger
 from app.core.authorization import (
     Action,
-    can_access,
     check_can_decide_condonation,
     check_can_recommend_condonation,
     check_is_dean,
     verify_access,
 )
-from app.core.permissions import Role
 from app.core.deps import get_db
+from app.core.permissions import Role
 from app.models import (
     AuditLogModel,
     DepartmentModel,
     RiskConfigModel,
-    SemesterModel,
     StudentModel,
     UserModel,
 )

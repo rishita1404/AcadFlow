@@ -7,9 +7,10 @@ Phase 5 Integration Tests:
 - Central RBAC & scope checks returning 403 on out-of-scope access.
 """
 
+import io
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-import io
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
