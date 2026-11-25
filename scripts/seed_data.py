@@ -1216,12 +1216,13 @@ def seed_all(session=None, engine=None) -> dict:
                     delivered_at=now_dt - timedelta(hours=6),
                 ))
 
-            # Leave requests for core_stu_id in pending, approved, and rejected states
+            # Leave requests for core_stu_id in pending, approved (full_day ML & lectures DL), and rejected states
             if not _session.scalar(select(LeaveRequestModel).where(LeaveRequestModel.student_id == core_stu_id)):
                 _session.add_all([
                     LeaveRequestModel(
                         student_id=core_stu_id,
                         type="medical",
+                        mode="full_day",
                         date_from=today - timedelta(days=1),
                         date_to=today,
                         reason="Medical document: clinic_note.pdf",
@@ -1231,8 +1232,10 @@ def seed_all(session=None, engine=None) -> dict:
                     LeaveRequestModel(
                         student_id=core_stu_id,
                         type="duty",
-                        date_from=today - timedelta(days=14),
-                        date_to=today - timedelta(days=13),
+                        mode="lectures",
+                        date_from=created_sessions[10].held_on,
+                        date_to=created_sessions[10].held_on,
+                        lecture_nos="[1, 3]",
                         reason="Inter-College Hackathon — Coding Club — (Participant)",
                         status="approved",
                         decided_by=mentor_user_id,
@@ -1243,6 +1246,20 @@ def seed_all(session=None, engine=None) -> dict:
                     LeaveRequestModel(
                         student_id=core_stu_id,
                         type="medical",
+                        mode="full_day",
+                        date_from=created_sessions[33].held_on,
+                        date_to=created_sessions[34].held_on,
+                        reason="Viral fever recovery — doctor_certificate.pdf",
+                        status="approved",
+                        decided_by=mentor_user_id,
+                        decided_at=now_dt - timedelta(days=6),
+                        decision_note="Approved with medical certificate.",
+                        created_at=now_dt - timedelta(days=8),
+                    ),
+                    LeaveRequestModel(
+                        student_id=core_stu_id,
+                        type="medical",
+                        mode="full_day",
                         date_from=today - timedelta(days=25),
                         date_to=today - timedelta(days=24),
                         reason="Medical leave",
@@ -1274,6 +1291,34 @@ def seed_all(session=None, engine=None) -> dict:
                         created_at=now_dt,
                         dedup_key=dkey,
                     ))
+
+            # Backfill lecture_no on ClassSessionModel from published TimetableSlotModel
+            all_pub_slots = _session.scalars(
+                select(TimetableSlotModel)
+                .join(TimetableVersionModel, TimetableSlotModel.version_id == TimetableVersionModel.id)
+                .where(TimetableVersionModel.status == "published")
+            ).all()
+            slot_lecture_map: dict[tuple[int, int], int] = {}
+            for sl in all_pub_slots:
+                lbl = (sl.period_label or "").strip().upper()
+                digits = "".join(ch for ch in lbl if ch.isdigit())
+                if digits:
+                    slot_lecture_map.setdefault((sl.course_id, sl.day), int(digits))
+
+            for cs_row in _session.scalars(select(ClassSessionModel)).all():
+                derived_lec = slot_lecture_map.get((cs_row.course_id, cs_row.held_on.weekday()), 1)
+                if cs_row.lecture_no != derived_lec:
+                    # Only update if no collision with an existing session for same (course_id, held_on, derived_lec)
+                    conflict = _session.scalar(
+                        select(ClassSessionModel.id).where(
+                            ClassSessionModel.course_id == cs_row.course_id,
+                            ClassSessionModel.held_on == cs_row.held_on,
+                            ClassSessionModel.lecture_no == derived_lec,
+                            ClassSessionModel.id != cs_row.id,
+                        )
+                    )
+                    if not conflict:
+                        cs_row.lecture_no = derived_lec
 
             _session.flush()
         except Exception as ph2_err:

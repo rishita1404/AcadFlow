@@ -436,3 +436,16 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 - `npm test -- --run`: **72 passed** (11 test files)
 - `npm run build`: **built in 9.27s**
 - `python scripts/demo_check.py`: **9/9 checks passed** (Readiness + all 8 cross-role flows)
+
+---
+
+## Leave-Lectures & Leave-Present — Step 1: Data Model & Migration
+
+**Branch:** `feature/leave-lectures`  
+**Migration:** `backend/alembic/versions/010_leave_lectures.py` (`009_partB_timetable -> 010_leave_lectures`)
+
+### Changes
+- Added `lecture_no` (`Integer`, default `1`) to `ClassSessionModel` and relaxed the unique constraint from `(course_id, held_on)` to `(course_id, held_on, lecture_no)`.
+- Added `mode` (`'full_day' | 'lectures'`, default `'full_day'`) and `lecture_nos` (`Text` JSON list) to `LeaveRequestModel`.
+- Added `leave_dl_counts_as_present` and `leave_ml_counts_as_present` (default `True`) to `RiskConfigModel`.
+- Ran `alembic upgrade head` cleanly and extended `scripts/seed_data.py` to backfill `lecture_no` from published timetable slots and seed approved DL/ML examples in both `full_day` and `lectures` modes.

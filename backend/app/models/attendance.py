@@ -22,7 +22,7 @@ class ClassSessionModel(Base):
     __tablename__ = "class_sessions"
     __table_args__ = (
         UniqueConstraint(
-            "course_id", "held_on", name="uq_class_sessions_course_held_on"
+            "course_id", "held_on", "lecture_no", name="uq_class_sessions_course_held_on_lecture"
         ),
         Index("ix_class_sessions_course_held_on", "course_id", "held_on"),
     )
@@ -30,6 +30,7 @@ class ClassSessionModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id"))
     held_on: Mapped[date] = mapped_column(Date)
+    lecture_no: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     is_cancelled: Mapped[bool] = mapped_column(Boolean, default=False)
 
 

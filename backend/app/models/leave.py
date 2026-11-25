@@ -25,6 +25,10 @@ class LeaveRequestModel(Base):
             "status IN ('pending', 'approved', 'rejected')",
             name="check_leave_status",
         ),
+        CheckConstraint(
+            "mode IN ('full_day', 'lectures')",
+            name="check_leave_mode",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -32,8 +36,12 @@ class LeaveRequestModel(Base):
         Integer, ForeignKey("students.user_id"), nullable=False, index=True
     )
     type: Mapped[str] = mapped_column(String(20), nullable=False)
+    mode: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="full_day", server_default="full_day"
+    )
     date_from: Mapped[date] = mapped_column(Date, nullable=False)
     date_to: Mapped[date] = mapped_column(Date, nullable=False)
+    lecture_nos: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     decided_by: Mapped[Optional[int]] = mapped_column(

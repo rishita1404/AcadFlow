@@ -35,6 +35,12 @@ class RiskConfigModel(Base):
     notice_daily_rate_limit: Mapped[int] = mapped_column(
         Integer, default=20, nullable=True
     )
+    leave_dl_counts_as_present: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=True, server_default="1"
+    )
+    leave_ml_counts_as_present: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=True, server_default="1"
+    )
     version: Mapped[str] = mapped_column(String(50))
 
 
