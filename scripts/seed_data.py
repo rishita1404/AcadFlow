@@ -730,6 +730,8 @@ def seed_all(session=None, engine=None) -> dict:
             # CS501 (DSA) — Dr. Priya, Mon P2                 — Room 102 (Sec B)
             # CS502 (OS)  — Dr. Priya, Tue P2, Thu P2          — Room 101 (Sec A, deliberate clash with CS503 on Thu P2)
             # CS503 (DBMS)— Meera Mentor, Mon P3, Thu P2       — Lab 201 / Room 101 (Sec A, Thu P2 clashes with CS502)
+            # CS504 (CN)  — Dr. Priya, Wed P2, Fri P3          — Room 102 (Sec A)
+            # CS505 (SE)  — Dr. Priya, Tue P3, Thu P1          — Seminar 301 (Sec A)
             # AI501       — Raj Trainer, Tue P1                 — Seminar 301 (Sec A)
             slots_def = [
                 (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 0, "P1", "A", "lecture", "09:00", "10:00"),
@@ -740,6 +742,10 @@ def seed_all(session=None, engine=None) -> dict:
                 (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture", "10:00", "11:00"),  # clash: Dr Priya Thu P2 vs Mentor Thu P2 same room
                 (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Lab 201"].id, 0, "P3", "A", "lecture", "11:15", "12:15"),
                 (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture", "10:00", "11:00"),  # same room as CS502 on Thu P2 = room clash
+                (courses_map["CS504"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 2, "P2", "A", "lecture", "10:00", "11:00"),
+                (courses_map["CS504"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 4, "P3", "A", "lecture", "11:15", "12:15"),
+                (courses_map["CS505"].id, core_users["faculty@acadflow.edu"].id, room_map["Seminar 301"].id, 1, "P3", "A", "lecture", "11:15", "12:15"),
+                (courses_map["CS505"].id, core_users["faculty@acadflow.edu"].id, room_map["Seminar 301"].id, 3, "P1", "A", "lecture", "09:00", "10:00"),
                 (courses_map["AI501"].id, core_users["trainer@acadflow.edu"].id, room_map["Seminar 301"].id, 1, "P1", "A", "lecture", "09:00", "10:00"),
             ]
             for course_id, teacher_id, room_id, day, period, section, kind, s_time, e_time in slots_def:
