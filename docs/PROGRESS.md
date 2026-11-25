@@ -295,3 +295,39 @@
 #### Evidence
 - docs/evidence/login-redesign/before-fixes.png — state from previous redesign session
 - docs/evidence/login-redesign/after-fixes.png — state after this fixes pass
+
+---
+
+## Leave Pages Restyle — 2026-11-25
+
+### Root Cause
+The three leave pages (StudentLeave, FacultyLeaveInbox, DeanCondonationQueue) used **Tailwind CSS class names** (e.g. g-white, ounded-xl, 	ext-slate-900) but the project uses pure CSS with Holst design tokens via inline style props. Tailwind is not installed, so all class names were no-ops — the pages rendered as raw browser-default HTML.
+
+### Changes Made
+
+| Fix | File |
+|-----|------|
+| Rewritten with Holst token inline styles — page header, card, segmented control, field labels, status badges, empty state | StudentLeave.jsx |
+| Segmented control for category — radio group with ArrowLeft/Right keyboard nav, ria-checked, ria-invalid on fields | StudentLeave.jsx |
+| Date fields side-by-side with labels above; end-date min attribute; day-count hint; 500-char counter on reason | StudentLeave.jsx |
+| Submit-time validation with inline field errors (ria-live); success/error banners | StudentLeave.jsx |
+| Info callout: "Approved leave is not counted as absence…" | StudentLeave.jsx |
+| History list with date range, CategoryPill, StatusBadge, decision note, empty state | StudentLeave.jsx |
+| Rewritten with Holst token styles — page header with TabBar (Pending/Decided/All), student rows, Approve/Reject action buttons, detail grid, DecisionModal | FacultyLeaveInbox.jsx |
+| Rewritten with Holst token styles — page header, policy callout, queue card, detail grid with attendance%, recommended-by, justification, DecisionModal (note required) | DeanCondonationQueue.jsx |
+| Test file expanded: 3 → 22 tests (19 new). Added: segmented control click and ArrowKey nav, date validation (empty/reversed), reason validation, empty-state renders for all three pages, modal open on Approve/Reject click | LeavePages.test.jsx |
+
+### Test Results
+- **Frontend:** 70/70 passed (11 test files, +19 new leave-page tests)
+- **Backend:** unchanged
+
+### Bundle Size
+| Asset | Size | Gzip |
+|-------|------|------|
+| index.js | 1,281.82 kB | 308.02 kB |
+| ProductScene.js | 5.82 kB | 1.97 kB |
+| index.css | 22.61 kB | 5.08 kB |
+
+### Evidence
+Screenshots require 
+px playwright install to be run once to download Chromium binaries. Directory docs/evidence/leave-pages/ is ready.

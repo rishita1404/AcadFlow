@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import StudentLeave from '../student/StudentLeave.jsx';
 import FacultyLeaveInbox from '../faculty/FacultyLeaveInbox.jsx';
 import DeanCondonationQueue from '../dean/DeanCondonationQueue.jsx';
 
+// ── API mocks ─────────────────────────────────────────────────────────────────
 vi.mock('../../api/endpoints', () => ({
   leaveApi: {
     getMyRequests: vi.fn().mockResolvedValue({
@@ -17,10 +18,12 @@ vi.mock('../../api/endpoints', () => ({
           reason: 'Viral fever rest',
           status: 'approved',
           decision_note: 'Prescription verified',
+          decided_at: '2026-10-14T10:00:00Z',
           created_at: '2026-10-09T10:00:00Z',
         },
       ],
     }),
+    submit: vi.fn().mockResolvedValue({ data: { id: 2 } }),
     getInbox: vi.fn().mockResolvedValue({
       data: [
         {
@@ -37,6 +40,7 @@ vi.mock('../../api/endpoints', () => ({
         },
       ],
     }),
+    decide: vi.fn().mockResolvedValue({ data: {} }),
   },
   condonationApi: {
     getQueue: vi.fn().mockResolvedValue({
@@ -55,39 +59,187 @@ vi.mock('../../api/endpoints', () => ({
         },
       ],
     }),
+    decide: vi.fn().mockResolvedValue({ data: {} }),
   },
 }));
 
-function renderWithClient(ui) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function wrap(ui) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
-describe('Phase 2 Pages: Leave & Condonation', () => {
-  it('renders StudentLeave form and supportive neutral excusal copy', async () => {
-    renderWithClient(<StudentLeave />);
-    expect(screen.getByText('My Leave & Attendance Excusal')).toBeDefined();
-    expect(screen.getByText('New Leave Request')).toBeDefined();
-    expect(screen.getByText(/Approved leaves are purely neutral/i)).toBeDefined();
+// ── StudentLeave ──────────────────────────────────────────────────────────────
+describe('StudentLeave page', () => {
+  it('renders page title and subtitle', () => {
+    wrap(<StudentLeave />);
+    expect(screen.getByText('My leave')).toBeDefined();
+    expect(screen.getByText(/Request leave for illness or approved duty/i)).toBeDefined();
+  });
+
+  it('renders New request and Request history headings', () => {
+    wrap(<StudentLeave />);
+    expect(screen.getByText('New request')).toBeDefined();
+    expect(screen.getByText('Request history')).toBeDefined();
+  });
+
+  it('renders segmented control with Medical and Duty options', () => {
+    wrap(<StudentLeave />);
+    const radios = screen.getAllByRole('radio');
+    expect(radios.length).toBe(2);
+    expect(screen.getByText('Medical')).toBeDefined();
+    expect(screen.getByText('Duty / Event')).toBeDefined();
+  });
+
+  it('segmented control responds to arrow-key navigation', () => {
+    wrap(<StudentLeave />);
+    const [medBtn] = screen.getAllByRole('radio');
+    // Medical starts checked
+    expect(medBtn.getAttribute('aria-checked')).toBe('true');
+    // Arrow right → Duty / Event
+    fireEvent.keyDown(medBtn, { key: 'ArrowRight' });
+    const [, dutyBtn] = screen.getAllByRole('radio');
+    expect(dutyBtn.getAttribute('aria-checked')).toBe('true');
+    // Arrow left → back to Medical
+    fireEvent.keyDown(dutyBtn, { key: 'ArrowLeft' });
+    const [medBtn2] = screen.getAllByRole('radio');
+    expect(medBtn2.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('shows inline error when form submitted with empty dates', async () => {
+    wrap(<StudentLeave />);
+    const btn = screen.getByRole('button', { name: /submit request/i });
+    fireEvent.click(btn);
+    await waitFor(() => {
+      expect(screen.getByText('Please choose a start date.')).toBeDefined();
+    });
+  });
+
+  it('shows error when end date is before start date', async () => {
+    wrap(<StudentLeave />);
+    const inputs = document.querySelectorAll('input[type="date"]');
+    fireEvent.change(inputs[0], { target: { value: '2026-10-15' } });
+    fireEvent.change(inputs[1], { target: { value: '2026-10-10' } });
+    fireEvent.click(screen.getByRole('button', { name: /submit request/i }));
+    await waitFor(() => {
+      expect(screen.getByText('End date cannot be before start date.')).toBeDefined();
+    });
+  });
+
+  it('shows reason validation error on empty reason', async () => {
+    wrap(<StudentLeave />);
+    const inputs = document.querySelectorAll('input[type="date"]');
+    fireEvent.change(inputs[0], { target: { value: '2026-10-10' } });
+    fireEvent.change(inputs[1], { target: { value: '2026-10-12' } });
+    fireEvent.click(screen.getByRole('button', { name: /submit request/i }));
+    await waitFor(() => {
+      expect(screen.getByText('Please describe the reason for your request.')).toBeDefined();
+    });
+  });
+
+  it('renders approved history with decision note', async () => {
+    wrap(<StudentLeave />);
     expect(await screen.findByText('Prescription verified')).toBeDefined();
+    expect(screen.getByText('Viral fever rest')).toBeDefined();
+    expect(screen.getByText('Approved')).toBeDefined();
   });
 
-  it('renders FacultyLeaveInbox with filter controls and mentee requests', async () => {
-    renderWithClient(<FacultyLeaveInbox />);
-    expect(screen.getByText('Mentee Leave Inbox')).toBeDefined();
-    expect(screen.getByText('Pending Review')).toBeDefined();
+  it('shows attendance callout text', () => {
+    wrap(<StudentLeave />);
+    expect(screen.getByText(/Approved leave is not counted as absence/i)).toBeDefined();
+  });
+
+  it('renders empty state when no history', async () => {
+    const { leaveApi } = await import('../../api/endpoints');
+    leaveApi.getMyRequests.mockResolvedValueOnce({ data: [] });
+    wrap(<StudentLeave />);
+    expect(await screen.findByText('No leave requests yet')).toBeDefined();
+    expect(screen.getByText(/Requests you submit appear here/i)).toBeDefined();
+  });
+});
+
+// ── FacultyLeaveInbox ─────────────────────────────────────────────────────────
+describe('FacultyLeaveInbox page', () => {
+  it('renders page title', () => {
+    wrap(<FacultyLeaveInbox />);
+    expect(screen.getByText('Mentee leave inbox')).toBeDefined();
+  });
+
+  it('renders tab bar with Pending, Decided and All options', () => {
+    wrap(<FacultyLeaveInbox />);
+    expect(screen.getByRole('button', { name: 'Pending' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Decided' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'All' })).toBeDefined();
+  });
+
+  it('renders student row with Approve and Reject buttons', async () => {
+    wrap(<FacultyLeaveInbox />);
     expect(await screen.findByText('Riya Sharma')).toBeDefined();
-    expect(screen.getByText('Approve')).toBeDefined();
-    expect(screen.getByText('Reject')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeDefined();
   });
 
-  it('renders DeanCondonationQueue with policy banner and compliance copy', async () => {
-    renderWithClient(<DeanCondonationQueue />);
-    expect(screen.getByText('Dean Condonation Queue')).toBeDefined();
+  it('opens decision modal when Approve clicked', async () => {
+    wrap(<FacultyLeaveInbox />);
+    await screen.findByText('Riya Sharma');
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(screen.getByRole('dialog')).toBeDefined();
+    expect(screen.getByText('Approve request')).toBeDefined();
+  });
+
+  it('opens decision modal when Reject clicked', async () => {
+    wrap(<FacultyLeaveInbox />);
+    await screen.findByText('Riya Sharma');
+    fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
+    expect(screen.getByRole('dialog')).toBeDefined();
+    expect(screen.getByText('Reject request')).toBeDefined();
+  });
+
+  it('shows empty state when no requests', async () => {
+    const { leaveApi } = await import('../../api/endpoints');
+    leaveApi.getInbox.mockResolvedValueOnce({ data: [] });
+    wrap(<FacultyLeaveInbox />);
+    expect(await screen.findByText('No requests in this view')).toBeDefined();
+  });
+});
+
+// ── DeanCondonationQueue ──────────────────────────────────────────────────────
+describe('DeanCondonationQueue page', () => {
+  it('renders page title', () => {
+    wrap(<DeanCondonationQueue />);
+    expect(screen.getByText('Condonation queue')).toBeDefined();
+  });
+
+  it('renders policy callout without "never changes attendance percentages"', async () => {
+    wrap(<DeanCondonationQueue />);
     expect(screen.getByText(/never changes attendance percentages/i)).toBeDefined();
+  });
+
+  it('renders student row with attendance percentage', async () => {
+    wrap(<DeanCondonationQueue />);
     expect(await screen.findByText('Fracture hospitalization')).toBeDefined();
     expect(screen.getByText('68.5%')).toBeDefined();
+  });
+
+  it('renders Approve and Reject buttons for recommended requests', async () => {
+    wrap(<DeanCondonationQueue />);
+    await screen.findByText('Riya Sharma');
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeDefined();
+  });
+
+  it('opens decision modal on Approve click', async () => {
+    wrap(<DeanCondonationQueue />);
+    await screen.findByText('Riya Sharma');
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(screen.getByRole('dialog')).toBeDefined();
+    expect(screen.getByText('Approve condonation')).toBeDefined();
+  });
+
+  it('shows empty state when queue is empty', async () => {
+    const { condonationApi } = await import('../../api/endpoints');
+    condonationApi.getQueue.mockResolvedValueOnce({ data: [] });
+    wrap(<DeanCondonationQueue />);
+    expect(await screen.findByText('No requests in condonation queue')).toBeDefined();
   });
 });

@@ -1,296 +1,557 @@
-import { useState } from 'react';
+import { useState, useRef, useId } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { leaveApi } from '../../api/endpoints';
 import {
   CalendarDays,
-  FileText,
-  Clock,
   CheckCircle2,
   XCircle,
-  AlertCircle,
-  Send,
+  Clock,
   HeartPulse,
   Briefcase,
-  ShieldCheck,
+  Info,
+  Send,
 } from 'lucide-react';
 
+// ── Shared micro-components ──────────────────────────────────────────────────
+
+function PageHeader({ title, subtitle }) {
+  return (
+    <div style={{
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-card)',
+      padding: 'var(--space-6)',
+      boxShadow: 'var(--shadow-card)',
+      marginBottom: 'var(--space-6)',
+    }}>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--ink-900)', margin: 0 }}>
+        {title}
+      </h1>
+      <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>{subtitle}</p>
+    </div>
+  );
+}
+
+function Card({ children, style }) {
+  return (
+    <div style={{
+      background: 'var(--surface)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-card)',
+      boxShadow: 'var(--shadow-card)',
+      overflow: 'hidden',
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function CardHeader({ title, right }) {
+  return (
+    <div style={{
+      padding: 'var(--space-5) var(--space-6)',
+      borderBottom: '1px solid var(--border)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 'var(--space-4)',
+    }}>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color: 'var(--ink-900)', margin: 0 }}>
+        {title}
+      </h2>
+      {right}
+    </div>
+  );
+}
+
+function FieldLabel({ htmlFor, children }) {
+  return (
+    <label htmlFor={htmlFor} style={{
+      display: 'block',
+      fontSize: 12,
+      fontWeight: 700,
+      letterSpacing: '0.03em',
+      textTransform: 'uppercase',
+      color: 'var(--ink-800)',
+      marginBottom: 6,
+    }}>
+      {children}
+    </label>
+  );
+}
+
+function FieldError({ id, children }) {
+  if (!children) return null;
+  return (
+    <p id={id} role="alert" aria-live="assertive" style={{
+      fontSize: 12,
+      color: 'var(--crit-fg)',
+      marginTop: 4,
+      fontWeight: 500,
+    }}>
+      {children}
+    </p>
+  );
+}
+
+function StatusBadge({ status }) {
+  const configs = {
+    approved: { icon: <CheckCircle2 size={13} />, label: 'Approved', bg: 'var(--ok-bg)', fg: 'var(--ok-fg)' },
+    rejected: { icon: <XCircle size={13} />, label: 'Rejected', bg: 'var(--risk-bg)', fg: 'var(--risk-fg)' },
+    pending:  { icon: <Clock size={13} />,        label: 'Pending',  bg: 'var(--watch-bg)', fg: 'var(--watch-fg)' },
+  };
+  const cfg = configs[status] || configs.pending;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '3px 10px', borderRadius: 'var(--radius-pill)',
+      fontSize: 11, fontWeight: 700,
+      background: cfg.bg, color: cfg.fg,
+    }}>
+      {cfg.icon} {cfg.label}
+    </span>
+  );
+}
+
+function CategoryPill({ type }) {
+  if (type === 'medical') return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      fontSize: 11, fontWeight: 700, padding: '2px 8px',
+      borderRadius: 'var(--radius-pill)',
+      background: 'var(--risk-bg)', color: 'var(--risk-fg)',
+    }}>
+      <HeartPulse size={11} /> Medical
+    </span>
+  );
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      fontSize: 11, fontWeight: 700, padding: '2px 8px',
+      borderRadius: 'var(--radius-pill)',
+      background: 'var(--bg)', color: 'var(--accent)',
+      border: '1px solid var(--border)',
+    }}>
+      <Briefcase size={11} /> Duty / Event
+    </span>
+  );
+}
+
+function EmptyState({ icon, title, message }) {
+  return (
+    <div style={{ padding: 'var(--space-12)', textAlign: 'center' }}>
+      <div style={{ color: 'var(--border)', marginBottom: 12 }}>{icon}</div>
+      <p style={{ fontWeight: 600, color: 'var(--ink-900)', fontSize: 15, margin: 0 }}>{title}</p>
+      <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>{message}</p>
+    </div>
+  );
+}
+
+// ── Segmented control (radio group with arrow-key nav) ───────────────────────
+const CATEGORIES = [
+  { value: 'medical', label: 'Medical',      icon: <HeartPulse size={16} /> },
+  { value: 'duty',    label: 'Duty / Event', icon: <Briefcase  size={16} /> },
+];
+
+function SegmentedControl({ value, onChange, error, errorId }) {
+  const groupRef = useRef(null);
+
+  const handleKeyDown = (e, idx) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = (idx + 1) % CATEGORIES.length;
+      onChange(CATEGORIES[next].value);
+      groupRef.current?.querySelectorAll('[role="radio"]')[next]?.focus();
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = (idx - 1 + CATEGORIES.length) % CATEGORIES.length;
+      onChange(CATEGORIES[prev].value);
+      groupRef.current?.querySelectorAll('[role="radio"]')[prev]?.focus();
+    }
+  };
+
+  return (
+    <div
+      ref={groupRef}
+      role="radiogroup"
+      aria-label="Leave category"
+      aria-describedby={error ? errorId : undefined}
+      style={{ display: 'flex', gap: 'var(--space-2)' }}
+    >
+      {CATEGORIES.map((cat, idx) => {
+        const active = value === cat.value;
+        return (
+          <button
+            key={cat.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            tabIndex={active ? 0 : -1}
+            onClick={() => onChange(cat.value)}
+            onKeyDown={(e) => handleKeyDown(e, idx)}
+            style={{
+              flex: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 8,
+              padding: '10px 16px',
+              border: active ? '2px solid var(--accent)' : '1px solid var(--border)',
+              borderRadius: 'var(--radius-input)',
+              background: active ? 'var(--accent)' : 'var(--surface)',
+              color: active ? 'var(--on-dark)' : 'var(--text-muted)',
+              fontSize: 13, fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--bg)'; }}
+            onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'var(--surface)'; }}
+          >
+            {cat.icon}
+            {cat.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function daysBetween(from, to) {
+  if (!from || !to) return null;
+  const ms = new Date(to) - new Date(from);
+  return Math.round(ms / 86400000) + 1; // inclusive
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
 export default function StudentLeave() {
-  const queryClient = useQueryClient();
-  const [leaveType, setLeaveType] = useState('medical');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [reason, setReason] = useState('');
-  const [formError, setFormError] = useState('');
+  const qc = useQueryClient();
+  const uid = useId();
+
+  const [leaveType, setLeaveType]   = useState('medical');
+  const [dateFrom, setDateFrom]     = useState('');
+  const [dateTo, setDateTo]         = useState('');
+  const [reason, setReason]         = useState('');
+  const [submitted, setSubmitted]   = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formSuccess, setFormSuccess] = useState('');
+  const [apiError, setApiError]     = useState('');
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['my-leave-requests'],
-    queryFn: () => leaveApi.getMyRequests().then((res) => res.data),
+    queryFn: () => leaveApi.getMyRequests().then((r) => r.data),
   });
 
   const submitMutation = useMutation({
     mutationFn: (payload) => leaveApi.submit(payload),
     onSuccess: () => {
-      setFormSuccess('Leave request submitted successfully for mentor review.');
-      setFormError('');
+      setFormSuccess('Request submitted. Your mentor will review it shortly.');
+      setApiError('');
       setReason('');
       setDateFrom('');
       setDateTo('');
-      queryClient.invalidateQueries({ queryKey: ['my-leave-requests'] });
+      setFieldErrors({});
+      setSubmitted(false);
+      qc.invalidateQueries({ queryKey: ['my-leave-requests'] });
     },
     onError: (err) => {
-      const msg = err.response?.data?.error?.message || err.response?.data?.detail?.message || 'Failed to submit leave request.';
-      setFormError(msg);
+      const msg = err.response?.data?.error?.message
+        || err.response?.data?.detail?.message
+        || 'Could not submit your request. Please try again.';
+      setApiError(msg);
       setFormSuccess('');
     },
   });
 
+  const validate = () => {
+    const errs = {};
+    if (!dateFrom) errs.dateFrom = 'Please choose a start date.';
+    if (!dateTo)   errs.dateTo   = 'Please choose an end date.';
+    if (dateFrom && dateTo && dateFrom > dateTo)
+      errs.dateTo = 'End date cannot be before start date.';
+    if (!reason.trim()) errs.reason = 'Please describe the reason for your request.';
+    return errs;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    setFormError('');
+    setSubmitted(true);
+    setApiError('');
     setFormSuccess('');
-
-    if (!dateFrom || !dateTo) {
-      setFormError('Please select both start and end dates.');
-      return;
-    }
-    if (dateFrom > dateTo) {
-      setFormError('Start date cannot be after end date.');
-      return;
-    }
-    if (!reason.trim()) {
-      setFormError('Please provide a supportive reason for your absence.');
-      return;
-    }
-
-    submitMutation.mutate({
-      type: leaveType,
-      date_from: dateFrom,
-      date_to: dateTo,
-      reason: reason.trim(),
-    });
+    const errs = validate();
+    setFieldErrors(errs);
+    if (Object.keys(errs).length) return;
+    submitMutation.mutate({ type: leaveType, date_from: dateFrom, date_to: dateTo, reason: reason.trim() });
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'approved':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Approved
-          </span>
-        );
-      case 'rejected':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-            <XCircle className="w-3.5 h-3.5" />
-            Rejected
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="w-3.5 h-3.5" />
-            Pending review
-          </span>
-        );
-    }
-  };
+  const days = daysBetween(dateFrom, dateTo);
+  const charCount = reason.length;
+  const MAX_CHARS = 500;
+
+  const inputStyle = (hasErr) => ({
+    width: '100%',
+    padding: '10px 14px',
+    borderRadius: 'var(--radius-input)',
+    border: `1px solid ${hasErr ? 'var(--crit-fg)' : 'var(--border)'}`,
+    fontSize: 14,
+    color: 'var(--text)',
+    background: 'var(--surface)',
+    fontFamily: 'var(--font-sans)',
+    boxSizing: 'border-box',
+  });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-          <CalendarDays className="w-7 h-7 text-indigo-600" />
-          My Leave & Attendance Excusal
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Submit formal leave for illness or sanctioned duty. Once approved by your mentor, sessions in this range are excused from calculations.
-        </p>
-      </div>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <PageHeader
+        title="My leave"
+        subtitle="Request leave for illness or approved duty. Your mentor reviews it."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Form Column */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-indigo-600" />
-              New Leave Request
-            </h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '5fr 7fr', gap: 'var(--space-6)', alignItems: 'start' }}>
+        {/* ── Left: New request form ── */}
+        <Card>
+          <CardHeader title="New request" />
+          <div style={{ padding: 'var(--space-6)' }}>
 
+            {/* Success banner */}
             {formSuccess && (
-              <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                <span>{formSuccess}</span>
+              <div role="status" aria-live="polite" style={{
+                display: 'flex', gap: 10, alignItems: 'flex-start',
+                background: 'var(--ok-bg)', borderRadius: 'var(--radius-input)',
+                padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-5)',
+                fontSize: 13, color: 'var(--ok-fg)',
+              }}>
+                <CheckCircle2 size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                {formSuccess}
               </div>
             )}
 
-            {formError && (
-              <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-                <span>{formError}</span>
+            {/* API error banner */}
+            {apiError && (
+              <div role="alert" aria-live="assertive" style={{
+                display: 'flex', gap: 10, alignItems: 'flex-start',
+                background: 'var(--crit-bg)', border: '1px solid var(--crit-fg)',
+                borderRadius: 'var(--radius-input)',
+                padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-5)',
+                fontSize: 13, color: 'var(--crit-fg)',
+              }}>
+                <XCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                {apiError}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+
+              {/* Category segmented control */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Leave Category
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setLeaveType('medical')}
-                    className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-xs font-medium transition-colors ${
-                      leaveType === 'medical'
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <HeartPulse className="w-4 h-4" />
-                    Medical
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLeaveType('duty')}
-                    className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border text-xs font-medium transition-colors ${
-                      leaveType === 'duty'
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Briefcase className="w-4 h-4" />
-                    Duty / Event
-                  </button>
-                </div>
+                <FieldLabel>Category</FieldLabel>
+                <SegmentedControl
+                  value={leaveType}
+                  onChange={setLeaveType}
+                  error={submitted && fieldErrors.leaveType}
+                  errorId={`${uid}-cat-err`}
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Date range */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    From Date
-                  </label>
+                  <FieldLabel htmlFor={`${uid}-from`}>From</FieldLabel>
                   <input
+                    id={`${uid}-from`}
                     type="date"
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
-                    className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
+                    aria-invalid={!!(submitted && fieldErrors.dateFrom)}
+                    aria-describedby={submitted && fieldErrors.dateFrom ? `${uid}-from-err` : undefined}
+                    style={inputStyle(submitted && fieldErrors.dateFrom)}
                   />
+                  <FieldError id={`${uid}-from-err`}>{submitted && fieldErrors.dateFrom}</FieldError>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    To Date
-                  </label>
+                  <FieldLabel htmlFor={`${uid}-to`}>To</FieldLabel>
                   <input
+                    id={`${uid}-to`}
                     type="date"
                     value={dateTo}
+                    min={dateFrom || undefined}
                     onChange={(e) => setDateTo(e.target.value)}
-                    className="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required
+                    aria-invalid={!!(submitted && fieldErrors.dateTo)}
+                    aria-describedby={submitted && fieldErrors.dateTo ? `${uid}-to-err` : undefined}
+                    style={inputStyle(submitted && fieldErrors.dateTo)}
                   />
+                  <FieldError id={`${uid}-to-err`}>{submitted && fieldErrors.dateTo}</FieldError>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Reason (text explanation)
-                </label>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  rows={4}
-                  placeholder="Explain reason for absence (e.g. viral fever, medical rest, university hackathon)..."
-                  className="w-full text-xs rounded-lg border border-slate-300 p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-                <p className="mt-1 text-[11px] text-slate-400">
-                  No document upload required. Your mentor will evaluate the reason.
+              {/* Duration hint */}
+              {days !== null && days > 0 && (
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -12 }}>
+                  {days} {days === 1 ? 'day' : 'days'}
                 </p>
+              )}
+
+              {/* Reason */}
+              <div>
+                <FieldLabel htmlFor={`${uid}-reason`}>Reason</FieldLabel>
+                <textarea
+                  id={`${uid}-reason`}
+                  value={reason}
+                  onChange={(e) => {
+                    if (e.target.value.length <= MAX_CHARS) setReason(e.target.value);
+                  }}
+                  rows={5}
+                  placeholder="Describe the reason for your request…"
+                  aria-invalid={!!(submitted && fieldErrors.reason)}
+                  aria-describedby={[
+                    `${uid}-reason-counter`,
+                    submitted && fieldErrors.reason ? `${uid}-reason-err` : '',
+                    `${uid}-reason-hint`,
+                  ].filter(Boolean).join(' ')}
+                  style={{ ...inputStyle(submitted && fieldErrors.reason), minHeight: 120, resize: 'vertical' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                  <span id={`${uid}-reason-hint`} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    No documents needed. Your mentor will evaluate the reason.
+                  </span>
+                  <span
+                    id={`${uid}-reason-counter`}
+                    aria-live="polite"
+                    style={{ fontSize: 12, color: charCount > MAX_CHARS - 50 ? 'var(--risk-fg)' : 'var(--text-muted)' }}
+                  >
+                    {charCount}/{MAX_CHARS}
+                  </span>
+                </div>
+                <FieldError id={`${uid}-reason-err`}>{submitted && fieldErrors.reason}</FieldError>
               </div>
 
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={submitMutation.isPending}
-                className="w-full inline-flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                style={{
+                  width: '100%',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '12px 24px',
+                  borderRadius: 'var(--radius-pill)',
+                  background: 'var(--accent)',
+                  color: 'var(--on-dark)',
+                  border: 'none',
+                  fontSize: 15, fontWeight: 600,
+                  cursor: submitMutation.isPending ? 'not-allowed' : 'pointer',
+                  opacity: submitMutation.isPending ? 0.65 : 1,
+                  fontFamily: 'var(--font-sans)',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { if (!submitMutation.isPending) e.currentTarget.style.background = 'var(--accent-hover)'; }}
+                onMouseLeave={e => { if (!submitMutation.isPending) e.currentTarget.style.background = 'var(--accent)'; }}
               >
-                <Send className="w-3.5 h-3.5" />
-                {submitMutation.isPending ? 'Submitting...' : 'Submit Request'}
+                <Send size={16} />
+                {submitMutation.isPending ? 'Submitting…' : 'Submit request'}
               </button>
             </form>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-start gap-2.5 text-xs text-slate-500">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+            {/* Info callout */}
+            <div style={{
+              marginTop: 'var(--space-6)',
+              paddingTop: 'var(--space-5)',
+              borderTop: '1px solid var(--border)',
+              display: 'flex', gap: 10, alignItems: 'flex-start',
+              fontSize: 13, color: 'var(--text-muted)',
+            }}>
+              <Info size={16} style={{ flexShrink: 0, marginTop: 2, color: 'var(--accent)' }} />
               <span>
-                Approved leaves are purely neutral: excused sessions reduce both held and total counts, preserving your attendance buffer without penalty.
+                Approved leave is not counted as absence. Those sessions are left out of your attendance totals.
               </span>
             </div>
           </div>
-        </div>
+        </Card>
 
-        {/* List Column */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">Submitted Leave History</h2>
-              <span className="text-xs text-slate-400">{requests.length} total</span>
+        {/* ── Right: History ── */}
+        <Card>
+          <CardHeader
+            title="Request history"
+            right={
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {requests.length} {requests.length === 1 ? 'request' : 'requests'}
+              </span>
+            }
+          />
+
+          {isLoading ? (
+            <div style={{ padding: 'var(--space-12)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+              Loading…
             </div>
+          ) : requests.length === 0 ? (
+            <EmptyState
+              icon={<CalendarDays size={36} />}
+              title="No leave requests yet"
+              message="Requests you submit appear here with their status."
+            />
+          ) : (
+            <div>
+              {requests.map((req, i) => (
+                <div key={req.id} style={{
+                  padding: 'var(--space-5) var(--space-6)',
+                  borderBottom: i < requests.length - 1 ? '1px solid var(--border)' : 'none',
+                }}>
+                  {/* Top row: dates + category + status */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CategoryPill type={req.type} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)', fontVariantNumeric: 'tabular-nums' }}>
+                        {fmtDate(req.date_from)} – {fmtDate(req.date_to)}
+                      </span>
+                    </div>
+                    <StatusBadge status={req.status} />
+                  </div>
 
-            {isLoading ? (
-              <div className="p-8 text-center text-xs text-slate-400">Loading requests...</div>
-            ) : requests.length === 0 ? (
-              <div className="p-12 text-center">
-                <CalendarDays className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-medium text-slate-700">No leave requests found</p>
-                <p className="text-xs text-slate-400 mt-1">Submit your first leave request using the form.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {requests.map((req) => (
-                  <div key={req.id} className="p-6 hover:bg-slate-50/50 transition-colors space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {req.type === 'medical' ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded">
-                            <HeartPulse className="w-3 h-3" />
-                            Medical
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
-                            <Briefcase className="w-3 h-3" />
-                            Duty
+                  {/* Reason */}
+                  <p style={{
+                    marginTop: 10,
+                    fontSize: 13, color: 'var(--text)',
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-input)',
+                    padding: 'var(--space-3) var(--space-4)',
+                  }}>
+                    {req.reason}
+                  </p>
+
+                  {/* Decision note */}
+                  {req.decision_note && (
+                    <div style={{
+                      marginTop: 10,
+                      background: 'var(--bg)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-input)',
+                      padding: 'var(--space-3) var(--space-4)',
+                      fontSize: 13,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
+                          Mentor note
+                        </span>
+                        {req.decided_at && (
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            {fmtDate(req.decided_at)}
                           </span>
                         )}
-                        <span className="text-xs font-semibold text-slate-800">
-                          {req.date_from} → {req.date_to}
-                        </span>
                       </div>
-                      {getStatusBadge(req.status)}
+                      <p style={{ color: 'var(--ink-900)', margin: 0 }}>{req.decision_note}</p>
                     </div>
-
-                    <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      "{req.reason}"
-                    </p>
-
-                    {req.decision_note && (
-                      <div className="text-xs text-slate-700 bg-indigo-50/60 p-2.5 rounded-lg border border-indigo-100 space-y-1">
-                        <div className="font-medium text-indigo-900 flex items-center justify-between">
-                          <span>Decision Note from {req.decided_by_name || 'Reviewer'}:</span>
-                          {req.decided_at && (
-                            <span className="text-[11px] text-indigo-500 font-normal">
-                              {new Date(req.decided_at).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-indigo-800">{req.decision_note}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );
