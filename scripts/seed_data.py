@@ -619,30 +619,16 @@ def seed_all(session=None, engine=None) -> dict:
                     effective_from=str(semester_start),
                     created_by=core_users["coordinator@acadflow.edu"].id,
                     published_at=str(datetime.now(timezone.utc)),
-                    is_published_with_conflicts=True,
-                    conflicts_json=json.dumps([{
-                        "type": "room_overlap",
-                        "message": "Room 101 has multiple classes scheduled on Thu P2: CS502 (OS) and CS503 (DBMS)",
-                        "severity": "high",
-                        "day": 3,
-                        "period": "P2"
-                    }]),
+                    is_published_with_conflicts=False,
+                    conflicts_json="[]",
                 )
                 _session.add(tv)
                 _session.flush()
             else:
                 if not tv.name:
                     tv.name = "Autumn 2026 Production"
-                if tv.is_published_with_conflicts is None:
-                    tv.is_published_with_conflicts = True
-                if not tv.conflicts_json:
-                    tv.conflicts_json = json.dumps([{
-                        "type": "room_overlap",
-                        "message": "Room 101 has multiple classes scheduled on Thu P2: CS502 (OS) and CS503 (DBMS)",
-                        "severity": "high",
-                        "day": 3,
-                        "period": "P2"
-                    }])
+                tv.is_published_with_conflicts = False
+                tv.conflicts_json = "[]"
             counts.setdefault("timetable_versions", 0)
             counts["timetable_versions"] += 1
 
@@ -663,19 +649,13 @@ def seed_all(session=None, engine=None) -> dict:
                     effective_from=str(date(2027, 1, 15)),
                     created_by=core_users["coordinator@acadflow.edu"].id,
                     is_published_with_conflicts=False,
-                    conflicts_json=json.dumps([{
-                        "type": "teacher_overlap",
-                        "message": "Dr. Priya Sharma is assigned to multiple classes on Tue P2: CS501 and CS502",
-                        "severity": "high",
-                        "day": 1,
-                        "period": "P2"
-                    }]),
+                    conflicts_json="[]",
                 )
                 _session.add(draft_tv)
                 _session.flush()
                 counts["timetable_versions"] += 1
 
-            # Period configs: Mon-Fri (days 0-4)
+            # Period configs: Mon-Sat (days 0-5)
             PERIODS = [
                 (0, "09:00", "10:00", "P1", False),
                 (0, "10:00", "11:00", "P2", False),
@@ -686,7 +666,7 @@ def seed_all(session=None, engine=None) -> dict:
                 (0, "14:00", "15:00", "P5", False),
                 (0, "15:00", "16:00", "P6", False),
             ]
-            for day_offset in range(5):  # Mon-Fri
+            for day_offset in range(6):  # Mon-Sat
                 for _, start, end, label, is_brk in PERIODS:
                     existing_pc = _session.scalar(
                         select(PeriodConfigModel).where(
@@ -723,30 +703,40 @@ def seed_all(session=None, engine=None) -> dict:
                             ))
             _session.flush()
             counts.setdefault("period_configs", 0)
-            counts["period_configs"] += 40  # 5 days × 8 periods
+            counts["period_configs"] += 48  # 6 days × 8 periods
 
-            # Timetable slots
-            # CS501 (DSA) — Dr. Priya, Mon P1, Wed P1, Fri P1 — Room 101 (Sec A)
-            # CS501 (DSA) — Dr. Priya, Mon P2                 — Room 102 (Sec B)
-            # CS502 (OS)  — Dr. Priya, Tue P2, Thu P2          — Room 101 (Sec A, deliberate clash with CS503 on Thu P2)
-            # CS503 (DBMS)— Meera Mentor, Mon P3, Thu P2       — Lab 201 / Room 101 (Sec A, Thu P2 clashes with CS502)
-            # CS504 (CN)  — Dr. Priya, Wed P2, Fri P3          — Room 102 (Sec A)
-            # CS505 (SE)  — Dr. Priya, Tue P3, Thu P1          — Seminar 301 (Sec A)
-            # AI501       — Raj Trainer, Tue P1                 — Seminar 301 (Sec A)
+            # Timetable slots — zero overlaps across Mon-Sat (days 0-5) for all 5 CSE subjects
             slots_def = [
+                # Monday (0)
                 (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 0, "P1", "A", "lecture", "09:00", "10:00"),
-                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 2, "P1", "A", "lecture", "09:00", "10:00"),
-                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 4, "P1", "A", "lecture", "09:00", "10:00"),
-                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 0, "P2", "B", "lecture", "10:00", "11:00"),
+                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 0, "P2", "A", "lecture", "10:00", "11:00"),
+                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Lab 201"].id, 0, "P3", "A", "lab", "11:15", "12:15"),
+                (courses_map["CS504"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 0, "P4", "A", "lecture", "12:15", "13:15"),
+                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 0, "P5", "B", "lecture", "14:00", "15:00"),
+                # Tuesday (1)
+                (courses_map["CS505"].id, core_users["faculty@acadflow.edu"].id, room_map["Seminar 301"].id, 1, "P1", "A", "lecture", "09:00", "10:00"),
                 (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 1, "P2", "A", "lecture", "10:00", "11:00"),
-                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture", "10:00", "11:00"),  # clash: Dr Priya Thu P2 vs Mentor Thu P2 same room
-                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Lab 201"].id, 0, "P3", "A", "lecture", "11:15", "12:15"),
-                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture", "10:00", "11:00"),  # same room as CS502 on Thu P2 = room clash
+                (courses_map["CS504"].id, core_users["faculty@acadflow.edu"].id, room_map["Lab 201"].id, 1, "P3", "A", "lab", "11:15", "12:15"),
+                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Room 101"].id, 1, "P5", "A", "lecture", "14:00", "15:00"),
+                # Wednesday (2)
+                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 2, "P1", "A", "lecture", "09:00", "10:00"),
                 (courses_map["CS504"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 2, "P2", "A", "lecture", "10:00", "11:00"),
-                (courses_map["CS504"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 4, "P3", "A", "lecture", "11:15", "12:15"),
-                (courses_map["CS505"].id, core_users["faculty@acadflow.edu"].id, room_map["Seminar 301"].id, 1, "P3", "A", "lecture", "11:15", "12:15"),
+                (courses_map["CS505"].id, core_users["faculty@acadflow.edu"].id, room_map["Seminar 301"].id, 2, "P4", "A", "lecture", "12:15", "13:15"),
+                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Lab 201"].id, 2, "P5", "A", "lab", "14:00", "15:00"),
+                # Thursday (3)
                 (courses_map["CS505"].id, core_users["faculty@acadflow.edu"].id, room_map["Seminar 301"].id, 3, "P1", "A", "lecture", "09:00", "10:00"),
-                (courses_map["AI501"].id, core_users["trainer@acadflow.edu"].id, room_map["Seminar 301"].id, 1, "P1", "A", "lecture", "09:00", "10:00"),
+                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 3, "P2", "A", "lecture", "10:00", "11:00"),
+                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Room 101"].id, 3, "P3", "A", "lecture", "11:15", "12:15"),
+                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Lab 201"].id, 3, "P5", "A", "lab", "14:00", "15:00"),
+                # Friday (4)
+                (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 4, "P1", "A", "lecture", "09:00", "10:00"),
+                (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Room 101"].id, 4, "P2", "A", "lecture", "10:00", "11:00"),
+                (courses_map["CS504"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 4, "P3", "A", "lecture", "11:15", "12:15"),
+                (courses_map["CS505"].id, core_users["faculty@acadflow.edu"].id, room_map["Seminar 301"].id, 4, "P4", "A", "lecture", "12:15", "13:15"),
+                # Saturday (5)
+                (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 5, "P1", "A", "tutorial", "09:00", "10:00"),
+                (courses_map["CS504"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 5, "P2", "A", "tutorial", "10:00", "11:00"),
+                (courses_map["CS505"].id, core_users["faculty@acadflow.edu"].id, room_map["Seminar 301"].id, 5, "P3", "A", "tutorial", "11:15", "12:15"),
             ]
             for course_id, teacher_id, room_id, day, period, section, kind, s_time, e_time in slots_def:
                 existing_slot = _session.scalar(
@@ -781,8 +771,7 @@ def seed_all(session=None, engine=None) -> dict:
             if draft_tv:
                 draft_slots_def = [
                     (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 0, "P1", "A", "lecture", "09:00", "10:00"),
-                    (courses_map["CS501"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 101"].id, 1, "P2", "A", "lecture", "10:00", "11:00"),  # teacher overlap clash with CS502
-                    (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 1, "P2", "A", "lecture", "10:00", "11:00"),  # teacher overlap clash with CS501
+                    (courses_map["CS502"].id, core_users["faculty@acadflow.edu"].id, room_map["Room 102"].id, 1, "P2", "A", "lecture", "10:00", "11:00"),
                     (courses_map["CS503"].id, core_users["mentor@acadflow.edu"].id, room_map["Lab 201"].id, 2, "P3", "B", "lab", "11:15", "12:15"),
                 ]
                 for course_id, teacher_id, room_id, day, period, section, kind, s_time, e_time in draft_slots_def:
