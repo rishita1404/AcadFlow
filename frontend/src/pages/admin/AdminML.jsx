@@ -1,7 +1,7 @@
 
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ShieldCheck, CheckCircle2, AlertTriangle, Database, ExternalLink, FileText } from 'lucide-react';
+import { Activity, ShieldCheck, CheckCircle2, AlertTriangle, Database, ExternalLink, FileText } from 'lucide-react';
 import { adminApi, healthApi } from '../../api/endpoints.js';
 
 export default function AdminML() {

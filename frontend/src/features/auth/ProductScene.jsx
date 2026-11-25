@@ -212,14 +212,6 @@ export default function ProductScene() {
       focusable="false"
       ref={sceneRef}
     >
-      {/* Hover label tooltip */}
-      <div
-        className={`pscene-tooltip ${hoveredLayer ? 'is-visible' : ''}`}
-        aria-hidden="true"
-      >
-        {hoveredLayer}
-      </div>
-
       <div className="pscene-stage" style={tiltStyle}>
         {/* Each layer has its own parallax depth via CSS var */}
         <div
