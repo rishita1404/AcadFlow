@@ -329,5 +329,33 @@ The three leave pages (StudentLeave, FacultyLeaveInbox, DeanCondonationQueue) us
 | index.css | 22.61 kB | 5.08 kB |
 
 ### Evidence
-Screenshots require 
-px playwright install to be run once to download Chromium binaries. Directory docs/evidence/leave-pages/ is ready.
+Screenshots require `npx playwright install` to be run once to download Chromium binaries. Directory docs/evidence/leave-pages/ is ready.
+
+---
+
+## Medical File Upload + Duty Detail Fields
+
+**Branch:** `feature/notices-timetable`  
+**Commit:** pending → `feat(leave): medical file upload (required) and duty detail fields`
+
+### Changes
+
+| Change | File |
+|--------|------|
+| `leaveApi.submit` updated to send `multipart/form-data` via `FormData` so medical file is transmitted | `frontend/src/api/endpoints.js` |
+| Medical leave: required file upload drop-zone (PDF/JPG/PNG, max 5 MB); hidden `<input type="file">` triggered by styled `div[role="button"]`; file name + size + remove button shown; `FieldError` on missing file | `StudentLeave.jsx` |
+| Duty/Event leave: required event name input (max 120 chars); optional club/organisation and role/duty inputs in a 2-col grid (max 80 chars each) | `StudentLeave.jsx` |
+| Validation: `leaveType === 'medical' && !medicalFile` → error; `leaveType === 'duty' && !eventName.trim()` → error | `StudentLeave.jsx` |
+| State reset on category change clears `medicalFile`, `eventName`, `clubOrg`, `dutyDetail` | `StudentLeave.jsx` |
+| 3 new tests: missing medical file error, duty fields rendered on Duty selection, event name required on submit | `LeavePages.test.jsx` |
+
+### Test Results
+- **Frontend:** 72/72 passed (11 test files, +2 new leave tests for medical + duty)
+- **Backend:** unchanged
+
+### Bundle Size
+| Asset | Size | Gzip |
+|-------|------|------|
+| index.js | 1,286.31 kB | 309.10 kB |
+| ProductScene.js | 5.82 kB | 1.97 kB |
+| index.css | 22.61 kB | 5.08 kB |
