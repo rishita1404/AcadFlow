@@ -164,14 +164,16 @@ async def _create_leave_request(
     # Notify approver (assigned mentor, or fallback dean of student's department)
     student_user = db.get(UserModel, user_id)
     student_name = student_user.name if student_user else f"Student #{user_id}"
-    mentor_id = db.scalar(
-        select(MentorAssignmentModel.mentor_id).where(
-            MentorAssignmentModel.student_id == user_id
-        )
+    mentor_ids = list(
+        db.scalars(
+            select(MentorAssignmentModel.mentor_id).where(
+                MentorAssignmentModel.student_id == user_id
+            )
+        ).all()
     )
     approver_ids: list[int] = []
-    if mentor_id is not None:
-        approver_ids = [int(mentor_id)]
+    if mentor_ids:
+        approver_ids = [int(mid) for mid in mentor_ids]
     elif student_user and student_user.department_id:
         approver_ids = list(
             db.scalars(

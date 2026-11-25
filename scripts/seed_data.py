@@ -347,10 +347,11 @@ def seed_all(session=None, engine=None) -> dict:
                     {"student_id": sid, "course_id": courses_map[ccode].id},
                     {"enrolled_on": date(2026, 7, 15)},
                 )
-            _get_or_create(
-                _session, MentorAssignmentModel,
-                {"mentor_id": core_users["mentor@acadflow.edu"].id, "student_id": sid},
-            )
+            for mid in (core_users["mentor@acadflow.edu"].id, core_users["faculty@acadflow.edu"].id):
+                _get_or_create(
+                    _session, MentorAssignmentModel,
+                    {"mentor_id": mid, "student_id": sid},
+                )
         _get_or_create(
             _session, EnrolmentModel,
             {"student_id": secb_id, "course_id": cs501.id},
@@ -418,11 +419,12 @@ def seed_all(session=None, engine=None) -> dict:
                 {"enrolled_on": semester_start},
             )
 
-            # Assign to mentor
-            _get_or_create(
-                _session, MentorAssignmentModel,
-                {"mentor_id": core_users["mentor@acadflow.edu"].id, "student_id": student.user_id}
-            )
+            # Assign to mentor and faculty/mentor
+            for mid in (core_users["mentor@acadflow.edu"].id, core_users["faculty@acadflow.edu"].id):
+                _get_or_create(
+                    _session, MentorAssignmentModel,
+                    {"mentor_id": mid, "student_id": student.user_id}
+                )
             counts["mentor_assignments"] += 1
 
             # Mark attendance records

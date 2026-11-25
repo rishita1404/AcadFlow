@@ -414,17 +414,10 @@ def check_is_course_instructor(db, user_id: int, student_id: int) -> bool:
 def check_can_decide_leave(db, user_id: int, user_role: str, student_id: int) -> bool:
     if user_role == Role.ADMIN.value:
         return True
-    from sqlalchemy import select
-
-    from app.models.user import MentorAssignmentModel, UserModel
-    mentor_id = db.scalar(
-        select(MentorAssignmentModel.mentor_id).where(
-            MentorAssignmentModel.student_id == student_id
-        )
-    )
-    if mentor_id is not None and int(mentor_id) == int(user_id):
+    if check_is_mentor(db, user_id, student_id):
         return True
     # Dean of student's department (fallback when no mentor, or department override)
+    from app.models.user import UserModel
     student_user = db.get(UserModel, student_id)
     if student_user and student_user.department_id:
         return check_is_dean(db, user_id, student_user.department_id)
