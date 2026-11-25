@@ -288,13 +288,15 @@ def seed_all(session=None, engine=None) -> dict:
         )
         counts["dean_assignments"] += 2
 
-        # ── 6 Courses ────────────────────────────────────────────────────────
+        # ── 8 Courses (5 CSE + 2 AIDS + 1 ECE) ───────────────────────────────
         courses_def = [
             ("CS501", "Data Structures & Algorithms", primary_dept.id, 60),
             ("CS502", "Operating Systems", primary_dept.id, 45),
             ("AI501", "Machine Learning Systems", dept_map["AIDS"].id, 45),
             ("EC501", "Digital Signal Processing", dept_map["ECE"].id, 45),
             ("CS503", "Database Management Systems", primary_dept.id, 50),
+            ("CS504", "Computer Networks", primary_dept.id, 45),
+            ("CS505", "Software Engineering", primary_dept.id, 40),
             ("AI502", "Cloud Architecture & DevOps", dept_map["AIDS"].id, 40),
         ]
         courses_map: dict[str, CourseModel] = {}
@@ -329,10 +331,18 @@ def seed_all(session=None, engine=None) -> dict:
         )
         _get_or_create(
             _session, CourseStaffModel,
+            {"course_id": courses_map["CS504"].id, "user_id": core_users["faculty@acadflow.edu"].id, "role": "instructor"},
+        )
+        _get_or_create(
+            _session, CourseStaffModel,
+            {"course_id": courses_map["CS505"].id, "user_id": core_users["faculty@acadflow.edu"].id, "role": "instructor"},
+        )
+        _get_or_create(
+            _session, CourseStaffModel,
             {"course_id": courses_map["EC501"].id, "user_id": extra_users["faculty_ece@acadflow.edu"].id},
             {"role": "instructor"},
         )
-        counts["course_staff"] += 5
+        counts["course_staff"] += 7
 
         # Enrol core student, classmate, secB student, and ECE student
         core_stu_id = core_users["student@acadflow.edu"].id
@@ -341,7 +351,7 @@ def seed_all(session=None, engine=None) -> dict:
         ece_stu_id = extra_users["student_ece@acadflow.edu"].id
 
         for sid in (core_stu_id, classmate_id):
-            for ccode in ("CS501", "CS502", "CS503"):
+            for ccode in ("CS501", "CS502", "CS503", "CS504", "CS505"):
                 _get_or_create(
                     _session, EnrolmentModel,
                     {"student_id": sid, "course_id": courses_map[ccode].id},
@@ -1128,33 +1138,41 @@ def seed_all(session=None, engine=None) -> dict:
                         ))
                         counts["attendance"] += 1
 
-            # CS503 sessions & records (taught by mentor@acadflow.edu) for core_stu_id & classmate_id
+            # CS502, CS503, CS504, CS505 sessions & records for core_stu_id & classmate_id
+            extra_course_attendance = [
+                ("CS502", 20, 16, 18, "faculty@acadflow.edu", date(2026, 8, 2), 2),
+                ("CS503", 12, 8, 11, "mentor@acadflow.edu", date(2026, 8, 1), 3),
+                ("CS504", 16, 13, 14, "faculty@acadflow.edu", date(2026, 8, 3), 2),
+                ("CS505", 15, 11, 13, "faculty@acadflow.edu", date(2026, 8, 4), 2),
+            ]
+            for ccode, n_sess, core_pres, mate_pres, marker_email, start_dt, step_days in extra_course_attendance:
+                c_obj = courses_map[ccode]
+                c_sessions = []
+                for i in range(n_sess):
+                    sd = start_dt + timedelta(days=i * step_days)
+                    cs_s = _get_or_create(
+                        _session, ClassSessionModel,
+                        {"course_id": c_obj.id, "held_on": sd},
+                        {"is_cancelled": False},
+                    )
+                    c_sessions.append(cs_s)
+                for stu_uid, pres in [(core_stu_id, core_pres), (classmate_id, mate_pres)]:
+                    for idx, cs_s in enumerate(c_sessions):
+                        if not _session.scalar(
+                            select(AttendanceRecordModel).where(
+                                AttendanceRecordModel.session_id == cs_s.id,
+                                AttendanceRecordModel.student_id == stu_uid,
+                            )
+                        ):
+                            _session.add(AttendanceRecordModel(
+                                session_id=cs_s.id,
+                                student_id=stu_uid,
+                                status="present" if idx < pres else "absent",
+                                marked_by=core_users[marker_email].id,
+                                marked_at=now_dt,
+                            ))
+                            counts["attendance"] += 1
             cs503_obj = courses_map["CS503"]
-            cs503_sessions = []
-            for i in range(12):
-                sd = date(2026, 8, 1) + timedelta(days=i * 3)
-                cs_s = _get_or_create(
-                    _session, ClassSessionModel,
-                    {"course_id": cs503_obj.id, "held_on": sd},
-                    {"is_cancelled": False},
-                )
-                cs503_sessions.append(cs_s)
-            for stu_uid, pres in [(core_stu_id, 8), (classmate_id, 11)]:
-                for idx, cs_s in enumerate(cs503_sessions):
-                    if not _session.scalar(
-                        select(AttendanceRecordModel).where(
-                            AttendanceRecordModel.session_id == cs_s.id,
-                            AttendanceRecordModel.student_id == stu_uid,
-                        )
-                    ):
-                        _session.add(AttendanceRecordModel(
-                            session_id=cs_s.id,
-                            student_id=stu_uid,
-                            status="present" if idx < pres else "absent",
-                            marked_by=core_users["mentor@acadflow.edu"].id,
-                            marked_at=now_dt,
-                        ))
-                        counts["attendance"] += 1
 
             # Risk snapshot for core_stu_id so Student Risk & Needs Attention are non-empty
             if not _session.scalar(select(RiskSnapshotModel).where(RiskSnapshotModel.student_id == core_stu_id)):
