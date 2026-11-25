@@ -1342,12 +1342,25 @@ def get_my_timetable(
     user_id = int(current_user["sub"]) if "sub" in current_user else current_user.get("id", 1)
     role = current_user.get("role", "student")
 
-    # Get latest published version
-    version = db.scalar(
-        select(TimetableVersionModel)
-        .where(TimetableVersionModel.status == "published")
-        .order_by(TimetableVersionModel.id.desc())
-    )
+    # Get latest published version for the user's department (fallback to latest overall)
+    user_obj = db.get(UserModel, user_id)
+    user_dept_id = user_obj.department_id if user_obj else None
+    version = None
+    if user_dept_id is not None:
+        version = db.scalar(
+            select(TimetableVersionModel)
+            .where(
+                TimetableVersionModel.status == "published",
+                TimetableVersionModel.department_id == user_dept_id,
+            )
+            .order_by(TimetableVersionModel.id.desc())
+        )
+    if version is None:
+        version = db.scalar(
+            select(TimetableVersionModel)
+            .where(TimetableVersionModel.status == "published")
+            .order_by(TimetableVersionModel.id.desc())
+        )
     if not version:
         return []
 

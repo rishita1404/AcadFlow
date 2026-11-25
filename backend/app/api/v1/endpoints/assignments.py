@@ -109,6 +109,28 @@ def create_assignment(
     db.add(asgn)
     db.commit()
     db.refresh(asgn)
+
+    if asgn.is_published:
+        from app.models import EnrolmentModel
+        from app.services.notification_service import _upsert_notification
+
+        enrolled_ids = db.scalars(
+            select(EnrolmentModel.student_id).where(EnrolmentModel.course_id == asgn.course_id)
+        ).all()
+        for sid in enrolled_ids:
+            _upsert_notification(
+                db,
+                recipient_id=sid,
+                title=f"New Assignment — {course.code}",
+                message=f"'{asgn.title}' has been posted for {course.code}.",
+                kind="reminder",
+                dedup_key=f"asgn_new_{asgn.id}_{sid}",
+                course_id=asgn.course_id,
+                assignment_id=asgn.id,
+            )
+        if enrolled_ids:
+            db.commit()
+
     return AssignmentOut.model_validate(asgn)
 
 

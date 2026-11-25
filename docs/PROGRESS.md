@@ -409,3 +409,18 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 - **Frontend Freshness (`providers.jsx`, `AppShell.jsx`, `SignInCard.jsx`):** Enabled `refetchOnWindowFocus: true`, tightened notification polling from `60s` to `30s`, and restored all 6 seeded demo login chips.
 - **Connected Disconnected Pages:** Wired `StudentPreferences.jsx` to `GET/PUT /me/preferences` (`UserPreferenceModel`) and `AdminML.jsx` to live `GET /admin/stats` + `GET /health/ready`.
 - **Notices & Leave Notifications/Permissions (`notices.py`, `leave.py`, `authorization.py`):** Committed in-app notifications on notice send; added approver notification on leave submit; expanded leave inbox/detail visibility to mentor, department dean (with override capability), and affected course instructors while keeping 403 for unrelated users.
+
+---
+
+## Demo Connectivity — Step 4: Cross-Role Verification (`scripts/demo_check.py`)
+
+**Branch:** `fix/demo-connectivity`  
+**Script:** `scripts/demo_check.py`
+
+### Changes
+- Added `scripts/demo_check.py` verifying readiness + all 8 cross-role HTTP flows (Leave, Attendance, Notices, Timetable, Interventions, Condonation, Assignments, Revoked Mentor Duty).
+- Fixed `get_my_timetable` in `backend/app/api/v1/endpoints/timetable.py` to scope published timetable lookup by the current user's `department_id` (instead of picking the latest published version globally across all departments).
+- Added `AuditLogModel` persistence for `dean_record_view` in `backend/app/api/v1/endpoints/interventions.py` so Dean read-only views appear in `/admin/audit-logs` even when MongoDB is offline.
+- Added student notification dispatch on published assignment creation in `backend/app/api/v1/endpoints/assignments.py`, and Admin mentor assign/revoke endpoints in `backend/app/api/v1/endpoints/admin.py`.
+- Updated `backend/app/api/v1/endpoints/leave.py` to accept both `multipart/form-data` and `application/x-www-form-urlencoded` alongside JSON.
+- Ran `python scripts/demo_check.py` against the live backend: **9/9 checks passed**.

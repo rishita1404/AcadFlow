@@ -220,6 +220,17 @@ async def get_student_interventions(
             outcome="SUCCESS",
             metadata={"student_id": student_id, "action": "view_interventions_timeline"},
         )
+        from app.models import AuditLogModel
+        db.add(AuditLogModel(
+            entity="student_interventions",
+            entity_id=str(student_id),
+            action="dean_record_view",
+            old_value=None,
+            new_value=f"Dean viewed interventions for student #{student_id}",
+            actor_id=user_id,
+            created_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
 
     rows = db.scalars(
         select(InterventionModel)

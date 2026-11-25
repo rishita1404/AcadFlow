@@ -719,3 +719,43 @@ def update_admin_risk_config(
     db.commit()
     db.refresh(new_row)
     return RiskConfigOut.model_validate(new_row)
+
+
+@router.post("/mentors", summary="Assign a mentor to a student (Admin only)")
+def assign_mentor(
+    mentor_id: int,
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    if current_user:
+        verify_access(current_user, Action.ADMIN_MANAGE)
+    existing = db.scalar(
+        select(MentorAssignmentModel).where(
+            MentorAssignmentModel.mentor_id == mentor_id,
+            MentorAssignmentModel.student_id == student_id,
+        )
+    )
+    if existing is None:
+        db.add(MentorAssignmentModel(mentor_id=mentor_id, student_id=student_id))
+        db.commit()
+    return {"status": "assigned", "mentor_id": mentor_id, "student_id": student_id}
+
+
+@router.delete("/mentors/{mentor_id}/students/{student_id}", summary="Revoke a mentor assignment (Admin only)")
+def revoke_mentor(
+    mentor_id: int,
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional),
+):
+    if current_user:
+        verify_access(current_user, Action.ADMIN_MANAGE)
+    db.execute(
+        delete(MentorAssignmentModel).where(
+            MentorAssignmentModel.mentor_id == mentor_id,
+            MentorAssignmentModel.student_id == student_id,
+        )
+    )
+    db.commit()
+    return {"status": "revoked", "mentor_id": mentor_id, "student_id": student_id}

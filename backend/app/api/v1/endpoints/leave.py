@@ -172,7 +172,7 @@ async def submit_leave_request(
     content_type = request.headers.get("content-type", "")
     medical_filename: Optional[str] = None
 
-    if "multipart/form-data" in content_type:
+    if "multipart/form-data" in content_type or "application/x-www-form-urlencoded" in content_type:
         form = await request.form()
         medical_file = form.get("medical_file")
         if medical_file is not None and hasattr(medical_file, "filename"):
