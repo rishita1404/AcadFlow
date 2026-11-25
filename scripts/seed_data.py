@@ -44,20 +44,42 @@ DATABASE_URL = os.environ.get(
 
 
 def get_engine():
-    sync_url = DATABASE_URL
-    if sync_url.startswith("postgresql+asyncpg://"):
-        sync_url = sync_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
-    elif sync_url.startswith("postgresql://"):
-        sync_url = sync_url.replace("postgresql://", "postgresql+psycopg://")
-    # Try PostgreSQL first, fall back to file-based SQLite (same db the server uses)
-    try:
-        engine = create_engine(sync_url, echo=False, connect_args={"connect_timeout": 3})
-        engine.connect().close()
-        return engine
-    except Exception:
-        sqlite_path = os.environ.get("ACADFLOW_DB_PATH", str(BACKEND_DIR / "acadflow.db"))
-        print(f"[INFO] PostgreSQL unavailable, seeding into SQLite: {sqlite_path}")
-        return create_engine(f"sqlite:///{sqlite_path}", echo=False)
+    use_postgres = os.environ.get("USE_POSTGRES", "").lower() in ("true", "1", "yes")
+    if use_postgres:
+        sync_url = DATABASE_URL
+        if sync_url.startswith("postgresql+asyncpg://"):
+            sync_url = sync_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
+        elif sync_url.startswith("postgresql://"):
+            sync_url = sync_url.replace("postgresql://", "postgresql+psycopg://")
+        try:
+            engine = create_engine(sync_url, echo=False, connect_args={"connect_timeout": 5})
+            engine.connect().close()
+            print(f"[INFO] Seeding into PostgreSQL: {sync_url.split('@')[-1]}")
+            return engine
+        except Exception as exc:
+            print(f"[WARN] PostgreSQL unavailable ({exc}); falling back to SQLite.")
+
+    sqlite_path = os.environ.get("ACADFLOW_DB_PATH", str(BACKEND_DIR / "acadflow.db"))
+    print(f"[INFO] Seeding into SQLite: {sqlite_path}")
+    return create_engine(
+        f"sqlite:///{sqlite_path}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+        echo=False,
+    )
+
+
+def reset_database(engine=None):
+    """Drop and recreate all tables before seeding."""
+    import app.models  # noqa: F401
+    from app.db.base import Base
+
+    if engine is None:
+        engine = get_engine()
+    print("[RESET] Dropping all tables...")
+    Base.metadata.drop_all(bind=engine)
+    print("[RESET] Recreating schema...")
+    Base.metadata.create_all(bind=engine)
+    return engine
 
 
 def _get_or_create(session, model, filter_kwargs, create_kwargs=None):
@@ -212,20 +234,59 @@ def seed_all(session=None, engine=None) -> dict:
             core_users[acc["email"]] = u
             counts["users"] += 1
 
-        # Student model for core student
-        _get_or_create(
+        # Student model for core student (Section A, Batch 2024, CSE)
+        core_student = _get_or_create(
             _session, StudentModel,
             {"user_id": core_users["student@acadflow.edu"].id},
-            {"roll_no": "26CSE000", "batch": "2026"},
+            {"roll_no": "24CSE000", "batch": "2024", "section": "A"},
         )
+        core_student.batch = "2024"
+        core_student.section = "A"
         counts["students"] += 1
 
-        # Dean assignment
+        # Classmate in Section A, Student in Section B, and Scope-Proof ECE Dept accounts
+        extra_accounts = [
+            ("Ananya Verma",   "classmate@acadflow.edu",    "student",     primary_dept.id, "24CSE002", "2024", "A"),
+            ("Kabir Malhotra", "student_secb@acadflow.edu", "student",     primary_dept.id, "24CSE099", "2024", "B"),
+            ("Prof. ECE Dean", "dean_ece@acadflow.edu",     "coordinator", dept_map["ECE"].id, None, None, None),
+            ("Dr. ECE Faculty","faculty_ece@acadflow.edu",  "faculty",     dept_map["ECE"].id, None, None, None),
+            ("Esha ECE",       "student_ece@acadflow.edu",  "student",     dept_map["ECE"].id, "24ECE001", "2024", "A"),
+        ]
+        extra_users: dict[str, UserModel] = {}
+        for name, email, role, dept_id, roll, batch, sec in extra_accounts:
+            eu = _get_or_create(
+                _session, UserModel,
+                {"email": email},
+                {
+                    "name": name,
+                    "password_hash": shared_password_hash,
+                    "role": role,
+                    "department_id": dept_id,
+                    "organization_id": org.id,
+                },
+            )
+            extra_users[email] = eu
+            counts["users"] += 1
+            if roll:
+                st = _get_or_create(
+                    _session, StudentModel,
+                    {"user_id": eu.id},
+                    {"roll_no": roll, "batch": batch, "section": sec},
+                )
+                st.batch = batch
+                st.section = sec
+                counts["students"] += 1
+
+        # Dean assignment (CSE + ECE)
         _get_or_create(
             _session, DeanAssignmentModel,
             {"user_id": core_users["coordinator@acadflow.edu"].id, "department_id": primary_dept.id}
         )
-        counts["dean_assignments"] += 1
+        _get_or_create(
+            _session, DeanAssignmentModel,
+            {"user_id": extra_users["dean_ece@acadflow.edu"].id, "department_id": dept_map["ECE"].id}
+        )
+        counts["dean_assignments"] += 2
 
         # ── 6 Courses ────────────────────────────────────────────────────────
         courses_def = [
@@ -255,13 +316,51 @@ def seed_all(session=None, engine=None) -> dict:
         )
         _get_or_create(
             _session, CourseStaffModel,
+            {"course_id": courses_map["CS502"].id, "user_id": core_users["faculty@acadflow.edu"].id, "role": "instructor"}
+        )
+        _get_or_create(
+            _session, CourseStaffModel,
             {"course_id": cs501.id, "user_id": core_users["trainer@acadflow.edu"].id, "role": "trainer"}
         )
         _get_or_create(
             _session, CourseStaffModel,
-            {"course_id": courses_map["CS503"].id, "user_id": core_users["mentor@acadflow.edu"].id, "role": "course_coordinator"}
+            {"course_id": courses_map["CS503"].id, "user_id": core_users["mentor@acadflow.edu"].id},
+            {"role": "course_coordinator"},
         )
-        counts["course_staff"] += 3
+        _get_or_create(
+            _session, CourseStaffModel,
+            {"course_id": courses_map["EC501"].id, "user_id": extra_users["faculty_ece@acadflow.edu"].id},
+            {"role": "instructor"},
+        )
+        counts["course_staff"] += 5
+
+        # Enrol core student, classmate, secB student, and ECE student
+        core_stu_id = core_users["student@acadflow.edu"].id
+        classmate_id = extra_users["classmate@acadflow.edu"].id
+        secb_id = extra_users["student_secb@acadflow.edu"].id
+        ece_stu_id = extra_users["student_ece@acadflow.edu"].id
+
+        for sid in (core_stu_id, classmate_id):
+            for ccode in ("CS501", "CS502", "CS503"):
+                _get_or_create(
+                    _session, EnrolmentModel,
+                    {"student_id": sid, "course_id": courses_map[ccode].id},
+                    {"enrolled_on": date(2026, 7, 15)},
+                )
+            _get_or_create(
+                _session, MentorAssignmentModel,
+                {"mentor_id": core_users["mentor@acadflow.edu"].id, "student_id": sid},
+            )
+        _get_or_create(
+            _session, EnrolmentModel,
+            {"student_id": secb_id, "course_id": cs501.id},
+            {"enrolled_on": date(2026, 7, 15)},
+        )
+        _get_or_create(
+            _session, EnrolmentModel,
+            {"student_id": ece_stu_id, "course_id": courses_map["EC501"].id},
+            {"enrolled_on": date(2026, 7, 15)},
+        )
 
         # ── Appendix A Reference Students ────────────────────────────────────
         appendix_a = [
@@ -1009,6 +1108,173 @@ def seed_all(session=None, engine=None) -> dict:
                 counts.setdefault("attendance_batches", 0)
                 counts["attendance_batches"] += 1
 
+            # ── Coherent Demo Universe: ensure student@acadflow.edu & scope peers are populated ──
+            for stu_uid, present_target in [(core_stu_id, 32), (classmate_id, 36), (secb_id, 34)]:
+                for idx, cs in enumerate(created_sessions[:40]):
+                    if not _session.scalar(
+                        select(AttendanceRecordModel).where(
+                            AttendanceRecordModel.session_id == cs.id,
+                            AttendanceRecordModel.student_id == stu_uid,
+                        )
+                    ):
+                        _session.add(AttendanceRecordModel(
+                            session_id=cs.id,
+                            student_id=stu_uid,
+                            status="present" if idx < present_target else "absent",
+                            marked_by=core_users["faculty@acadflow.edu"].id,
+                            marked_at=now_dt,
+                        ))
+                        counts["attendance"] += 1
+
+            # CS503 sessions & records (taught by mentor@acadflow.edu) for core_stu_id & classmate_id
+            cs503_obj = courses_map["CS503"]
+            cs503_sessions = []
+            for i in range(12):
+                sd = date(2026, 8, 1) + timedelta(days=i * 3)
+                cs_s = _get_or_create(
+                    _session, ClassSessionModel,
+                    {"course_id": cs503_obj.id, "held_on": sd},
+                    {"is_cancelled": False},
+                )
+                cs503_sessions.append(cs_s)
+            for stu_uid, pres in [(core_stu_id, 8), (classmate_id, 11)]:
+                for idx, cs_s in enumerate(cs503_sessions):
+                    if not _session.scalar(
+                        select(AttendanceRecordModel).where(
+                            AttendanceRecordModel.session_id == cs_s.id,
+                            AttendanceRecordModel.student_id == stu_uid,
+                        )
+                    ):
+                        _session.add(AttendanceRecordModel(
+                            session_id=cs_s.id,
+                            student_id=stu_uid,
+                            status="present" if idx < pres else "absent",
+                            marked_by=core_users["mentor@acadflow.edu"].id,
+                            marked_at=now_dt,
+                        ))
+                        counts["attendance"] += 1
+
+            # Risk snapshot for core_stu_id so Student Risk & Needs Attention are non-empty
+            if not _session.scalar(select(RiskSnapshotModel).where(RiskSnapshotModel.student_id == core_stu_id)):
+                _session.add(RiskSnapshotModel(
+                    student_id=core_stu_id,
+                    computed_at=now_dt - timedelta(days=7),
+                    score=Decimal("38.00"),
+                    band="watch",
+                    worst_course_id=cs503_obj.id,
+                    config_id=cfg_id,
+                ))
+                _session.add(RiskSnapshotModel(
+                    student_id=core_stu_id,
+                    computed_at=now_dt,
+                    score=Decimal("44.00"),
+                    band="watch",
+                    worst_course_id=cs503_obj.id,
+                    config_id=cfg_id,
+                ))
+
+            # Deliver general_notice & exam_notice to core_stu_id & classmate_id
+            for notice_obj in (general_notice, exam_notice):
+                if notice_obj:
+                    for uid in (core_stu_id, classmate_id):
+                        if not _session.scalar(
+                            select(NoticeRecipientModel).where(
+                                NoticeRecipientModel.notice_id == notice_obj.id,
+                                NoticeRecipientModel.user_id == uid,
+                            )
+                        ):
+                            _session.add(NoticeRecipientModel(
+                                notice_id=notice_obj.id,
+                                user_id=uid,
+                                reason="Section A CSE Sem 5",
+                                delivered_at=now_dt - timedelta(days=1),
+                            ))
+
+            # Section B notice (must NOT be visible to Section A student@acadflow.edu or ECE student_ece)
+            secb_notice = _session.scalar(
+                select(NoticeModel).where(NoticeModel.title == "Section B Lab Reschedule")
+            )
+            if secb_notice is None:
+                secb_notice = NoticeModel(
+                    sender_id=coord_user.id,
+                    title="Section B Lab Reschedule",
+                    body="Section B CS501 lab is moved to Room 102 this Friday.",
+                    category="circular",
+                    priority="normal",
+                    urgent=False,
+                    status="sent",
+                    audience_spec='{"type":"department","department_id":1,"section":"B"}',
+                    audience_summary="CSE · Section B",
+                    created_at=now_dt - timedelta(hours=6),
+                )
+                _session.add(secb_notice)
+                _session.flush()
+                _session.add(NoticeRecipientModel(
+                    notice_id=secb_notice.id,
+                    user_id=secb_id,
+                    reason="Section B student",
+                    delivered_at=now_dt - timedelta(hours=6),
+                ))
+
+            # Leave requests for core_stu_id in pending, approved, and rejected states
+            if not _session.scalar(select(LeaveRequestModel).where(LeaveRequestModel.student_id == core_stu_id)):
+                _session.add_all([
+                    LeaveRequestModel(
+                        student_id=core_stu_id,
+                        type="medical",
+                        date_from=today - timedelta(days=1),
+                        date_to=today,
+                        reason="Medical document: clinic_note.pdf",
+                        status="pending",
+                        created_at=now_dt - timedelta(hours=4),
+                    ),
+                    LeaveRequestModel(
+                        student_id=core_stu_id,
+                        type="duty",
+                        date_from=today - timedelta(days=14),
+                        date_to=today - timedelta(days=13),
+                        reason="Inter-College Hackathon — Coding Club — (Participant)",
+                        status="approved",
+                        decided_by=mentor_user_id,
+                        decided_at=now_dt - timedelta(days=12),
+                        decision_note="Approved for representing department.",
+                        created_at=now_dt - timedelta(days=15),
+                    ),
+                    LeaveRequestModel(
+                        student_id=core_stu_id,
+                        type="medical",
+                        date_from=today - timedelta(days=25),
+                        date_to=today - timedelta(days=24),
+                        reason="Medical leave",
+                        status="rejected",
+                        decided_by=mentor_user_id,
+                        decided_at=now_dt - timedelta(days=23),
+                        decision_note="Please upload a signed prescription.",
+                        created_at=now_dt - timedelta(days=26),
+                    ),
+                ])
+
+            # Notifications for core demo accounts
+            from app.models.notification import NotificationModel
+            demo_notifs = [
+                (core_stu_id, "Leave Request Approved", "Your Hackathon duty leave was approved by Meera Mentor.", "info", None, "demo-stu-leave-approved"),
+                (core_stu_id, "CS503 Buffer Alert", "Your attendance in CS503 is at 67%. Attend upcoming classes.", "warning", cs503_obj.id, "demo-stu-cs503-warn"),
+                (mentor_user_id, "Pending Leave Request", "Aarav Sharma submitted a medical leave request for review.", "reminder", None, "demo-mentor-leave-pending"),
+                (dean_user_id, "Condonation Review Needed", "Karan Singh is recommended for condonation by Meera Mentor.", "alert", None, "demo-dean-condonation"),
+            ]
+            for rec_id, n_title, n_msg, n_kind, n_cid, dkey in demo_notifs:
+                if not _session.scalar(select(NotificationModel).where(NotificationModel.dedup_key == dkey)):
+                    _session.add(NotificationModel(
+                        recipient_id=rec_id,
+                        title=n_title,
+                        message=n_msg,
+                        kind=n_kind,
+                        course_id=n_cid,
+                        is_read=False,
+                        created_at=now_dt,
+                        dedup_key=dkey,
+                    ))
+
             _session.flush()
         except Exception as ph2_err:
             print(f"[WARN] Phase 2 seed notice: {ph2_err}")
@@ -1037,5 +1303,18 @@ def seed_all_legacy():
 
 
 if __name__ == "__main__":
-    print("Seeding AcadFlow with fixed seed 42 (500 students, 6 courses) ...")
-    seed_all()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Seed AcadFlow local demo database.")
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Drop and recreate all tables before seeding.",
+    )
+    args = parser.parse_args()
+
+    eng = get_engine()
+    if args.reset:
+        reset_database(engine=eng)
+    print("Seeding AcadFlow demo universe ...")
+    seed_all(engine=eng)

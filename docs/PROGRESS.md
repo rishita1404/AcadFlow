@@ -372,3 +372,28 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 - Identified 2 disconnected frontend pages using local-only/hard-coded state (`StudentPreferences.jsx`, `AdminML.jsx`).
 - Identified DB selection mismatch risk (`backend/app/db/postgres.py` defaults to SQLite unless `USE_POSTGRES=true`, while `scripts/seed_data.py` tries Postgres first).
 - Identified silent fallbacks in `mongo.py` and `redis.py`, missing `/ready` health check for Postgres/SQLite/Mongo/Redis/workers, and stale frontend cache settings (`refetchOnWindowFocus: false`, 60s notification poll).
+
+---
+
+## Demo Connectivity — Step 2: One Coherent Demo Universe
+
+**Branch:** `fix/demo-connectivity`  
+**Script:** `scripts/seed_data.py` (`python scripts/seed_data.py --reset`)
+
+### Seeded Universe
+- **Departments:** `CSE` (Dean: `coordinator@acadflow.edu`) and `ECE` (Dean: `dean_ece@acadflow.edu`, Faculty: `faculty_ece@acadflow.edu`, Student: `student_ece@acadflow.edu`).
+- **6 Core Demo Accounts** (password `AcadFlow@123`): `student@acadflow.edu` (Batch `2024`, Section `A`), `faculty@acadflow.edu` (instructor for `CS501`/`CS502`), `mentor@acadflow.edu` (mentor for `student@acadflow.edu` & `classmate@acadflow.edu`, coordinator for `CS503`), `trainer@acadflow.edu` (trainer for `CS501`), `coordinator@acadflow.edu` (Dean of `CSE`), `admin@acadflow.edu`.
+- **Scope-Proof Peers:** `classmate@acadflow.edu` (Section `A`), `student_secb@acadflow.edu` (Section `B`), `student_ece@acadflow.edu` (`ECE` Dept).
+- **DB Alignment:** `scripts/seed_data.py` now honours `USE_POSTGRES` identically to `backend/app/db/postgres.py`, ensuring both seed and server always target the same database (`backend/acadflow.db` by default).
+
+### One-Command Local Startup (Backend + Built-in Workers + Frontend)
+*(FastAPI `backend/app/main.py` launches `reminder_worker`, `missed_submission_worker`, and `risk_worker` automatically on startup; `attendance.py` also performs inline risk recompute as fallback.)*
+
+- **Windows (PowerShell):**
+  ```powershell
+  Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd backend; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"; cd frontend; npm run dev
+  ```
+- **macOS / Linux (bash/zsh):**
+  ```bash
+  (cd backend && uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload) & (cd frontend && npm run dev) & wait
+  ```
