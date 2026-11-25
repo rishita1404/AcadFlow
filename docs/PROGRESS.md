@@ -424,3 +424,15 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 - Added student notification dispatch on published assignment creation in `backend/app/api/v1/endpoints/assignments.py`, and Admin mentor assign/revoke endpoints in `backend/app/api/v1/endpoints/admin.py`.
 - Updated `backend/app/api/v1/endpoints/leave.py` to accept both `multipart/form-data` and `application/x-www-form-urlencoded` alongside JSON.
 - Ran `python scripts/demo_check.py` against the live backend: **9/9 checks passed**.
+
+---
+
+## Demo Connectivity — Step 5: Final Verification
+
+**Branch:** `fix/demo-connectivity` (local-only, all steps committed)
+
+- `ruff check backend/`: **All checks passed**
+- `pytest tests -q`: **259 passed**
+- `npm test -- --run`: **72 passed** (11 test files)
+- `npm run build`: **built in 9.27s**
+- `python scripts/demo_check.py`: **9/9 checks passed** (Readiness + all 8 cross-role flows)
