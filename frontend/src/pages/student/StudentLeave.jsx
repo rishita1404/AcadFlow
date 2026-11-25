@@ -240,7 +240,6 @@ export default function StudentLeave() {
   const [leaveType, setLeaveType]   = useState('medical');
   const [dateFrom, setDateFrom]     = useState('');
   const [dateTo, setDateTo]         = useState('');
-  const [reason, setReason]         = useState('');
   // Medical-only
   const [medicalFile, setMedicalFile] = useState(null);
   // Duty-only
@@ -263,7 +262,6 @@ export default function StudentLeave() {
     onSuccess: () => {
       setFormSuccess('Request submitted. Your mentor will review it shortly.');
       setApiError('');
-      setReason('');
       setDateFrom('');
       setDateTo('');
       setMedicalFile(null);
@@ -289,7 +287,6 @@ export default function StudentLeave() {
     if (!dateTo)   errs.dateTo   = 'Please choose an end date.';
     if (dateFrom && dateTo && dateFrom > dateTo)
       errs.dateTo = 'End date cannot be before start date.';
-    if (!reason.trim()) errs.reason = 'Please describe the reason for your request.';
     if (leaveType === 'medical' && !medicalFile)
       errs.medicalFile = 'A medical document is required for medical leave.';
     if (leaveType === 'duty' && !eventName.trim())
@@ -309,7 +306,6 @@ export default function StudentLeave() {
       type: leaveType,
       date_from: dateFrom,
       date_to: dateTo,
-      reason: reason.trim(),
       // medical-only
       medical_file: leaveType === 'medical' ? medicalFile : undefined,
       // duty-only
@@ -320,7 +316,6 @@ export default function StudentLeave() {
   };
 
   const days = daysBetween(dateFrom, dateTo);
-  const charCount = reason.length;
   const MAX_CHARS = 500;
 
   const inputStyle = (hasErr) => ({
@@ -563,40 +558,6 @@ export default function StudentLeave() {
                 </p>
               )}
 
-              {/* Reason */}
-              <div>
-                <FieldLabel htmlFor={`${uid}-reason`}>Reason</FieldLabel>
-                <textarea
-                  id={`${uid}-reason`}
-                  value={reason}
-                  onChange={(e) => {
-                    if (e.target.value.length <= MAX_CHARS) setReason(e.target.value);
-                  }}
-                  rows={5}
-                  placeholder="Describe the reason for your request…"
-                  aria-invalid={!!(submitted && fieldErrors.reason)}
-                  aria-describedby={[
-                    `${uid}-reason-counter`,
-                    submitted && fieldErrors.reason ? `${uid}-reason-err` : '',
-                    `${uid}-reason-hint`,
-                  ].filter(Boolean).join(' ')}
-                  style={{ ...inputStyle(submitted && fieldErrors.reason), minHeight: 120, resize: 'vertical' }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                  <span id={`${uid}-reason-hint`} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    No documents needed. Your mentor will evaluate the reason.
-                  </span>
-                  <span
-                    id={`${uid}-reason-counter`}
-                    aria-live="polite"
-                    style={{ fontSize: 12, color: charCount > MAX_CHARS - 50 ? 'var(--risk-fg)' : 'var(--text-muted)' }}
-                  >
-                    {charCount}/{MAX_CHARS}
-                  </span>
-                </div>
-                <FieldError id={`${uid}-reason-err`}>{submitted && fieldErrors.reason}</FieldError>
-              </div>
-
               {/* Submit */}
               <button
                 type="submit"
@@ -677,18 +638,6 @@ export default function StudentLeave() {
                     </div>
                     <StatusBadge status={req.status} />
                   </div>
-
-                  {/* Reason */}
-                  <p style={{
-                    marginTop: 10,
-                    fontSize: 13, color: 'var(--text)',
-                    background: 'var(--bg)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-input)',
-                    padding: 'var(--space-3) var(--space-4)',
-                  }}>
-                    {req.reason}
-                  </p>
 
                   {/* Decision note */}
                   {req.decision_note && (

@@ -131,8 +131,6 @@ describe('StudentLeave page', () => {
     const inputs = document.querySelectorAll('input[type="date"]');
     fireEvent.change(inputs[0], { target: { value: '2026-10-10' } });
     fireEvent.change(inputs[1], { target: { value: '2026-10-12' } });
-    // fill reason
-    fireEvent.change(document.querySelector('textarea'), { target: { value: 'Viral fever' } });
     fireEvent.click(screen.getByRole('button', { name: /submit request/i }));
     await waitFor(() => {
       expect(screen.getByText('A medical document is required for medical leave.')).toBeDefined();
@@ -155,7 +153,6 @@ describe('StudentLeave page', () => {
     const inputs = document.querySelectorAll('input[type="date"]');
     fireEvent.change(inputs[0], { target: { value: '2026-10-10' } });
     fireEvent.change(inputs[1], { target: { value: '2026-10-12' } });
-    fireEvent.change(document.querySelector('textarea'), { target: { value: 'Attending hackathon' } });
     fireEvent.click(screen.getByRole('button', { name: /submit request/i }));
     await waitFor(() => {
       expect(screen.getByText('Please enter the event or duty name.')).toBeDefined();
@@ -165,7 +162,6 @@ describe('StudentLeave page', () => {
   it('renders approved history with decision note', async () => {
     wrap(<StudentLeave />);
     expect(await screen.findByText('Prescription verified')).toBeDefined();
-    expect(screen.getByText('Viral fever rest')).toBeDefined();
     expect(screen.getByText('Approved')).toBeDefined();
   });
 
