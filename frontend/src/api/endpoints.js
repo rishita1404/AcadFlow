@@ -177,6 +177,11 @@ export const noticeApi = {
   markSeen: (id) => apiClient.post(`/notices/${id}/seen`),
   markDone: (id) => apiClient.post(`/notices/${id}/done`),
   delete: (id) => apiClient.delete(`/notices/${id}`),
+  getPresets: () => apiClient.get('/notices/presets'),
+  savePreset: (payload) => apiClient.post('/notices/presets', payload),
+  getRecentAudiences: () => apiClient.get('/notices/recent-audiences'),
+  sendCorrection: (id, payload) => apiClient.post(`/notices/${id}/correction`, payload),
+  getUnread: (id) => apiClient.get(`/notices/${id}/unread`),
 };
 
 // Faculty

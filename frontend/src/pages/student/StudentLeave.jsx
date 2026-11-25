@@ -594,7 +594,7 @@ export default function StudentLeave() {
             }}>
               <Info size={16} style={{ flexShrink: 0, marginTop: 2, color: 'var(--accent)' }} />
               <span>
-                Approved leave is not counted as absence. Those sessions are left out of your attendance totals.
+                Approved leave is counted towards your attendance. Those sessions are included in your attendance total %.
               </span>
             </div>
           </div>

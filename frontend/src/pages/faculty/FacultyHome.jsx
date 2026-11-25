@@ -91,7 +91,7 @@ export default function FacultyHome({ defaultTab }) {
     queryFn: () => dashboardApi.getDashboard().then(r => r.data),
   });
   const { data: timetable = [] } = useQuery({
-    queryKey: ['faculty-timetable-today'],
+    queryKey: ['faculty-timetable'],
     queryFn: () => timetableApi.getMyTimetable().then(r => r.data),
   });
   const { data: mentees = [] } = useQuery({

@@ -338,13 +338,19 @@ def get_dashboard(
         critical_count = 0
         active_warnings = 0
 
+        # Preload risk config once for all enrolled courses to avoid N redundant queries
+        from app.services.risk_data import load_risk_config
+        config, config_id = load_risk_config(db)
+
         for cid in enrolled:
             course = db.get(CourseModel, cid)
             if not course:
                 continue
 
             try:
-                risk_data = calculate_student_course_risk(db, user_id, cid)
+                risk_data = calculate_student_course_risk(
+                    db, user_id, cid, config=config, config_id=config_id
+                )
             except Exception:
                 continue
 

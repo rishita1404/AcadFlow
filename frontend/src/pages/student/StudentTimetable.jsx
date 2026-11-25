@@ -24,7 +24,7 @@ export default function StudentTimetable() {
   const navigate = useNavigate();
 
   const { data: slots = [], isLoading } = useQuery({
-    queryKey: ['student-weekly-timetable'],
+    queryKey: ['student-timetable'],
     queryFn: () => timetableApi.getMyTimetable().then(r => r.data || []),
   });
 

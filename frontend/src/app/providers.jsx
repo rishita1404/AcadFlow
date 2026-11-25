@@ -7,8 +7,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
       retry: 1,
-      staleTime: 30_000,
+      staleTime: 3 * 60 * 1000, // Keep data fresh for 3 minutes for instant page navigation
+      gcTime: 10 * 60 * 1000,    // Cache data for 10 minutes
     },
     mutations: {
       // Surface mutation errors as toasts via onError if not handled locally

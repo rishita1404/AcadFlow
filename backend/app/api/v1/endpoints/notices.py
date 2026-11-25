@@ -1,4 +1,4 @@
-﻿"""
+"""
 Notices API endpoints — AcadFlow Phase 7 / Part A.
 
 Multi-channel announcements, targeted audience builder, delivery receipts,
@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user_optional
@@ -311,7 +311,7 @@ def _resolve_targeted_audience(
                 latest_subq,
                 (RiskSnapshotModel.student_id == latest_subq.c.student_id)
                 & (RiskSnapshotModel.computed_at == latest_subq.c.max_time),
-            ).where(func.lower(RiskSnapshotModel.computed_band).in_(target_bands))
+            ).where(func.lower(RiskSnapshotModel.band).in_(target_bands))
             q = q.where(StudentModel.user_id.in_(matching_student_ids))
 
         student_rows = db.execute(q).all()
@@ -663,6 +663,7 @@ def create_notice(
                 title=f"{badge}{notice.title}",
                 message=f"{notice.body[:100]}...\nSent to: {notice.audience_summary}",
                 notif_type="notice_new",
+                dedup_key=f"notice:{notice.id}:{uid}",
             )
     except Exception:
         pass
@@ -783,7 +784,7 @@ def get_my_notices(
 
     notices = db.scalars(
         select(NoticeModel)
-        .where(NoticeModel.id.in_(notice_ids), NoticeModel.status != "archived")
+        .where(NoticeModel.id.in_(notice_ids), NoticeModel.status.notin_(["archived", "withdrawn"]))
         .order_by(NoticeModel.urgent.desc(), NoticeModel.created_at.desc())
     ).all()
 
@@ -800,6 +801,7 @@ def get_my_notices(
             "category": n.category,
             "priority": n.priority,
             "urgent": n.urgent,
+            "status": n.status,
             "link": n.link,
             "audience_summary": n.audience_summary,
             "reason": rec.reason if rec else "Recipient",
@@ -1040,6 +1042,7 @@ def send_correction(
                 title=f"📝 [Correction] {correction.title}",
                 message=f"{correction.body[:100]}...\nOriginal: Notice #{original.id}",
                 notif_type="notice_updated",
+                dedup_key=f"notice:{correction.id}:{orig_rec.user_id}",
             )
     except Exception:
         pass
@@ -1064,25 +1067,12 @@ def get_notice_detail(
     if not notice:
         raise NotFoundError("Notice not found")
 
-    deadlines = db.scalars(select(NoticeDeadlineModel).where(NoticeDeadlineModel.notice_id == notice.id)).all()
-    sender = db.get(UserModel, notice.sender_id)
-
-    total_recipients = (
-        db.scalar(select(func.count(NoticeRecipientModel.user_id)).where(NoticeRecipientModel.notice_id == notice.id))
-        or 0
-    )
-    read_count = (
-        db.scalar(
-            select(func.count(NoticeRecipientModel.user_id)).where(
-                NoticeRecipientModel.notice_id == notice.id,
-                or_(NoticeRecipientModel.read_at.isnot(None), NoticeRecipientModel.seen_at.isnot(None)),
-            )
-        )
-        or 0
-    )
-
     user_id = int(current_user["sub"]) if current_user and "sub" in current_user else 1
     user_role = current_user.get("role", "student") if current_user else "student"
+
+    if notice.status in ("archived", "withdrawn") and notice.sender_id != user_id and user_role != Role.ADMIN.value:
+        raise NotFoundError("Notice has been withdrawn and is no longer available")
+
     user_rec = db.scalar(
         select(NoticeRecipientModel).where(
             NoticeRecipientModel.notice_id == notice.id,
@@ -1099,6 +1089,23 @@ def get_notice_detail(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "PERM_403", "message": "You are outside the audience for this notice"},
         )
+
+    deadlines = db.scalars(select(NoticeDeadlineModel).where(NoticeDeadlineModel.notice_id == notice.id)).all()
+    sender = db.get(UserModel, notice.sender_id)
+
+    total_recipients = (
+        db.scalar(select(func.count(NoticeRecipientModel.user_id)).where(NoticeRecipientModel.notice_id == notice.id))
+        or 0
+    )
+    read_count = (
+        db.scalar(
+            select(func.count(NoticeRecipientModel.user_id)).where(
+                NoticeRecipientModel.notice_id == notice.id,
+                or_(NoticeRecipientModel.read_at.isnot(None), NoticeRecipientModel.seen_at.isnot(None)),
+            )
+        )
+        or 0
+    )
 
     return {
         "id": notice.id,
@@ -1184,13 +1191,36 @@ def withdraw_notice(
     if notice.sender_id != sender_id and role != Role.ADMIN.value:
         raise HTTPException(status_code=403, detail={"code": "PERM_403", "message": "Cannot withdraw another user's notice"})
 
+    prev_status = notice.status or "sent"
     notice.status = "archived"
+
+    # Remove all recipient delivery records so notice disappears from student inboxes
+    db.execute(delete(NoticeRecipientModel).where(NoticeRecipientModel.notice_id == notice.id))
+
+    # Remove all notice deadlines so tasks disappear from student dashboard and task lists
+    db.execute(delete(NoticeDeadlineModel).where(NoticeDeadlineModel.notice_id == notice.id))
+
+    # Remove in-app notifications dispatched for this notice
+    try:
+        from app.models.notification import NotificationModel
+
+        db.execute(
+            delete(NotificationModel).where(
+                or_(
+                    NotificationModel.dedup_key.like(f"notice:{notice.id}:%"),
+                    NotificationModel.title.contains(notice.title),
+                )
+            )
+        )
+    except Exception:
+        pass
+
     db.add(
         AuditLogModel(
             entity="notices",
             entity_id=str(notice.id),
             action="withdraw_notice",
-            old_value="sent",
+            old_value=prev_status,
             new_value="archived",
             actor_id=sender_id,
             created_at=datetime.now(timezone.utc),

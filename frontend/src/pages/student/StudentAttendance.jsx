@@ -12,7 +12,7 @@ export default function StudentAttendance() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: dash, isLoading, error } = useQuery({
-    queryKey: ['student-dashboard-attendance'],
+    queryKey: ['student-dashboard'],
     queryFn: () => dashboardApi.getDashboard().then(r => r.data),
   });
 

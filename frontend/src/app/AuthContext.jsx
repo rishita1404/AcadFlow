@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { authApi } from '../api/endpoints.js';
+import { authApi, dashboardApi } from '../api/endpoints.js';
 import apiClient from '../api/client.js';
+import { queryClient } from './providers.jsx';
 
 const AuthContext = createContext(null);
 
@@ -41,31 +42,43 @@ export function AuthProvider({ children }) {
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
     try {
-      // 1. Fetch user profile
-      const meRes = await authApi.me();
+      // 1. Fetch user profile and permissions concurrently (cuts network roundtrips)
+      const [meRes, permRes] = await Promise.all([
+        authApi.me(),
+        apiClient.get('/me/permissions').catch(e => {
+          console.warn('Failed to load permissions, falling back to role:', e);
+          return null;
+        }),
+      ]);
       const userData = meRes.data;
       localStorage.setItem('acadflow_user', JSON.stringify(userData));
       setUser(userData);
 
-      // 2. Fetch permissions (duties and allowed roles)
-      let permsData = {
+      const permsData = permRes?.data || {
         primary_role: userData.role,
         duties: [userData.role],
         allowed_roles: [userData.role],
         department_id: userData.department_id,
       };
-      try {
-        const permRes = await apiClient.get('/me/permissions');
-        permsData = permRes.data;
-      } catch (e) {
-        console.warn('Failed to load permissions, falling back to role:', e);
-      }
       localStorage.setItem('acadflow_permissions', JSON.stringify(permsData));
       setPermissions(permsData);
 
       const defaultRole = permsData.primary_role || userData.role;
       localStorage.setItem('acadflow_active_role', defaultRole);
       setActiveRole(defaultRole);
+
+      // 2. Pre-warm destination dashboard query in background so it renders instantly
+      if (defaultRole === 'student') {
+        queryClient.prefetchQuery({
+          queryKey: ['student-dashboard'],
+          queryFn: () => dashboardApi.getDashboard().then(r => r.data),
+        });
+      } else if (defaultRole === 'faculty' || defaultRole === 'trainer' || defaultRole === 'mentor') {
+        queryClient.prefetchQuery({
+          queryKey: ['faculty-teaching-dashboard'],
+          queryFn: () => dashboardApi.getDashboard().then(r => r.data),
+        });
+      }
 
       return { user: userData, permissions: permsData, role: defaultRole };
     } catch (err) {

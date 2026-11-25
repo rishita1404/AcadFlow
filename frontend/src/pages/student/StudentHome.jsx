@@ -31,12 +31,12 @@ export default function StudentHome() {
   });
 
   const { data: timetable = [] } = useQuery({
-    queryKey: ['student-timetable-home'],
+    queryKey: ['student-timetable'],
     queryFn: () => timetableApi.getMyTimetable().then(r => r.data),
   });
 
   const { data: notices = [] } = useQuery({
-    queryKey: ['student-notices-home'],
+    queryKey: ['student-notices'],
     queryFn: () => noticeApi.getMyNotices().then(r => r.data).catch(() => []),
   });
 
@@ -64,7 +64,8 @@ export default function StudentHome() {
     else if (c.risk_band === 'Watch' && worstBand !== 'At risk') { worstBand = 'Watch'; }
   }
 
-  const unreadNoticesCount = notices.filter(n => !n.seen).length;
+  const activeNotices = notices.filter(n => n.status !== 'archived' && n.status !== 'withdrawn');
+  const unreadNoticesCount = activeNotices.filter(n => !n.seen).length;
   const todayDayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
   const todayClasses = timetable.filter(s => s.day_name === todayDayName || s.day === (new Date().getDay() - 1));
 
@@ -286,13 +287,13 @@ export default function StudentHome() {
                 </span>
               )}
             </div>
-            {notices.length === 0 ? (
+            {activeNotices.length === 0 ? (
               <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-4)' }}>
                 No active announcements
               </div>
             ) : (
               <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-                {notices.slice(0, 3).map(n => (
+                {activeNotices.slice(0, 3).map(n => (
                   <div
                     key={n.id}
                     onClick={() => navigate('/student/notices')}

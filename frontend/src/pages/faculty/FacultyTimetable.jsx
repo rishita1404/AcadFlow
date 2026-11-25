@@ -20,10 +20,8 @@ export default function FacultyTimetable() {
   const isCoordinator = activeRole === 'coordinator' || activeRole === 'admin';
 
   const { data: slots = [], isLoading, refetch } = useQuery({
-    queryKey: ['faculty-teaching-schedule', activeRole],
+    queryKey: ['faculty-timetable'],
     queryFn: () => timetableApi.getMyTimetable().then(r => r.data || []),
-    staleTime: 0,
-    refetchOnWindowFocus: true,
   });
 
   const todayIndex = new Date().getDay(); // 0=Sun, 1=Mon ... 6=Sat

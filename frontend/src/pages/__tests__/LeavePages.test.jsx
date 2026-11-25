@@ -167,7 +167,7 @@ describe('StudentLeave page', () => {
 
   it('shows attendance callout text', () => {
     wrap(<StudentLeave />);
-    expect(screen.getByText(/Approved leave is not counted as absence/i)).toBeDefined();
+    expect(screen.getByText(/Approved leave is counted towards your attendance/i)).toBeDefined();
   });
 
   it('renders empty state when no history', async () => {

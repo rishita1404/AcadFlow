@@ -39,11 +39,17 @@ export default function StaffNotices() {
     mutationFn: ({ id, payload }) => noticeApi.sendCorrection(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['staff-notices'] });
+      qc.invalidateQueries({ queryKey: ['student-notices'] });
+      qc.invalidateQueries({ queryKey: ['student-notices-home'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
       setCorrectionNotice(null);
       setCorrectionTitle('');
       setCorrectionBody('');
       setNudgeMessage('Correction notice published to original recipient snapshot!');
       setTimeout(() => setNudgeMessage(null), 4000);
+    },
+    onError: (err) => {
+      alert(err.response?.data?.detail?.message || 'Failed to send correction notice.');
     },
   });
 
@@ -78,6 +84,11 @@ export default function StaffNotices() {
     mutationFn: (id) => noticeApi.withdraw(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['staff-notices'] });
+      qc.invalidateQueries({ queryKey: ['student-notices'] });
+      qc.invalidateQueries({ queryKey: ['student-notices-home'] });
+      qc.invalidateQueries({ queryKey: ['student-tasks-list'] });
+      qc.invalidateQueries({ queryKey: ['student-tasks'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
       setSelectedNoticeId(null);
       alert('Notice has been withdrawn. Associated deadlines removed from student tasks.');
     },
