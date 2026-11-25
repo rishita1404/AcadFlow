@@ -185,8 +185,16 @@ export default function StudentAttendance() {
                     {pct}%
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    <div><strong style={{ color: 'var(--text)' }}>{course.attended}</strong> attended of <strong style={{ color: 'var(--text)' }}>{course.held}</strong> held</div>
-                    <div style={{ fontSize: 11 }}>Planned semester classes: {course.total_classes}</div>
+                    <div>
+                      Attended <strong style={{ color: 'var(--text)' }}>{course.attended}</strong> of{' '}
+                      <strong style={{ color: 'var(--text)' }}>{course.held}</strong> held:{' '}
+                      <strong style={{ color: 'var(--text)' }}>{course.present_count ?? course.attended}</strong> present
+                      {(course.dl_counted > 0) && ` + ${course.dl_counted} DL`}
+                      {(course.ml_counted > 0) && ` + ${course.ml_counted} ML`}
+                    </div>
+                    <div style={{ fontSize: 11 }}>
+                      Planned semester classes: {course.total_classes} · DL and ML count as present only for sessions where you were marked absent.
+                    </div>
                   </div>
                 </div>
 

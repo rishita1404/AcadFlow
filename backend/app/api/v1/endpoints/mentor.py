@@ -48,6 +48,10 @@ class MenteeCourseOut(BaseModel):
     course_code: str
     course_name: str
     attended: int
+    present_count: int = 0
+    dl_counted: int = 0
+    ml_counted: int = 0
+    leave_counted: int = 0
     held: int
     total_classes: int
     attendance_pct: Optional[float] = None
@@ -264,6 +268,10 @@ def get_mentee_courses(
                 course_code=course.code,
                 course_name=course.name,
                 attended=attended,
+                present_count=int(att_stats.get("present_count") or 0),
+                dl_counted=int(att_stats.get("dl_counted") or 0),
+                ml_counted=int(att_stats.get("ml_counted") or 0),
+                leave_counted=int(att_stats.get("leave_counted") or 0),
                 held=held,
                 total_classes=course.total_classes or 45,
                 attendance_pct=pct,

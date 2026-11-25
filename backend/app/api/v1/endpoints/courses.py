@@ -279,6 +279,54 @@ async def preview_attendance_upload(
             marked_by_user_id=actor_id,
             dry_run=True,
         )
+        from datetime import date as _date
+
+        from app.models.leave import LeaveRequestModel
+        from app.models.user import StudentModel
+        from app.services.attendance_stats import (
+            _leave_covers_session,
+            derive_lecture_no_from_timetable,
+        )
+
+        leave_approved_count = 0
+        enriched_diffs = []
+        roll_nos = [d.get("roll_no") for d in (result.diffs or []) if d.get("roll_no")]
+        stu_by_roll = {}
+        if roll_nos:
+            for st_row in db.scalars(select(StudentModel).where(StudentModel.roll_no.in_(roll_nos))).all():
+                stu_by_roll[st_row.roll_no] = st_row.user_id
+
+        stu_ids = list(set(stu_by_roll.values()))
+        leaves_by_stu: dict[int, list] = {}
+        if stu_ids:
+            for lv in db.scalars(
+                select(LeaveRequestModel).where(
+                    LeaveRequestModel.student_id.in_(stu_ids),
+                    LeaveRequestModel.status == "approved",
+                )
+            ).all():
+                leaves_by_stu.setdefault(lv.student_id, []).append(lv)
+
+        for d in (result.diffs or []):
+            d_copy = dict(d)
+            new_st = str(d_copy.get("new_status") or d_copy.get("status") or "").lower()
+            d_copy["leave_type"] = None
+            if new_st == "absent":
+                sid = stu_by_roll.get(d_copy.get("roll_no"))
+                date_str = d_copy.get("date")
+                if sid and date_str:
+                    try:
+                        parsed_d = _date.fromisoformat(str(date_str))
+                        lec_no = derive_lecture_no_from_timetable(db, course_id, parsed_d)
+                        for lv in leaves_by_stu.get(sid, []):
+                            if _leave_covers_session(lv, parsed_d, lec_no):
+                                d_copy["leave_type"] = "DL approved" if lv.type == "duty" else "ML approved"
+                                leave_approved_count += 1
+                                break
+                    except Exception:
+                        pass
+            enriched_diffs.append(d_copy)
+
         return {
             "preview": True,
             "course_id": course_id,
@@ -288,6 +336,7 @@ async def preview_attendance_upload(
             "sessions_to_create": result.sessions_created,
             "warnings": result.warnings,
             "warning_messages": result.warning_messages,
+            "leave_approved_count": leave_approved_count,
             "errors": [
                 {
                     "row": e.row_number,
@@ -298,7 +347,7 @@ async def preview_attendance_upload(
                 }
                 for e in result.errors
             ],
-            "diffs": result.diffs,
+            "diffs": enriched_diffs,
         }
     except ValueError as e:
         from fastapi import HTTPException

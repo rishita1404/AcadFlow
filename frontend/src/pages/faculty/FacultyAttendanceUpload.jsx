@@ -1101,7 +1101,24 @@ export default function FacultyAttendanceUpload() {
                         + {previewData.sessions_to_create} session(s)
                       </span>
                     )}
+                    {previewData.leave_approved_count > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--ok-bg)', color: 'var(--ok-fg)', padding: '3px 10px', borderRadius: 'var(--radius-pill)' }}>
+                        {previewData.leave_approved_count} absent student{previewData.leave_approved_count === 1 ? ' has' : 's have'} approved leave and will count as present.
+                      </span>
+                    )}
                   </div>
+                  {Array.isArray(previewData.diffs) && previewData.diffs.some(d => d.leave_type) && (
+                    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {previewData.diffs.filter(d => d.leave_type).slice(0, 8).map((d, idx) => (
+                        <div key={idx} style={{ fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span>{d.roll_no} ({d.date})</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, background: 'var(--ok-bg)', color: 'var(--ok-fg)', padding: '1px 8px', borderRadius: 'var(--radius-pill)' }}>
+                            {d.leave_type}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

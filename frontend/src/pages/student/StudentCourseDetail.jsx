@@ -205,11 +205,14 @@ export default function StudentCourseDetail() {
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{
                           padding: '2px 8px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 700,
-                          background: (row.status === 'present' || row.status === 'attended') ? 'var(--ok-bg)' : 'var(--crit-bg)',
-                          color: (row.status === 'present' || row.status === 'attended') ? 'var(--ok-fg)' : 'var(--crit-fg)',
-                          textTransform: 'capitalize',
+                          background: (row.status === 'present' || row.status === 'attended' || row.leave_type) ? 'var(--ok-bg)' : 'var(--crit-bg)',
+                          color: (row.status === 'present' || row.status === 'attended' || row.leave_type) ? 'var(--ok-fg)' : 'var(--crit-fg)',
                         }}>
-                          {(row.status === 'present' || row.status === 'attended') ? 'Present' : 'Absent'}
+                          {(row.status === 'present' || row.status === 'attended')
+                            ? 'Present'
+                            : row.leave_type
+                              ? `Absent, counted as ${row.leave_type}`
+                              : 'Absent'}
                         </span>
                       </td>
                       <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>{row.topic || row.notes || 'Class session'}</td>

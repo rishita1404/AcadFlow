@@ -176,6 +176,11 @@ export default function FacultyMenteeDetail() {
                       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-900)' }}>
                         {c.attended} / {c.held}
                       </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {c.present_count ?? c.attended} present
+                        {c.dl_counted > 0 ? ` + ${c.dl_counted} DL` : ''}
+                        {c.ml_counted > 0 ? ` + ${c.ml_counted} ML` : ''}
+                      </div>
                     </div>
                     <div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Risk Score</div>

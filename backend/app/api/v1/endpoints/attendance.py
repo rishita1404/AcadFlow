@@ -383,13 +383,20 @@ def get_student_attendance_history(
     ).all()
     record_map = {r.session_id: r.status for r in records}
 
+    from app.services.attendance_stats import compute_leave_counts_for_course
+
+    leave_info = compute_leave_counts_for_course(db, student_id, course_id)
+    session_leave_type = leave_info.get("session_leave_type", {})
+
     history = []
     for s in sessions:
         att_status = record_map.get(s.id, "absent")
         history.append({
             "session_id": s.id,
             "date": s.held_on.isoformat(),
+            "lecture_no": getattr(s, "lecture_no", 1),
             "status": att_status,
+            "leave_type": session_leave_type.get(s.id) if att_status == "absent" else None,
         })
 
     return {

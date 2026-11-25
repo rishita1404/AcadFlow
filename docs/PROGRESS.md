@@ -474,3 +474,15 @@ Screenshots require `npx playwright install` to be run once to download Chromium
 - Held and total classes no longer shrink on approved leave; `attended = present + late + leave_counted` (only for sessions marked `absent` covered by an approved DL/ML).
 - Wired `derive_lecture_no_from_timetable` into `attendance.py` (`create_session`, `direct_mark`) and `csv_ingest.py`; ensured `leave.py` recomputes risk & invalidates caches on both approve and reject.
 - Deliberately updated `test_leave_neutral_attendance_arithmetic` and added `test_leave_required_fixtures_dl_and_lectures_mode` in `backend/tests/integration/test_phase2_leave_condonation.py` (10/10 passed).
+
+---
+
+## Leave-Lectures & Leave-Present — Step 4: Display
+
+**Branch:** `feature/leave-lectures`
+
+### Changes
+- Added `present_count`, `dl_counted`, `ml_counted`, `leave_counted` to `CourseCardOut` (`/me/dashboard`) and `MenteeCourseOut` (`/mentor/students/{id}/courses`).
+- Enriched `/me/calendar/{year}/{month}` with `leaves` (`DL`/`ML` badges, `mode`, `lecture_nos`) and per-session `lecture_no` + `leave_type`.
+- Enriched `/attendance/students/{id}/courses/{cid}/history` with `lecture_no` and `leave_type`, and `/courses/{id}/attendance/preview` with `leave_approved_count` and per-diff `leave_type`.
+- Updated `StudentAttendance.jsx`, `StudentCourseDetail.jsx`, `StudentCalendar.jsx`, `FacultyAttendanceUpload.jsx`, and `FacultyMenteeDetail.jsx` to display the `present + DL/ML` breakdown, `"Absent, counted as DL/ML"`, calendar `DL`/`ML` badges and lecture-wise drawer list, and upload preview leave-approved counts.

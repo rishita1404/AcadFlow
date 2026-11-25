@@ -858,6 +858,30 @@ export default function StudentCalendar() {
                       </div>
                     )}
 
+                    {Array.isArray(dayData?.leaves) && dayData.leaves.length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                        {dayData.leaves.map((lv, li) => (
+                          <span
+                            key={li}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 3,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              padding: '1px 6px',
+                              borderRadius: 'var(--radius-pill)',
+                              background: lv.badge === 'DL' ? 'var(--ok-bg)' : 'var(--watch-bg)',
+                              color: lv.badge === 'DL' ? 'var(--ok-fg)' : 'var(--watch-fg)',
+                              border: '1px solid var(--border)',
+                            }}
+                          >
+                            {lv.badge === 'DL' ? '📋' : '🩺'} {lv.badge}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Indicators for classes and deadlines */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                       <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -1300,6 +1324,38 @@ export default function StudentCalendar() {
                     }}
                   >
                     University Holiday: {selectedDay.holiday_label || 'University Closed'}
+                  </div>
+                )}
+
+                {/* Approved Leave Lecture-Wise Breakdown */}
+                {((Array.isArray(selectedDay?.leaves) && selectedDay.leaves.length > 0) ||
+                  (Array.isArray(selectedDay?.sessions) && selectedDay.sessions.some(s => s.leave_type))) && (
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      background: 'var(--ok-bg)',
+                      borderRadius: 'var(--radius-input)',
+                      border: '1px solid var(--ok-fg)',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ok-fg)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                      Approved Leave
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {(selectedDay?.sessions || []).filter(s => s.leave_type).map((s, idx) => (
+                        <div key={idx} style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)' }}>
+                          Lecture {s.lecture_no || 1}, {s.course_code || s.course_name || 'Class'}, {s.leave_type} approved
+                        </div>
+                      ))}
+                      {!(selectedDay?.sessions || []).some(s => s.leave_type) && (selectedDay?.leaves || []).map((lv, idx) => (
+                        <div key={idx} style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-900)' }}>
+                          {lv.mode === 'lectures' && lv.lecture_nos?.length
+                            ? `Lectures ${lv.lecture_nos.join(', ')}, ${lv.badge} approved`
+                            : `Full day, ${lv.badge} approved`}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

@@ -98,6 +98,10 @@ class CourseCardOut(BaseModel):
     total_classes: int
     held: int
     attended: int
+    present_count: int = 0
+    dl_counted: int = 0
+    ml_counted: int = 0
+    leave_counted: int = 0
     required: Optional[int] = None
     still_need: Optional[int] = None
     remaining: Optional[int] = None
@@ -345,6 +349,8 @@ def get_dashboard(
 
             try:
                 risk_data = calculate_student_course_risk(db, user_id, cid)
+                from app.services.attendance_stats import get_student_course_attendance
+                att_breakdown = get_student_course_attendance(db, user_id, cid)
             except Exception:
                 continue
 
@@ -354,6 +360,10 @@ def get_dashboard(
             score = risk_data.get("score")
             held = risk_data.get("held", 0)
             attended = risk_data.get("attended", 0)
+            present_count = int(att_breakdown.get("present_count", 0) or 0)
+            dl_counted = int(att_breakdown.get("dl_counted", 0) or 0)
+            ml_counted = int(att_breakdown.get("ml_counted", 0) or 0)
+            leave_counted = int(att_breakdown.get("leave_counted", 0) or 0)
 
             total_held += held
             total_attended += attended
@@ -385,6 +395,10 @@ def get_dashboard(
                     total_classes=risk_data.get("total_classes", course.total_classes),
                     held=held,
                     attended=attended,
+                    present_count=present_count,
+                    dl_counted=dl_counted,
+                    ml_counted=ml_counted,
+                    leave_counted=leave_counted,
                     required=risk_data.get("required"),
                     still_need=risk_data.get("still_need"),
                     remaining=risk_data.get("remaining"),
@@ -1087,7 +1101,88 @@ def get_attendance_calendar(
     user, _ = _get_user_and_student(current_user, db)
     calendar = build_attendance_calendar(db, user.id, year, month, course_id=course_id)
 
-    # Convert dataclasses to dicts for JSON serialization
+    # Preload approved leaves for this student to attach DL/ML badges & lecture marks
+    from app.models.attendance import ClassSessionModel
+    from app.models.leave import LeaveRequestModel
+    from app.services.attendance_stats import (
+        _leave_covers_session,
+        _parse_leave_lectures,
+    )
+
+    approved_leaves = db.scalars(
+        select(LeaveRequestModel).where(
+            LeaveRequestModel.student_id == user.id,
+            LeaveRequestModel.status == "approved",
+        )
+    ).all()
+
+    session_lec_map: dict[int, int] = {}
+    all_sess_ids = [
+        s.get("session_id")
+        for d in calendar.days
+        for s in d.sessions
+        if s.get("session_id")
+    ]
+    if all_sess_ids:
+        for sid, lno in db.execute(
+            select(ClassSessionModel.id, ClassSessionModel.lecture_no).where(
+                ClassSessionModel.id.in_(all_sess_ids)
+            )
+        ).all():
+            session_lec_map[sid] = int(lno or 1)
+
+    serialized_days = []
+    for d in calendar.days:
+        d_date = date.fromisoformat(d.date)
+        day_leaves = []
+        for lv in approved_leaves:
+            if lv.date_from <= d_date <= lv.date_to:
+                day_leaves.append({
+                    "id": lv.id,
+                    "type": lv.type,
+                    "badge": "DL" if lv.type == "duty" else "ML",
+                    "mode": getattr(lv, "mode", None) or "full_day",
+                    "lecture_nos": sorted(_parse_leave_lectures(getattr(lv, "lecture_nos", None)))
+                    if (getattr(lv, "mode", None) == "lectures")
+                    else [],
+                })
+
+        enriched_sessions = []
+        for s in d.sessions:
+            s_copy = dict(s)
+            sid = s_copy.get("session_id")
+            lec_no = session_lec_map.get(sid, 1) if sid else 1
+            s_copy["lecture_no"] = lec_no
+            leave_badge = None
+            for lv in approved_leaves:
+                if _leave_covers_session(lv, d_date, lec_no):
+                    leave_badge = "DL" if lv.type == "duty" else "ML"
+                    if lv.type == "duty":
+                        break
+            s_copy["leave_type"] = leave_badge
+            enriched_sessions.append(s_copy)
+
+        serialized_days.append({
+            "date": d.date,
+            "weekday": d.weekday,
+            "is_weekend": d.is_weekend,
+            "is_institution_holiday": d.is_institution_holiday,
+            "is_student_planned_holiday": d.is_student_planned_holiday,
+            "is_holiday": getattr(d, "is_holiday", d.is_institution_holiday or d.is_student_planned_holiday),
+            "holiday_label": getattr(d, "holiday_label", None),
+            "has_class": d.has_class,
+            "attendance_status": d.attendance_status,
+            "attendance_pct_so_far": d.attendance_pct_so_far,
+            "classes_held_today": getattr(d, "classes_held_today", len(d.sessions)),
+            "classes_attended_today": getattr(d, "classes_attended_today", sum(1 for s in d.sessions if s.get("status") == "present")),
+            "attendance_ratio": getattr(d, "attendance_ratio", None),
+            "sessions": enriched_sessions,
+            "courses": enriched_sessions,
+            "leaves": day_leaves,
+            "is_past": d.is_past,
+            "is_today": d.is_today,
+        })
+
     return {
         "student_id": calendar.student_id,
         "year": calendar.year,
@@ -1096,28 +1191,7 @@ def get_attendance_calendar(
         "total_held_so_far": calendar.total_held_so_far,
         "total_attended_so_far": calendar.total_attended_so_far,
         "monthly_attendance_pct": calendar.monthly_attendance_pct,
-        "days": [
-            {
-                "date": d.date,
-                "weekday": d.weekday,
-                "is_weekend": d.is_weekend,
-                "is_institution_holiday": d.is_institution_holiday,
-                "is_student_planned_holiday": d.is_student_planned_holiday,
-                "is_holiday": getattr(d, "is_holiday", d.is_institution_holiday or d.is_student_planned_holiday),
-                "holiday_label": getattr(d, "holiday_label", None),
-                "has_class": d.has_class,
-                "attendance_status": d.attendance_status,
-                "attendance_pct_so_far": d.attendance_pct_so_far,
-                "classes_held_today": getattr(d, "classes_held_today", len(d.sessions)),
-                "classes_attended_today": getattr(d, "classes_attended_today", sum(1 for s in d.sessions if s.get("status") == "present")),
-                "attendance_ratio": getattr(d, "attendance_ratio", None),
-                "sessions": d.sessions,
-                "courses": getattr(d, "courses", d.sessions),
-                "is_past": d.is_past,
-                "is_today": d.is_today,
-            }
-            for d in calendar.days
-        ],
+        "days": serialized_days,
     }
 
 
